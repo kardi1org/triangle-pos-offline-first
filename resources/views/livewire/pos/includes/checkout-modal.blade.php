@@ -38,11 +38,18 @@
                             const debitcard = document.getElementById('debitcard');
                             const creditcard = document.getElementById('creditcard');
                             const gopay = document.getElementById('gopay');
+                            const ovo = document.getElementById('ovo');
+                            const shopeepay = document.getElementById('shopeepay');
+                            const kredivo = document.getElementById('kredivo');
+                            const dana = document.getElementById('dana');
+                            const grabpay = document.getElementById('grabpay');
+                            const qris = document.getElementById('qris');
 
                             // Update kembalian's value with cash's value
                             kembalian.value = parseInt(cash.value) + parseInt(debitcard.value) + parseInt(creditcard.value) + parseInt(gopay
-                                .value) - parseInt(
-                                total_amount.value);
+                                    .value) +
+                                parseInt(ovo.value) + parseInt(shopeepay.value) + parseInt(kredivo.value) + parseInt(dana.value) + parseInt(
+                                    grabpay.value) + parseInt(qris.value) - parseInt(total_amount.value);
                         }
                     </script>
 
