@@ -98,8 +98,6 @@
                                         <label for="paid_amount">Kembalian <span class="text-danger">*</span></label>
                                         <input type="number" id="kembalian" name="kembalian"
                                             class="form-control"></input>
-                                        {{-- <input type="text" name="paid_amount" wire:model.blur="paid_amount"
-                                            class="form-control" value="{{ $total_amount }}"></input> --}}
                                     </div>
                                 </div>
                             </div>
