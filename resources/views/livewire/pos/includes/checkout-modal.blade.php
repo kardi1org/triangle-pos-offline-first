@@ -35,6 +35,7 @@
                             const cash = document.getElementById('cash');
                             const kembalian = document.getElementById('kembalian');
                             const total_amount = document.getElementById('total_amount');
+                            const total_receipt = document.getElementById('total_receipt');
                             const debitcard = document.getElementById('debitcard');
                             const creditcard = document.getElementById('creditcard');
                             const gopay = document.getElementById('gopay');
@@ -44,12 +45,14 @@
                             const dana = document.getElementById('dana');
                             const grabpay = document.getElementById('grabpay');
                             const qris = document.getElementById('qris');
-
-                            // Update kembalian's value with cash's value
-                            kembalian.value = parseInt(cash.value) + parseInt(debitcard.value) + parseInt(creditcard.value) + parseInt(gopay
+                            // total receipt
+                            total_receipt.value = parseInt(cash.value) + parseInt(debitcard.value) + parseInt(creditcard.value) + parseInt(
+                                    gopay
                                     .value) +
                                 parseInt(ovo.value) + parseInt(shopeepay.value) + parseInt(kredivo.value) + parseInt(dana.value) + parseInt(
-                                    grabpay.value) + parseInt(qris.value) - parseInt(total_amount.value);
+                                    grabpay.value) + parseInt(qris.value)
+                            // Update kembalian's value with cash's value
+                            kembalian.value = total_receipt.value - parseInt(total_amount.value);
                         }
                     </script>
 
@@ -86,6 +89,13 @@
                                     <div class="form-group">
                                         <label for="paid_amount">Received Amount <span
                                                 class="text-danger">*</span></label>
+                                        <input type="number" id="total_receipt" name="total_receipt"
+                                            class="form-control"></input>
+                                        {{-- <input type="text" name="paid_amount" wire:model.blur="paid_amount"
+                                            class="form-control" value="{{ $total_amount }}"></input> --}}
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="paid_amount">Kembalian <span class="text-danger">*</span></label>
                                         <input type="number" id="kembalian" name="kembalian"
                                             class="form-control"></input>
                                         {{-- <input type="text" name="paid_amount" wire:model.blur="paid_amount"
@@ -136,8 +146,8 @@
                                                     <td>Go Pay</td>
                                                     <td>
                                                         <input type="number" id="gopay" name="gopay"
-                                                            onchange="updatekembalian()" height="30px" width="100px"
-                                                            class="form-control"
+                                                            onchange="updatekembalian()" height="30px"
+                                                            width="100px" class="form-control"
                                                             onblur="if (this.value == '') {this.value = 0;}"
                                                             onfocus="if (this.value == 0) {this.value = '';}"
                                                             value=0></input>
