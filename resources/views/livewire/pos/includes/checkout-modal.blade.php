@@ -37,9 +37,11 @@
                             const total_amount = document.getElementById('total_amount');
                             const debitcard = document.getElementById('debitcard');
                             const creditcard = document.getElementById('creditcard');
+                            const gopay = document.getElementById('gopay');
 
                             // Update kembalian's value with cash's value
-                            kembalian.value = parseInt(cash.value) + parseInt(debitcard.value) + parseInt(creditcard.value) - parseInt(
+                            kembalian.value = parseInt(cash.value) + parseInt(debitcard.value) + parseInt(creditcard.value) + parseInt(gopay
+                                .value) - parseInt(
                                 total_amount.value);
                         }
                     </script>
@@ -126,8 +128,12 @@
                                                 <tr>
                                                     <td>Go Pay</td>
                                                     <td>
-                                                        <input type="text" name="txtgopay" wire:model.blur="txtgopay"
-                                                            height="30px" width="100px" class="form-control"></input>
+                                                        <input type="number" id="gopay" name="gopay"
+                                                            onchange="updatekembalian()" height="30px" width="100px"
+                                                            class="form-control"
+                                                            onblur="if (this.value == '') {this.value = 0;}"
+                                                            onfocus="if (this.value == 0) {this.value = '';}"
+                                                            value=0></input>
                                                     </td>
                                                 </tr>
                                             </div>
@@ -148,9 +154,12 @@
                                                 <tr>
                                                     <td>OVO</td>
                                                     <td>
-                                                        <input type="text" name="txtovo" wire:model.blur="txtovo"
-                                                            height="30px" width="100px"
-                                                            class="form-control"></input>
+                                                        <input type="number" id="ovo" name="ovo"
+                                                            onchange="updatekembalian()" height="30px"
+                                                            width="100px" class="form-control"
+                                                            onblur="if (this.value == '') {this.value = 0;}"
+                                                            onfocus="if (this.value == 0) {this.value = '';}"
+                                                            value=0></input>
                                                     </td>
                                                 </tr>
                                             </div>
@@ -160,9 +169,12 @@
                                                 <tr>
                                                     <td>Shopee Pay</td>
                                                     <td>
-                                                        <input type="text" name="txtshopeepay"
-                                                            wire:model.blur="txtshopeepay" height="30px"
-                                                            width="100px" class="form-control"></input>
+                                                        <input type="number" id="shopeepay" name="shopeepay"
+                                                            onchange="updatekembalian()" height="30px"
+                                                            width="100px" class="form-control"
+                                                            onblur="if (this.value == '') {this.value = 0;}"
+                                                            onfocus="if (this.value == 0) {this.value = '';}"
+                                                            value=0></input>
                                                     </td>
                                                 </tr>
                                             </div>
@@ -170,9 +182,12 @@
                                                 <tr>
                                                     <td>Kredivo</td>
                                                     <td>
-                                                        <input type="text" name="txtkredivo"
-                                                            wire:model.blur="txtkredivo" height="30px"
-                                                            width="100px" class="form-control"></input>
+                                                        <input type="number" id="kredivo" name="kredivo"
+                                                            onchange="updatekembalian()" height="30px"
+                                                            width="100px" class="form-control"
+                                                            onblur="if (this.value == '') {this.value = 0;}"
+                                                            onfocus="if (this.value == 0) {this.value = '';}"
+                                                            value=0></input>
                                                     </td>
                                                 </tr>
                                             </div>
@@ -180,9 +195,12 @@
                                                 <tr>
                                                     <td>Dana</td>
                                                     <td>
-                                                        <input type="text" name="txtdana"
-                                                            wire:model.blur="txtdana" height="30px" width="100px"
-                                                            class="form-control"></input>
+                                                        <input type="number" id="dana" name="dana"
+                                                            onchange="updatekembalian()" height="30px"
+                                                            width="100px" class="form-control"
+                                                            onblur="if (this.value == '') {this.value = 0;}"
+                                                            onfocus="if (this.value == 0) {this.value = '';}"
+                                                            value=0></input>
                                                     </td>
                                                 </tr>
                                             </div>
@@ -190,9 +208,12 @@
                                                 <tr>
                                                     <td>Grab Pay</td>
                                                     <td>
-                                                        <input type="text" name="txtgrabpay"
-                                                            wire:model.blur="txtgrabpay" height="30px"
-                                                            width="100px" class="form-control"></input>
+                                                        <input type="number" id="grabpay" name="grabpay"
+                                                            onchange="updatekembalian()" height="30px"
+                                                            width="100px" class="form-control"
+                                                            onblur="if (this.value == '') {this.value = 0;}"
+                                                            onfocus="if (this.value == 0) {this.value = '';}"
+                                                            value=0></input>
                                                     </td>
                                                 </tr>
                                             </div>
@@ -200,9 +221,12 @@
                                                 <tr>
                                                     <td>QRIS</td>
                                                     <td>
-                                                        <input type="text" name="txtqris"
-                                                            wire:model.blur="txtqris" height="30px" width="100px"
-                                                            class="form-control"></input>
+                                                        <input type="number" id="qris" name="qris"
+                                                            onchange="updatekembalian()" height="30px"
+                                                            width="100px" class="form-control"
+                                                            onblur="if (this.value == '') {this.value = 0;}"
+                                                            onfocus="if (this.value == 0) {this.value = '';}"
+                                                            value=0></input>
                                                     </td>
                                                 </tr>
                                             </div>
