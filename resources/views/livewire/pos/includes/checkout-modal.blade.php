@@ -250,60 +250,9 @@
                                         </div>
                                     </div>
                                 </div>
-                                {{-- <table class="col-lg-6">
-                                  <tr>
-                                    <td>Cash</td>
-                                    <td>
-                                        <input type="text" name="txtcash" wire:model.blur="txtcash" height="30px" width="55px" class="form-control"></input>
-                                    </td>
-                                  </tr>
-                                </table>
-                                <table class="col-lg-6">
-                                </table>    --}}
+
                             </div>
-                            {{-- --------------------------Add by Chris------------------------- --}}
-                            {{-- <div class="form-group"><label for="note">Cash</label>
-                                <input type="text" name="txtcash" wire:model.blur="txtcash" class="form-control"></input>
-                              </div> --}}
-                            {{-- <table class="table">
-                                <tr>
-                                <th>Cash</th>
-                                <td>
-                                    <input type="text" name="txtcash" wire:model.blur="txtcash" class="form-control"></input>
-                                </td>
-                               </tr> <button type="button" color="#fff" data-dismiss="modal">
-                               <tr>
-                                <td>
-                                    {{-- <img class="c-sidebar-brand-full" src="{{ asset('images/qris.png') }}" alt="Site Logo" width="55px">&nbsp;&nbsp;
-                                    <img class="c-sidebar-brand-full" src="{{ asset('images/gopay.png') }}" alt="Site Logo" width="55px">&nbsp;&nbsp;
-                                    <img class="c-sidebar-brand-full" src="{{ asset('images/ovo.png') }}" alt="Site Logo" width="55px"> --}}
-                            {{-- <button type="button" color="#fff" data-dismiss="modal">
-                                        <img class="c-sidebar-brand-full" src="{{ asset('images/qris.png') }}" alt="Site Logo" width="55px">
-                                    </button> --}}
-                            {{-- <button type="button" color="#fff" data-dismiss="modal">
-                                        <img class="c-sidebar-brand-full" src="{{ asset('images/gopay.png') }}" alt="Site Logo" height="30px" width="55px">
-                                    </button>
-                                    <button type="button" color="#fff" data-dismiss="modal">
-                                        <img class="c-sidebar-brand-full" src="{{ asset('images/ovo.png') }}" alt="Site Logo" height="30px" width="55px">
-                                    </button>
-                                    <button type="button" color="#fff" data-dismiss="modal">
-                                        <img class="c-sidebar-brand-full" src="{{ asset('images/shopeepay.png') }}" alt="Site Logo" height="30px" width="55px">
-                                    </button>
-                                    <button type="button" color="#fff" data-dismiss="modal">
-                                        <img class="c-sidebar-brand-full" src="{{ asset('images/dana.png') }}" alt="Site Logo" height="30px" width="55px">
-                                    </button>
-                                    <button type="button" color="#fff" data-dismiss="modal">
-                                        <img class="c-sidebar-brand-full" src="{{ asset('images/kredivo.png') }}" alt="Site Logo" height="30px" width="55px">
-                                    </button>
-                                </td>
-                               </tr>
-                              </table> --}}
-                            {{-- --------------------------------------------------------------- --}}
-                            {{-- </div> --}}
-                            {{-- <div class="form-group">
-                                <label for="note">Note (If Needed)</label>
-                                <textarea name="note" id="note" rows="5" class="form-control"></textarea>
-                            </div> --}}
+
                         </div>
                         <div class="col-lg-5">
                             <div class="table-responsive">
