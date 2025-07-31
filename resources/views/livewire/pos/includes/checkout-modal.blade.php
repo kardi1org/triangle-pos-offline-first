@@ -56,10 +56,7 @@
                     </script>
 
                     <div class="row">
-                        <div class="col-lg-7"> {{-- ==> Ini script yg asli --}}
-                            {{-- <div class="col-lg-10"> --}}
-                            {{-- <div class="col-lg-8">  --}}
-                            {{--   <input type="hidden" value="{{ $customer_id }}" name="customer_id"> --}}
+                        <div class="col-lg-7">
                             <input type="hidden" value="{{ $customer_name }}" name="customer_name">
                             <input type="hidden" value="{{ $global_tax }}" name="tax_percentage">
                             <input type="hidden" value="{{ $global_discount }}" name="discount_percentage">
