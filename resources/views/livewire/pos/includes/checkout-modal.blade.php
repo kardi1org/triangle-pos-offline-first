@@ -45,7 +45,6 @@
                             const dana = document.getElementById('dana');
                             const grabpay = document.getElementById('grabpay');
                             const qris = document.getElementById('qris');
-                            // total receipt
                             total_receipt.value = parseInt(cash.value) + parseInt(debitcard.value) + parseInt(creditcard.value) + parseInt(
                                     gopay
                                     .value) +
