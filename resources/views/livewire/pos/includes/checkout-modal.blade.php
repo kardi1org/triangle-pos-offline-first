@@ -123,9 +123,9 @@
                                                 <tr>
                                                     <td>Debit Card</td>
                                                     <td>
-                                                        <input type="number" name="debitcard"
-                                                            onchange="updatekembalian()" id="debitcard" height="30px"
-                                                            width="100px" class="form-control"
+                                                        <input type="number" id="debitcard" name="debitcard"
+                                                            onchange="updatekembalian()" height="30px" width="100px"
+                                                            class="form-control"
                                                             onblur="if (this.value == '') {this.value = 0;}"
                                                             onfocus="if (this.value == 0) {this.value = '';}"
                                                             value=0></input>
