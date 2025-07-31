@@ -73,13 +73,11 @@ class Checkout extends Component
 
     public function proceed()
     {
-        //  if ($this->customer_id != null) {
-        if ($this->customer_name != null) {
-            $this->dispatch('showCheckoutModal');
-        } else {
-            //  session()->flash('message', 'Please Select Customer !');
-            session()->flash('message', 'Please Customer Name !');
-        }
+        //if ($this->customer_name != null) {
+        $this->dispatch('showCheckoutModal');
+        //} else {
+        //session()->flash('message', 'Please Customer Name !');
+        //}
     }
 
     public function saveOrder()
