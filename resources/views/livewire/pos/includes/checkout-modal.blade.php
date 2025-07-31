@@ -64,10 +64,6 @@
                             <div class="form-row">
                                 <div class="col-lg-6">
                                     <div class="form-group">
-                                        {{-- @php
-                                            $sub_total = $total_amount  //Cart::instance($cart_instance)->total()
-                                            $this->$sub_total = $this->calculateTotal();
-                                        @endphp --}}
                                         <label for="total_amount">Total Amount <span
                                                 class="text-danger">*</span></label>
                                         <input type="hidden" name="total_amount" id="total_amount" class="form-control"
