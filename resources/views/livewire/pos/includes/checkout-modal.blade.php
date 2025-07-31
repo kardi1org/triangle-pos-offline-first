@@ -45,7 +45,6 @@
                             const dana = document.getElementById('dana');
                             const grabpay = document.getElementById('grabpay');
                             const qris = document.getElementById('qris');
-                            // total receipt
                             total_receipt.value = parseInt(cash.value) + parseInt(debitcard.value) + parseInt(creditcard.value) + parseInt(
                                     gopay
                                     .value) +
@@ -57,10 +56,7 @@
                     </script>
 
                     <div class="row">
-                        <div class="col-lg-7"> {{-- ==> Ini script yg asli --}}
-                            {{-- <div class="col-lg-10"> --}}
-                            {{-- <div class="col-lg-8">  --}}
-                            {{--   <input type="hidden" value="{{ $customer_id }}" name="customer_id"> --}}
+                        <div class="col-lg-7">
                             <input type="hidden" value="{{ $customer_name }}" name="customer_name">
                             <input type="hidden" value="{{ $global_tax }}" name="tax_percentage">
                             <input type="hidden" value="{{ $global_discount }}" name="discount_percentage">
@@ -123,9 +119,9 @@
                                                 <tr>
                                                     <td>Debit Card</td>
                                                     <td>
-                                                        <input type="number" name="debitcard"
-                                                            onchange="updatekembalian()" id="debitcard" height="30px"
-                                                            width="100px" class="form-control"
+                                                        <input type="number" id="debitcard" name="debitcard"
+                                                            onchange="updatekembalian()" height="30px" width="100px"
+                                                            class="form-control"
                                                             onblur="if (this.value == '') {this.value = 0;}"
                                                             onfocus="if (this.value == 0) {this.value = '';}"
                                                             value=0></input>

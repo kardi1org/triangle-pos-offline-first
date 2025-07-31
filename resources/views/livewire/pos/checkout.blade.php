@@ -20,17 +20,6 @@
                     <div class="form-group">
                         <label for="customer_id">Customer Name<span class="text-danger"> *</span></label>
                         <div class="input-group">
-                            {{-- <div class="input-group-prepend">
-                            <a href="{{ route('customers.create') }}" class="btn btn-primary">
-                                <i class="bi bi-person-plus"></i>
-                            </a>
-                        </div> --}}
-                            {{-- <select wire:model.live="customer_id" id="customer_id" class="form-control">
-                            <option value="" selected>Select Customer</option>
-                            @foreach ($customers as $customer)
-                                <option value="{{ $customer->id }}">{{ $customer->customer_name }}</option>
-                            @endforeach
-                        </select> --}}
                             <input type="text" id="customer_name" name="customer_name"
                                 wire:model.blur="customer_name" class="form-control"></input>
                         </div>
