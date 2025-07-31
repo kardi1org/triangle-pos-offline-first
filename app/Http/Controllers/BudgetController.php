@@ -20,8 +20,8 @@ use Illuminate\View\View;
 class BudgetController extends Controller
 {
 
-    // test command
     // public function index()
+    //commen
     // {
     //     return view('budget/index');
     //     //echo 'Hello World';
