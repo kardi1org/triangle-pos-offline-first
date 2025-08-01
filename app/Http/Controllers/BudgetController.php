@@ -23,7 +23,7 @@ class BudgetController extends Controller
     // public function index()
     // {
     //     return view('budget/index');
-    //     //echo 'Hello World';
+    //     //echo 'Hello World ok';
     // }
 
     public function index(BudgetsDataTable $dataTable)
