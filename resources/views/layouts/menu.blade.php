@@ -201,43 +201,43 @@
     </li>
 @endcan
 
-{{-- @can('access_expenses') --}}
-<li
-    class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('budget.*') || request()->routeIs('budget-categories.*') || request()->routeIs('Inventories.*') ? 'c-show' : '' }}">
-    <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
-        <i class="c-sidebar-nav-icon bi bi-graph-up" style="line-height: 1;"></i> Budget
-    </a>
-    <ul class="c-sidebar-nav-dropdown-items pl-2">
+@can('access_expenses')
+    <li
+        class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('budget.*') || request()->routeIs('budget-categories.*') || request()->routeIs('Inventories.*') ? 'c-show' : '' }}">
+        <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+            <i class="c-sidebar-nav-icon bi bi-graph-up" style="line-height: 1;"></i> Budget
+        </a>
+        <ul class="c-sidebar-nav-dropdown-items pl-2">
 
-        @can('create_expenses')
+            @can('create_expenses')
+                <li class="c-sidebar-nav-item ">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('budget.create') ? 'c-active' : '' }}"
+                        href="{{ route('budget.create') }}">
+                        <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Budget Cash
+                    </a>
+                </li>
+            @endcan
             <li class="c-sidebar-nav-item ">
-                <a class="c-sidebar-nav-link {{ request()->routeIs('budget.create') ? 'c-active' : '' }}"
-                    href="{{ route('budget.create') }}">
-                    <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Budget Cash
+                <a class="c-sidebar-nav-link {{ request()->routeIs('budget.index') ? 'c-active' : '' }}"
+                    href="{{ route('budget.index') }}">
+                    <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Budget Cash
                 </a>
             </li>
-        @endcan
-        <li class="c-sidebar-nav-item ">
-            <a class="c-sidebar-nav-link {{ request()->routeIs('budget.index') ? 'c-active' : '' }}"
-                href="{{ route('budget.index') }}">
-                <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Budget Cash
-            </a>
-        </li>
-        <li class="c-sidebar-nav-item ">
-            <a class="c-sidebar-nav-link {{ request()->routeIs('Inventories.create') ? 'c-active' : '' }}"
-                href="{{ route('Inventories.create') }}">
-                <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Inventory
-            </a>
-        </li>
-        <li class="c-sidebar-nav-item ">
-            <a class="c-sidebar-nav-link {{ request()->routeIs('inventories.index') ? 'c-active' : '' }}"
-                href="{{ route('Inventories.index') }}">
-                <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Inventory
-            </a>
-        </li>
-    </ul>
-</li>
-{{-- @endcan --}}
+            <li class="c-sidebar-nav-item ">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('Inventories.create') ? 'c-active' : '' }}"
+                    href="{{ route('Inventories.create') }}">
+                    <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Inventory
+                </a>
+            </li>
+            <li class="c-sidebar-nav-item ">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('inventories.index') ? 'c-active' : '' }}"
+                    href="{{ route('Inventories.index') }}">
+                    <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Inventory
+                </a>
+            </li>
+        </ul>
+    </li>
+@endcan
 
 @can('access_expenses')
     <li

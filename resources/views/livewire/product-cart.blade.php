@@ -21,7 +21,9 @@
                 <thead class="thead-dark">
                     <tr>
                         <th class="align-middle">Product</th>
+                        {{-- @if ($cart_instance !== 'Inventory') --}}
                         <th class="align-middle text-center">Net Unit Price</th>
+                        {{-- @endif --}}
                         <th class="align-middle text-center">Stock</th>
                         <th class="align-middle text-center">Quantity</th>
                         <th class="align-middle text-center">Discount</th>
@@ -41,7 +43,7 @@
                                     </span>
                                     @include('livewire.includes.product-cart-modal')
                                 </td>
-
+                                {{-- @if ($cart_instance !== 'Inventory') --}}
                                 <td x-data="{ open{{ $cart_item->id }}: false }" class="align-middle text-center">
                                     <span x-show="!open{{ $cart_item->id }}"
                                         @click="open{{ $cart_item->id }} = !open{{ $cart_item->id }}">{{ format_currency($cart_item->price) }}</span>
@@ -50,7 +52,7 @@
                                         @include('livewire.includes.product-cart-price')
                                     </div>
                                 </td>
-
+                                {{-- @endif --}}
                                 <td class="align-middle text-center text-center">
                                     <span
                                         class="badge badge-info">{{ $cart_item->options->stock . ' ' . $cart_item->options->unit }}</span>

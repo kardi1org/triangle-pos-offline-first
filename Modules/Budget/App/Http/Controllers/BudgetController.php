@@ -34,6 +34,8 @@ class BudgetController extends Controller
 
     public function create()
     {
+        //abort_if(Gate::denies('create_budget'), 403);
+
         return view('budget.create');
         //echo 'Hello World';
     }
@@ -55,7 +57,7 @@ class BudgetController extends Controller
         ]);
 
         //redirect to index
-        toast('Buadget Sales Created!', 'success');
+        toast('Budget Sales Created!', 'success');
 
         return redirect()->route('budget.create');
     }
