@@ -14,5 +14,6 @@
 Route::group(['middleware' => 'auth'], function () {
 
     //Budget
+    Route::get('/budget', 'BudgetController@index');
     Route::resource('budget', 'BudgetController')->except('show');
 });

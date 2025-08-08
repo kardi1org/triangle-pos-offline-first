@@ -8,7 +8,7 @@
 
 # Local Installation
 
--   run `git clone https://github.com/FahimAnzamDip/triangle-pos.git`
+-   run `git clone https://github.com/kardi1org/triangle-pos-main-NEW.git`
 -   run `composer install `
 -   run `npm install`
 -   run `npm run dev`
@@ -76,4 +76,5 @@ Using version ^4.1 for rawilk/laravel-printing
    php artisan vendor:publish --tag="printing-config"
    Copying file [D:\Chris\Laravel\triangle-pos-main (NEW)\vendor\rawilk\laravel-printing\config\printing.php]
    to [D:\Chris\Laravel\triangle-pos-main (NEW)\config\printing.php]
+
 # triangle-pos-main-NEW
