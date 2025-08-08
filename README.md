@@ -8,8 +8,6 @@
 
 # Local Installation
 
-Test 4
-
 -   run `git clone https://github.com/kardi1org/triangle-pos-main-NEW.git`
 -   run `composer install `
 -   run `npm install`
