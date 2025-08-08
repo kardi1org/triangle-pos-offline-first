@@ -7,7 +7,7 @@
 > **Important Note:** This Project is ready for Production. But use code from main branch only. If you find any bug or have any suggestion please create an Issue.
 
 # Local Installation
-
+Test 1
 -   run `git clone https://github.com/kardi1org/triangle-pos-main-NEW.git`
 -   run `composer install `
 -   run `npm install`
