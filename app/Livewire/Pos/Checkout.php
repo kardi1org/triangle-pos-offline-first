@@ -41,8 +41,10 @@ class Checkout extends Component
     public $total_amount;
     public $prevQty;
     public $cash;
+    public $payments;
+    public $qty1;
 
-    public function mount($cartInstance, $customers)
+    public function mount($cartInstance, $customers, $payments)
     {
         $this->cart_instance = $cartInstance;
         $this->customers = $customers;
@@ -55,6 +57,7 @@ class Checkout extends Component
         $this->item_discount = [];
         $this->total_amount = 0;
         $this->cash = 4000;
+        $this->payments = $payments;
     }
 
     public function hydrate()
@@ -180,39 +183,66 @@ class Checkout extends Component
     {
         $cart = Cart::instance($this->cart_instance);
 
+        // Cek apakah produk sudah ada di cart
         $exists = $cart->search(function ($cartItem, $rowId) use ($product) {
             return $cartItem->id == $product['id'];
         });
 
         if ($exists->isNotEmpty()) {
-            session()->flash('message', 'Product exists in the cart!');
-            return;
+            $rowId = $exists->first()->rowId;
+            $cartItem = $cart->get($rowId);
+
+            $newQty = $cartItem->qty + 1;
+
+            if ($newQty > $product['product_quantity']) {
+                session()->flash('message', 'Stok tidak cukup untuk ' . $product['product_name']);
+                return;
+            }
+
+            $cart->update($rowId, $newQty);
+
+            $cart->update($rowId, [
+                'options' => [
+                    'sub_total'             => $cartItem->price * $newQty,
+                    'code'                  => $cartItem->options->code,
+                    'stock'                 => $cartItem->options->stock,
+                    'unit'                  => $cartItem->options->unit,
+                    'product_tax'           => $cartItem->options->product_tax,
+                    'unit_price'            => $cartItem->options->unit_price,
+                    'product_discount'      => $cartItem->options->product_discount,
+                    'product_discount_type' => $cartItem->options->product_discount_type,
+                ]
+            ]);
+        } else {
+            $cart->add([
+                'id'      => $product['id'],
+                'name'    => $product['product_name'],
+                'qty'     => 1,
+                'price'   => $this->calculate($product)['price'],
+                'weight'  => 1,
+                'options' => [
+                    'product_discount'      => 0.00,
+                    'product_discount_type' => 'fixed',
+                    'sub_total'             => $this->calculate($product)['sub_total'],
+                    'code'                  => $product['product_code'],
+                    'stock'                 => $product['product_quantity'],
+                    'unit'                  => $product['product_unit'],
+                    'product_tax'           => $this->calculate($product)['product_tax'],
+                    'unit_price'            => $this->calculate($product)['unit_price'],
+                ]
+            ]);
         }
 
-        $cart->add([
-            'id'      => $product['id'],
-            'name'    => $product['product_name'],
-            'qty'     => 1,
-            'price'   => $this->calculate($product)['price'],
-            'weight'  => 1,
-            'options' => [
-                'product_discount'      => 0.00,
-                'product_discount_type' => 'fixed',
-                'sub_total'             => $this->calculate($product)['sub_total'],
-                'code'                  => $product['product_code'],
-                'stock'                 => $product['product_quantity'],
-                'unit'                  => $product['product_unit'],
-                'product_tax'           => $this->calculate($product)['product_tax'],
-                'unit_price'            => $this->calculate($product)['unit_price']
-            ]
-        ]);
-
         $this->check_quantity[$product['id']] = $product['product_quantity'];
-        $this->quantity[$product['id']] = 1;
+        $this->quantity[$product['id']] = isset($this->quantity[$product['id']])
+            ? $this->quantity[$product['id']] + 1
+            : 1;
         $this->discount_type[$product['id']] = 'fixed';
         $this->item_discount[$product['id']] = 0;
+
         $this->total_amount = $this->calculateTotal();
     }
+
 
     public function removeItem($row_id)
     {
@@ -229,18 +259,23 @@ class Checkout extends Component
         Cart::instance($this->cart_instance)->setGlobalDiscount((int)$this->global_discount);
     }
 
-    public function updateQuantityPlus($row_id, $product_id)
+
+
+    public function updateQuantity($row_id, $product_id)
     {
         if ($this->check_quantity[$product_id] < $this->quantity[$product_id]) {
             session()->flash('message', 'The requested quantity is not available in stock.');
+
             return;
         }
 
-        //$this->quantity[$product_id] = $this->quantity[$product_id] + 1; //==> Add by Chris
-        $lastQty = $this->quantity[$product_id] = $this->quantity[$product_id] + 1;
+        if ($this->quantity[$product_id] < 1) {
+            session()->flash('message', 'The requested quantity must be greater than 0.');
 
-        // Cart::instance($this->cart_instance)->update($row_id, $this->quantity[$product_id]);
-        Cart::instance($this->cart_instance)->update($row_id, $lastQty); //==> Add by Chris
+            return;
+        }
+
+        Cart::instance($this->cart_instance)->update($row_id, $this->quantity[$product_id]);
 
         $cart_item = Cart::instance($this->cart_instance)->get($row_id);
 
@@ -257,37 +292,6 @@ class Checkout extends Component
             ]
         ]);
     }
-    //-----------------------------------Add by Chris----------------------------------------------------------/
-    public function updateQuantityMin($row_id, $product_id)
-    {
-        if ($this->check_quantity[$product_id] < $this->quantity[$product_id]) {
-            session()->flash('message', 'The requested quantity is not available in stock.');
-            return;
-        }
-
-        //   $prevQty = $this->quantity[$product_id] = $this->quantity[$product_id] - 1;
-        $prevQty =  $this->quantity[$product_id] - 1;
-        if ($prevQty > 0) {
-            $this->quantity[$product_id] = $prevQty;
-            //  Cart::instance($this->cart_instance)->update($row_id, $this->quantity[$product_id]);
-            Cart::instance($this->cart_instance)->update($row_id,  $prevQty);
-            $cart_item = Cart::instance($this->cart_instance)->get($row_id);
-
-            Cart::instance($this->cart_instance)->update($row_id, [
-                'options' => [
-                    'sub_total'             => $cart_item->price * $cart_item->qty,
-                    'code'                  => $cart_item->options->code,
-                    'stock'                 => $cart_item->options->stock,
-                    'unit'                  => $cart_item->options->unit,
-                    'product_tax'           => $cart_item->options->product_tax,
-                    'unit_price'            => $cart_item->options->unit_price,
-                    'product_discount'      => $cart_item->options->product_discount,
-                    'product_discount_type' => $cart_item->options->product_discount_type,
-                ]
-            ]);
-        }
-    }
-    //---------------------------------------------------------------------------------------------/
 
     public function updatedDiscountType($value, $name)
     {
@@ -365,5 +369,51 @@ class Checkout extends Component
             'product_discount'      => $discount_amount,
             'product_discount_type' => $this->discount_type[$product_id],
         ]]);
+    }
+
+    public function updateQuantityPlus($row_id, $product_id)
+    {
+        $cart = Cart::instance($this->cart_instance);
+
+        // Cari rowId yang valid berdasarkan product_id
+        $cart_item = $cart->search(fn ($item) => $item->id == $product_id)->first();
+
+        if (!$cart_item) {
+            return; // Item tidak ditemukan (mungkin sedang dihapus / race condition)
+        }
+
+        $newQty = ($this->quantity[$product_id] ?? $cart_item->qty) + 1;
+
+        // Cek stok
+        if ($cart_item->options->stock < $newQty) {
+            session()->flash('message', 'Stok tidak mencukupi untuk produk ini.');
+            return;
+        }
+
+        // Update qty
+        $cart->update($cart_item->rowId, $newQty);
+
+        // Update data Livewire
+        $this->quantity[$product_id] = $newQty;
+        $this->total_amount = $this->calculateTotal();
+    }
+
+
+    public function updateQuantityMin($row_id, $product_id)
+    {
+        $cart = Cart::instance($this->cart_instance);
+
+        $cart_item = $cart->search(fn ($item) => $item->id == $product_id)->first();
+
+        if (!$cart_item) {
+            return;
+        }
+
+        $newQty = max(1, ($this->quantity[$product_id] ?? $cart_item->qty) - 1);
+
+        $cart->update($cart_item->rowId, $newQty);
+
+        $this->quantity[$product_id] = $newQty;
+        $this->total_amount = $this->calculateTotal();
     }
 }

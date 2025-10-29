@@ -36,7 +36,8 @@
                                 <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="amount">Amount <span class="text-danger">*</span></label>
-                                        <input id="amount" type="text" class="form-control" name="amount" required>
+                                        <input id="amount" type="number" class="form-control" name="amount"
+                                            min="0" step="0.01" required>
                                     </div>
                                 </div>
                             </div>
@@ -57,12 +58,13 @@
 
 @push('page_scripts')
     <script src="{{ asset('js/jquery-mask-money.js') }}"></script>
-    <script>
+    {{-- <script>
         $(document).ready(function() {
             $('#amount').maskMoney({
                 prefix: '{{ settings()->currency->symbol }}',
                 thousands: '{{ settings()->currency->thousand_separator }}',
                 decimal: '{{ settings()->currency->decimal_separator }}',
+                //precision: 0,
             });
 
             $('#budget-form').submit(function() {
@@ -70,5 +72,5 @@
                 $('#amount').val(amount);
             });
         });
-    </script>
+    </script> --}}
 @endpush

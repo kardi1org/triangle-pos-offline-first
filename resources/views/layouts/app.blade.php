@@ -11,15 +11,30 @@
     <link rel="icon" href="{{ asset('images/favicon.png') }}">
 
     @include('includes.main-css')
+
+    <style>
+        /* Chrome, Safari, Edge, Opera */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Firefox */
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
 </head>
 
 <body class="c-app">
     @include('layouts.sidebar')
 
     <div class="c-wrapper">
-        <header class="c-header c-header-light c-header-fixed">
+        <header class="c-header c-header-light">
             @include('layouts.header')
-            <div class="c-subheader justify-content-between px-3">
+            <div class="c-subheader justify-content-between px-3 d-md-down-none"
+                data-class="c-sidebar-lg-show"responsive="true">
                 @yield('breadcrumb')
             </div>
         </header>

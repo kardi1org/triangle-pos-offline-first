@@ -37,8 +37,8 @@
                                 <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="amount">Amount <span class="text-danger">*</span></label>
-                                        <input id="amount" type="text" class="form-control" name="amount" required
-                                            value="{{ $budget->amount }}">
+                                        <input id="amount" type="number" class="form-control" name="amount"
+                                            min="0" step="0.01" required value="{{ $budget->amount }}">
                                     </div>
                                 </div>
                             </div>
@@ -57,7 +57,7 @@
 
 @push('page_scripts')
     <script src="{{ asset('js/jquery-mask-money.js') }}"></script>
-    <script>
+    {{-- <script>
         $(document).ready(function() {
             $('#amount').maskMoney({
                 prefix: '{{ settings()->currency->symbol }}',
@@ -72,5 +72,5 @@
                 $('#amount').val(amount);
             });
         });
-    </script>
+    </script> --}}
 @endpush

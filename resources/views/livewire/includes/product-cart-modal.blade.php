@@ -41,11 +41,22 @@
                             <option value="percentage">Percentage</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        @if ($discount_type[$cart_item->id] == 'percentage')
+                            <label>Discount(%) <span class="text-danger">*</span></label>
+                            <input wire:model="item_discount.{{ $cart_item->id }}" type="number" class="form-control"
+                                value="{{ $item_discount[$cart_item->id] }}" min="0" max="100">
+                        @elseif($discount_type[$cart_item->id] == 'fixed')
+                            <label>Discount <span class="text-danger">*</span></label>
+                            <input wire:model="item_discount.{{ $cart_item->id }}" type="number" class="form-control"
+                                value="{{ $item_discount[$cart_item->id] }}">
+                        @endif
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     <button wire:click="setProductDiscount('{{ $cart_item->rowId }}', {{ $cart_item->id }})"
-                        type="button" class="btn btn-primary">Save changes</button>
+                        type="button" class="btn btn-primary" data-dismiss="modal">Save changes</button>
                 </div>
             </div>
         </div>

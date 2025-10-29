@@ -12,17 +12,18 @@ use Yajra\DataTables\Services\DataTable;
 class SalesDataTable extends DataTable
 {
 
-    public function dataTable($query) {
+    public function dataTable($query)
+    {
         return datatables()
             ->eloquent($query)
             ->addColumn('total_amount', function ($data) {
-                return format_currency(($data->total_amount)*100);  /* nilainya belum sesuai dgn yang ditabel */
+                return format_currency(($data->total_amount));  /* nilainya belum sesuai dgn yang ditabel */
             })
             ->addColumn('paid_amount', function ($data) {
-                return format_currency(($data->paid_amount)*100);  /* nilainya belum sesuai dgn yang ditabel */
+                return format_currency(($data->paid_amount));  /* nilainya belum sesuai dgn yang ditabel */
             })
             ->addColumn('due_amount', function ($data) {
-                return format_currency(($data->due_amount)*100);  /* nilainya belum sesuai dgn yang ditabel */
+                return format_currency(($data->due_amount));  /* nilainya belum sesuai dgn yang ditabel */
             })
             ->addColumn('status', function ($data) {
                 return view('sale::partials.status', compact('data'));
@@ -35,11 +36,13 @@ class SalesDataTable extends DataTable
             });
     }
 
-    public function query(Sale $model) {
+    public function query(Sale $model)
+    {
         return $model->newQuery();
     }
 
-    public function html() {
+    public function html()
+    {
         return $this->builder()
             ->setTableId('sales-table')
             ->columns($this->getColumns())
@@ -60,7 +63,8 @@ class SalesDataTable extends DataTable
             );
     }
 
-    protected function getColumns() {
+    protected function getColumns()
+    {
         return [
             Column::make('reference')
                 ->className('text-center align-middle'),
@@ -94,7 +98,8 @@ class SalesDataTable extends DataTable
         ];
     }
 
-    protected function filename(): string {
+    protected function filename(): string
+    {
         return 'Sales_' . date('YmdHis');
     }
 }

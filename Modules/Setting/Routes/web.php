@@ -20,4 +20,7 @@ Route::group(['middleware' => 'auth'], function () {
     Route::patch('/settings', 'SettingController@update')->name('settings.update');
     // Units
     Route::resource('units', 'UnitsController')->except('show');
+    //Route::resource('payment', 'PaymentsController')->except('show');
+    Route::get('payment', 'PaymentsController@index')->name('payment.index');
+    Route::patch('payment', 'PaymentsController@update')->name('payment.update');
 });

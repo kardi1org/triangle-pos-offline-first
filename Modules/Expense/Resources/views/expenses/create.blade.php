@@ -28,13 +28,15 @@
                                 <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="reference">Reference <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="reference" required readonly value="EXP">
+                                        <input type="text" class="form-control" name="reference" required readonly
+                                            value="EXP">
                                     </div>
                                 </div>
                                 <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="date">Date <span class="text-danger">*</span></label>
-                                        <input type="date" class="form-control" name="date" required value="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
+                                        <input type="date" class="form-control" name="date" required
+                                            value="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
                                     </div>
                                 </div>
                             </div>
@@ -45,7 +47,7 @@
                                         <label for="category_id">Category <span class="text-danger">*</span></label>
                                         <select name="category_id" id="category_id" class="form-control" required>
                                             <option value="" selected>Select Category</option>
-                                            @foreach(\Modules\Expense\Entities\ExpenseCategory::all() as $category)
+                                            @foreach (\Modules\Expense\Entities\ExpenseCategory::all() as $category)
                                                 <option value="{{ $category->id }}">{{ $category->category_name }}</option>
                                             @endforeach
                                         </select>
@@ -54,7 +56,8 @@
                                 <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="amount">Amount <span class="text-danger">*</span></label>
-                                        <input id="amount" type="text" class="form-control" name="amount" required>
+                                        <input id="amount" type="number" class="form-control" name="amount"
+                                            min="0" step="0.01" required>
                                     </div>
                                 </div>
                             </div>
@@ -73,19 +76,18 @@
 
 @push('page_scripts')
     <script src="{{ asset('js/jquery-mask-money.js') }}"></script>
-    <script>
-        $(document).ready(function () {
+    {{-- <script>
+        $(document).ready(function() {
             $('#amount').maskMoney({
-                prefix:'{{ settings()->currency->symbol }}',
-                thousands:'{{ settings()->currency->thousand_separator }}',
-                decimal:'{{ settings()->currency->decimal_separator }}',
+                prefix: '{{ settings()->currency->symbol }}',
+                thousands: '{{ settings()->currency->thousand_separator }}',
+                decimal: '{{ settings()->currency->decimal_separator }}',
             });
 
-            $('#expense-form').submit(function () {
+            $('#expense-form').submit(function() {
                 var amount = $('#amount').maskMoney('unmasked')[0];
                 $('#amount').val(amount);
             });
         });
-    </script>
+    </script> --}}
 @endpush
-

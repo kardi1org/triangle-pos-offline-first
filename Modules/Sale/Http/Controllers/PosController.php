@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Str;
 use Illuminate\Support\Stringable;
 use Modules\Setting\Entities\Setting;
+use Modules\Setting\Entities\Payment;
 use Exception;
 
 
@@ -46,8 +47,9 @@ class PosController extends Controller
         $customers = Customer::all();
         $customer_name = Sale::all();  // Add by Chris
         $product_categories = Category::all();
+        $payments = Payment::firstOrFail();
 
-        return view('sale::pos.index', compact('product_categories', 'customers'));
+        return view('sale::pos.index', compact('product_categories', 'customers', 'payments'));
     }
 
     public function store(StorePosSaleRequest $request)
@@ -76,9 +78,9 @@ class PosController extends Controller
                 'customer_name' => $request->input('customer_name'),
                 'tax_percentage' => $request->tax_percentage,
                 'discount_percentage' => $request->discount_percentage,
-                'shipping_amount' => $request->shipping_amount,  // * 100,
-                'paid_amount' => $request->paid_amount,   //* 100,
-                'total_amount' => $request->total_amount,   //* 100,
+                'shipping_amount' => $request->shipping_amount * 100,  // * 100,
+                'paid_amount' => $request->paid_amount * 100,   //* 100,
+                'total_amount' => $request->total_amount * 100,   //* 100,
                 //   'due_amount' => $due_amount,   //* 100,
                 'status' => 'Completed',
                 'payment_status' => $payment_status,
@@ -105,10 +107,10 @@ class PosController extends Controller
                     'product_name' => $cart_item->name,
                     'product_code' => $cart_item->options->code,
                     'quantity' => $cart_item->qty,
-                    'price' => $cart_item->price, //* 100,
-                    'unit_price' => $cart_item->options->unit_price, // * 100,
-                    'sub_total' => $cart_item->options->sub_total, //* 100,
-                    'product_discount_amount' => $cart_item->options->product_discount, //* 100,
+                    'price' => $cart_item->price * 100, //* 100,
+                    'unit_price' => $cart_item->options->unit_price * 100, // * 100,
+                    'sub_total' => $cart_item->options->sub_total * 100, //* 100,
+                    'product_discount_amount' => $cart_item->options->product_discount * 100, //* 100,
                     'product_discount_type' => $cart_item->options->product_discount_type,
                     'product_tax_amount' => $cart_item->options->product_tax,  //* 100,
                 ]);
@@ -128,6 +130,7 @@ class PosController extends Controller
                     'amount' => $sale->paid_amount,
                     'sale_id' => $sale->id,
                     //  'payment_method' => $request->payment_method
+                    'cashpay' => $request->cash,
                     'debitcard' => $request->debitcard,
                     'creditcard' => $request->creditcard,
                     'gopay' => $request->gopay,
@@ -137,6 +140,7 @@ class PosController extends Controller
                     'danapay' => $request->dana,
                     'kredivopay' => $request->kredivo,
                     'qrispay' => $request->qris,
+                    'change' => $request->paid_amount - $request->total_amount,
                 ]);
             }
         });

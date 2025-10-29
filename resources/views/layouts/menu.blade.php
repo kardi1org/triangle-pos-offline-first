@@ -10,7 +10,7 @@
         <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
             <i class="c-sidebar-nav-icon bi bi-journal-bookmark" style="line-height: 1;"></i> Products
         </a>
-        <ul class="c-sidebar-nav-dropdown-items">
+        <ul class="c-sidebar-nav-dropdown-items pl-2">
             @can('access_product_categories')
                 <li class="c-sidebar-nav-item ">
                     <a class="c-sidebar-nav-link {{ request()->routeIs('product-categories.*') ? 'c-active' : '' }}"
@@ -396,6 +396,16 @@
                     <a class="c-sidebar-nav-link {{ request()->routeIs('currencies*') ? 'c-active' : '' }}"
                         href="{{ route('currencies.index') }}">
                         <i class="c-sidebar-nav-icon bi bi-cash-stack" style="line-height: 1;"></i> Currencies
+                    </a>
+                </li>
+            </ul>
+        @endcan
+        @can('access_currencies')
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                <li class="c-sidebar-nav-item">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('payment*') ? 'c-active' : '' }}"
+                        href="{{ route('payment.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-cash-stack" style="line-height: 1;"></i> Receive Methode
                     </a>
                 </li>
             </ul>
