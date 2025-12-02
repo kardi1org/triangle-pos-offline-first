@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use App\Traits\ManagesTenantConnection;
 
 class LoginController extends Controller
 {
@@ -15,14 +16,9 @@ class LoginController extends Controller
     |--------------------------------------------------------------------------
     | Login Controller
     |--------------------------------------------------------------------------
-    |
-    | This controller handles authenticating users for the application and
-    | redirecting them to your home screen. The controller uses a trait
-    | to conveniently provide its functionality to your applications.
-    |
     */
 
-    use AuthenticatesUsers;
+    use AuthenticatesUsers, ManagesTenantConnection;
 
     /**
      * Where to redirect users after login.
@@ -41,23 +37,63 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
     }
 
+    /**
+     * The user has been authenticated.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  mixed  $user
+     * @return mixed
+     */
     protected function authenticated(Request $request, $user)
     {
         $mytime = Carbon::now();
 
-        //if ($user->is_active != 1) {
+        // 1. LOGIKA OTORISASI EKSISTING (Pengecekan is_active & valid_date)
         if (($user->is_active != 1) || ($user->valid_date < $mytime->format('Y-m-d')) && ($user->id != 1)) {
             Auth::logout();
+
             if (($user->is_active == 2) && ($user->id > 1)) {
                 $valid = '';
             } else {
                 $valid = '<br> End Valid ' . $user->valid_date;
             }
+
             return back()->with([
                 'account_deactivated' => 'Your account is deactivated! Please contact with Super Admin.' . $valid
             ]);
         }
 
+        // =======================================================
+        // LOGIKA VERIFIKASI KONEKSI DATABASE (Pengecekan Kualitas)
+        // =======================================================
+
+        // Kumpulkan konfigurasi lengkap dari Model User untuk pengujian
+        $tenantConfig = [
+            'database' => $user->tenant_database,
+            'host' => $user->tenant_host,
+            'port' => $user->tenant_port,
+            'username' => $user->tenant_username,
+            'password' => $user->tenant_password,
+        ];
+
+        // Lakukan tes koneksi dengan konfigurasi lengkap. (Perkiraan Lokasi Line 76)
+        if (!$this->setAndTestTenantConnection($tenantConfig)) {
+
+            // JIKA GAGAL: Batalkan Login yang baru saja dibuat
+            $this->guard()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            // Arahkan kembali ke login dengan pesan error koneksi DB
+            return redirect('/login')
+                ->withInput($request->only('email', 'remember'))
+                ->withErrors([
+                    'email' => 'Gagal terhubung ke database tenant **' . $user->DB . '** Anda. Silakan hubungi administrator.',
+                ]);
+        }
+        // =======================================================
+
+        // JIKA OTORISASI DAN KONEKSI DB BERHASIL: Lanjutkan ke dashboard
         return redirect()->intended(RouteServiceProvider::HOME);
     }
 }

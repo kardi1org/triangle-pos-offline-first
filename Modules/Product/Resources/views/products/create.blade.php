@@ -17,9 +17,18 @@
             <div class="row">
                 <div class="col-lg-12">
                     @include('utils.alerts')
-                    <div class="form-group">
-                        <button class="btn btn-primary">Create Product <i class="bi bi-check"></i></button>
+                    <div class="form-group d-flex justify-content-between align-items-center">
+                        <button type="submit" class="btn btn-primary">
+                            Create Product <i class="bi bi-check"></i>
+                        </button>
+
+                        {{-- Tombol Variant --}}
+                        <button type="button" class="btn btn-info text-white" data-toggle="modal"
+                            data-target="#variantModal">
+                            <i class="bi bi-layers"></i> Variant
+                        </button>
                     </div>
+
                 </div>
                 <div class="col-lg-12">
                     <div class="card">
@@ -178,6 +187,49 @@
 
     <!-- Create Category Modal -->
     @include('product::includes.category-modal')
+
+    <!-- Variant Modal -->
+    <div class="modal fade" id="variantModal" tabindex="-1" role="dialog" aria-labelledby="variantModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-md" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title" id="variantModalLabel">Product Variants</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="variantTable">
+                            <tbody>
+                                <tr class="variant-row">
+                                    <td>
+                                        <input type="text" name="variant_name[]" class="form-control"
+                                            placeholder="Variant name" />
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-success btn-sm add-variant">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="saveVariantBtn">Save Variants</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
 @endsection
 
 @section('third_party_scripts')
@@ -256,4 +308,57 @@
             });
         });
     </script> --}}
+    <style>
+        .modal-backdrop {
+            display: none !important;
+        }
+    </style>
+    <script>
+        $(document).ready(function() {
+
+            // Tambah baris variant baru
+            $(document).on('click', '.add-variant', function() {
+                let newRow = `
+                    <tr class="variant-row">
+                        <td><input type="text" name="variant_name[]" class="form-control" placeholder="Variant name" /></td>
+                        <td class="text-center" style="width:70px;">
+                            <button type="button" class="btn btn-danger btn-sm remove-variant">
+                                <i class="bi bi-dash"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+                $('#variantTable tbody').append(newRow);
+            });
+
+            // Hapus baris variant
+            $(document).on('click', '.remove-variant', function() {
+                $(this).closest('tr').remove();
+            });
+
+            // Tutup modal saat klik Save (Bootstrap 4)
+            $('#saveVariantBtn').on('click', function() {
+                // Ambil semua variant name
+                let variants = [];
+                $('input[name="variant_name[]"]').each(function() {
+                    let val = $(this).val().trim();
+                    if (val !== '') {
+                        variants.push(val);
+                    }
+                });
+
+                // Hapus hidden input lama
+                $('#product-form').find('input[name="variant_name[]"]').remove();
+
+                // Tambahkan ke form utama
+                variants.forEach(v => {
+                    $('#product-form').append(
+                        `<input type="hidden" name="variant_name[]" value="${v}">`);
+                });
+
+                // Tutup modal
+                $('#variantModal').modal('hide');
+            });
+
+        });
+    </script>
 @endpush

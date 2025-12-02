@@ -26,7 +26,12 @@ class User extends Authenticatable implements HasMedia
         'email',
         'password',
         'is_active',
-        'valid_date'
+        'valid_date',
+        'tenant_database',
+        'tenant_host',
+        'tenant_port',
+        'tenant_username',
+        'tenant_password'
     ];
 
     /**

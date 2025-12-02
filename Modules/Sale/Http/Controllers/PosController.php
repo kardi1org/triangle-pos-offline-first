@@ -39,6 +39,10 @@ class PosController extends Controller
     private $printer;
     private $width;
     private $currencySymbol;
+    public $global_tax = 0; // default 0%
+    public $global_discount = 0;
+    public $shipping = 0;
+
 
     public function index()
     {
@@ -74,32 +78,22 @@ class PosController extends Controller
                 'date' => now()->format('Y-m-d'),
                 'reference' => $this->generateSalesNumber(),
                 'customer_id' => $request->$customer_id,
-                //   'customer_name' => Customer::findOrFail($request->customer_id)->customer_name,
                 'customer_name' => $request->input('customer_name'),
+                'order_type' => $request->input('order_type'), // ✅ tambahkan
+                'table_id' => $request->input('table_id'),     // ✅ tambahkan
                 'tax_percentage' => $request->tax_percentage,
                 'discount_percentage' => $request->discount_percentage,
-                'shipping_amount' => $request->shipping_amount * 100,  // * 100,
-                'paid_amount' => $request->paid_amount * 100,   //* 100,
-                'total_amount' => $request->total_amount * 100,   //* 100,
-                //   'due_amount' => $due_amount,   //* 100,
+                'shipping_amount' => $request->shipping_amount * 100,
+                'paid_amount' => $request->paid_amount * 100,
+                'total_amount' => $request->total_amount * 100,
                 'status' => 'Completed',
                 'payment_status' => $payment_status,
-                //   'payment_method' => $request->payment_method,
                 'note' => $request->note,
                 'tax_amount' => Cart::instance('sale')->tax() * 100,
                 'discount_amount' => Cart::instance('sale')->discount() * 100,
-                /* 'debitcard' => $request->input('txtdebitcard'),
-                'creditcard' => $request->input('txtcreditcard'),
-                'gopay' => $request->input('txtgopay'),
-                'grabpay' => $request->input('txtgrabpay'),
-                'ovopay' => $request->input('txtovo'),
-                'shopeepay' => $request->input('txtshopeepay'),
-                'danapay' => $request->input('txtdana'),
-                'kredivopay' => $request->input('txtkredivo'),
-                'qrispay' => $request->input('txtqris'), */
-            ]);
-
+            ]);;
             foreach (Cart::instance('sale')->content() as $cart_item) {
+                $variants = json_decode($request->variants[$cart_item->id] ?? '[]', true);
                 SaleDetails::create([
                     'sale_id' => $sale->id,
                     'reference' => $sale->reference,
@@ -113,6 +107,7 @@ class PosController extends Controller
                     'product_discount_amount' => $cart_item->options->product_discount * 100, //* 100,
                     'product_discount_type' => $cart_item->options->product_discount_type,
                     'product_tax_amount' => $cart_item->options->product_tax,  //* 100,
+                    'variant_detail' => json_encode($variants),
                 ]);
 
                 /*  $product = Product::findOrFail($cart_item->id);
@@ -144,89 +139,89 @@ class PosController extends Controller
                 ]);
             }
         });
-        //------------------------------------------------------------------------------//
-        try {
-            // Buat koneksi ke printer
-            $settings = Setting::first();
-            $connector = new WindowsPrintConnector($settings->name_printer);
-            //  $connector = new NetworkPrintConnector($printerIp, $port);
-            //  $connector = new WindowsPrintConnector("\\SVR-01\POS-58");
-            //  $connector = new WindowsPrintConnector("//10.10.10.150/POS-58");
-            $printer = new Printer($connector);
-            $lineWidth = 32;
-            // Fungsi untuk merapikan teks
-            function alignRight($name, $qty, $price, $lineWidth)
-            {
-                $nameWidth = 16; // Alokasi 16 karakter untuk nama produk
-                $qtyWidth = 8;   // Alokasi 8 karakter untuk Qty
-                $priceWidth = 8; // Alokasi 8 karakter untuk Harga
+        // //------------------------------------------------------------------------------//
+        // try {
+        //     // Buat koneksi ke printer
+        //     $settings = Setting::first();
+        //     $connector = new WindowsPrintConnector($settings->name_printer);
+        //     //  $connector = new NetworkPrintConnector($printerIp, $port);
+        //     //  $connector = new WindowsPrintConnector("\\SVR-01\POS-58");
+        //     //  $connector = new WindowsPrintConnector("//10.10.10.150/POS-58");
+        //     $printer = new Printer($connector);
+        //     $lineWidth = 32;
+        //     // Fungsi untuk merapikan teks
+        //     function alignRight($name, $qty, $price, $lineWidth)
+        //     {
+        //         $nameWidth = 16; // Alokasi 16 karakter untuk nama produk
+        //         $qtyWidth = 8;   // Alokasi 8 karakter untuk Qty
+        //         $priceWidth = 8; // Alokasi 8 karakter untuk Harga
 
-                // Bungkus nama produk jika panjangnya melebihi alokasi
-                $nameLines = str_split($name, $nameWidth);
-                // Siapkan variabel untuk hasil format
-                $output = '';
-                // Tambahkan semua baris nama produk kecuali yang terakhir
-                for ($i = 0; $i < count($nameLines) - 1; $i++) {
-                    $output .= str_pad($nameLines[$i], $lineWidth) . "\n"; // Baris dengan nama saja
-                }
-                // Baris terakhir dengan Qty dan Harga
-                $lastLine = $nameLines[count($nameLines) - 1]; // Baris terakhir dari nama
-                $lastLine = str_pad($lastLine, $nameWidth);   // Tambahkan padding untuk nama
-                $qty = str_pad($qty, $qtyWidth, " ", STR_PAD_BOTH); // Qty di tengah
-                $price = str_pad($price, $priceWidth, " ", STR_PAD_LEFT); // Harga di kanan
-                // Gabungkan semua
-                $output .= $lastLine . $qty . $price;
-                return $output;
-            }
-            /* Mulai mencetak */
-            $number = Sale::max('reference');
-            $totpay = DB::table('sales')->where('reference', $number)->first();
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->text($settings->company_name . "\n");
-            $printer->text($settings->company_address . "\n");
-            $printer->text("Tlp : " . $settings->company_phone . "\n");
-            $printer->text("--------------------------------\n");
-            $printer->setJustification(Printer::JUSTIFY_LEFT);
-            $printer->text("No. Sales : " . $number . "\n");
-            $pembeli = $request->input('customer_name');
-            $tgl = now()->format('d-m-Y H:i:s');  //date("Y-m-d H:i:s")
-            $printer->text("Tgl : ");
-            $printer->text($tgl . "\n");
-            $printer->text("Nama Customer : ");
-            $printer->text($pembeli . "\n");
-            $printer->text("--------------------------------\n");
-            $printer->text(alignRight("Nama Produk", "Qty", "Harga", $lineWidth) . "\n");
-            $printer->text("--------------------------------\n");
-            $total = 0;
-            foreach (Cart::instance('sale')->content() as $cart_item) {
-                SaleDetails::create([
-                    $nama = $cart_item->name,
-                    $qty = number_format($cart_item->qty),
-                    $sub_total =  ($cart_item->qty * $cart_item->price),
-                ]);
-                $printer->text(alignRight($nama, $qty, number_format($sub_total), $lineWidth) . "\n");
-                $total += ($cart_item->qty * $cart_item->price);
-            }
+        //         // Bungkus nama produk jika panjangnya melebihi alokasi
+        //         $nameLines = str_split($name, $nameWidth);
+        //         // Siapkan variabel untuk hasil format
+        //         $output = '';
+        //         // Tambahkan semua baris nama produk kecuali yang terakhir
+        //         for ($i = 0; $i < count($nameLines) - 1; $i++) {
+        //             $output .= str_pad($nameLines[$i], $lineWidth) . "\n"; // Baris dengan nama saja
+        //         }
+        //         // Baris terakhir dengan Qty dan Harga
+        //         $lastLine = $nameLines[count($nameLines) - 1]; // Baris terakhir dari nama
+        //         $lastLine = str_pad($lastLine, $nameWidth);   // Tambahkan padding untuk nama
+        //         $qty = str_pad($qty, $qtyWidth, " ", STR_PAD_BOTH); // Qty di tengah
+        //         $price = str_pad($price, $priceWidth, " ", STR_PAD_LEFT); // Harga di kanan
+        //         // Gabungkan semua
+        //         $output .= $lastLine . $qty . $price;
+        //         return $output;
+        //     }
+        //     /* Mulai mencetak */
+        //     $number = Sale::max('reference');
+        //     $totpay = DB::table('sales')->where('reference', $number)->first();
+        //     $printer->setJustification(Printer::JUSTIFY_CENTER);
+        //     $printer->text($settings->company_name . "\n");
+        //     $printer->text($settings->company_address . "\n");
+        //     $printer->text("Tlp : " . $settings->company_phone . "\n");
+        //     $printer->text("--------------------------------\n");
+        //     $printer->setJustification(Printer::JUSTIFY_LEFT);
+        //     $printer->text("No. Sales : " . $number . "\n");
+        //     $pembeli = $request->input('customer_name');
+        //     $tgl = now()->format('d-m-Y H:i:s');  //date("Y-m-d H:i:s")
+        //     $printer->text("Tgl : ");
+        //     $printer->text($tgl . "\n");
+        //     $printer->text("Nama Customer : ");
+        //     $printer->text($pembeli . "\n");
+        //     $printer->text("--------------------------------\n");
+        //     $printer->text(alignRight("Nama Produk", "Qty", "Harga", $lineWidth) . "\n");
+        //     $printer->text("--------------------------------\n");
+        //     $total = 0;
+        //     foreach (Cart::instance('sale')->content() as $cart_item) {
+        //         SaleDetails::create([
+        //             $nama = $cart_item->name,
+        //             $qty = number_format($cart_item->qty),
+        //             $sub_total =  ($cart_item->qty * $cart_item->price),
+        //         ]);
+        //         $printer->text(alignRight($nama, $qty, number_format($sub_total), $lineWidth) . "\n");
+        //         $total += ($cart_item->qty * $cart_item->price);
+        //     }
 
-            $printer->text("--------------------------------\n");
-            $printer->setEmphasis(true); // Tebal
-            $printer->text(alignRight("SUB TOTAL", "", number_format($total), $lineWidth) . "\n");
-            $printer->text(alignRight("TOTAL BAYAR", "", number_format($totpay->paid_amount), $lineWidth) . "\n");
-            $printer->text(alignRight("KEMBALIAN", "", number_format($totpay->paid_amount - $total), $lineWidth) . "\n");
-            $printer->setEmphasis(false); // Tebal
-            $printer->text("--------------------------------\n");
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            //  $printer->text("Terima Kasih Atas Kunjungan Anda!\n");
-            $printer->text("--------------------------------\n");
-            // Potong kertas
-            $printer->cut();
-            // Tutup koneksi
-            $printer->close();
-            //  return "Struk berhasil dicetak!";
-        } catch (Exception $err) {
-            return "Gagal mencetak: " . $err->getMessage() . "\n";
-        }
-        //------------------------------------------------------------------------------//
+        //     $printer->text("--------------------------------\n");
+        //     $printer->setEmphasis(true); // Tebal
+        //     $printer->text(alignRight("SUB TOTAL", "", number_format($total), $lineWidth) . "\n");
+        //     $printer->text(alignRight("TOTAL BAYAR", "", number_format($totpay->paid_amount), $lineWidth) . "\n");
+        //     $printer->text(alignRight("KEMBALIAN", "", number_format($totpay->paid_amount - $total), $lineWidth) . "\n");
+        //     $printer->setEmphasis(false); // Tebal
+        //     $printer->text("--------------------------------\n");
+        //     $printer->setJustification(Printer::JUSTIFY_CENTER);
+        //     //  $printer->text("Terima Kasih Atas Kunjungan Anda!\n");
+        //     $printer->text("--------------------------------\n");
+        //     // Potong kertas
+        //     $printer->cut();
+        //     // Tutup koneksi
+        //     $printer->close();
+        //     //  return "Struk berhasil dicetak!";
+        // } catch (Exception $err) {
+        //     return "Gagal mencetak: " . $err->getMessage() . "\n";
+        // }
+        // //------------------------------------------------------------------------------//
         Cart::instance('sale')->destroy();
 
         toast('POS Sale Created!', 'success');
@@ -249,147 +244,163 @@ class PosController extends Controller
         return redirect()->route('app.pos.index')->with('message', 'Data Sales Successfully Saved to Database!'); //==>ini kembali kelayar inputan POS
     }
 
-    /*--------------------------Add by Chris----------------------------------------------- */
-    public function saveorder(Request $request)
+    public function update(Request $request)
     {
-        DB::transaction(function () use ($request) {
+        $reference = $request->current_reference;
+        DB::transaction(function () use ($request, $reference) {
 
-            $order = Order::create([
+            // Ambil sale berdasarkan reference
+            $sale = Sale::where('reference', $reference)->firstOrFail();
+
+            $due_amount = $request->total_amount - $request->paid_amount;
+
+            if ($due_amount == $request->total_amount) {
+                $payment_status = 'Unpaid';
+            } elseif ($due_amount > 0) {
+                $payment_status = 'Partial';
+            } else {
+                $payment_status = 'Paid';
+            }
+
+            // 1️⃣ Hapus detail lama berdasarkan reference
+            SaleDetails::where('reference', $reference)->delete();
+
+            // 2️⃣ Update data sale utama
+            $sale->update([
                 'date' => now()->format('Y-m-d'),
-                'reference' => $this->generateOrderNumber(),
-                //   'reference' => $order->reference,
-                //   'customer_id' => $request->customer_id,
-                //   'customer_name' => Customer::findOrFail($request->customer_id)->customer_name,
                 'customer_name' => $request->input('customer_name'),
-                'total_amount' => $request->total_amount,
+                'order_type' => $request->input('order_type'),
+                'table_id' => $request->input('table_id'),
+                'tax_percentage' => $request->tax_percentage,
+                'discount_percentage' => $request->discount_percentage,
+                'shipping_amount' => $request->shipping_amount * 100,
+                'paid_amount' => $request->paid_amount * 100,
+                'total_amount' => $request->total_amount * 100,
+                'status' => 'Completed',
+                'payment_status' => $payment_status,
+                'note' => $request->note,
+                'tax_amount' => Cart::instance('sale')->tax() * 100,
+                'discount_amount' => Cart::instance('sale')->discount() * 100,
             ]);
 
-            $total = 0;
+            // 3️⃣ Buat ulang sale details dari cart
             foreach (Cart::instance('sale')->content() as $cart_item) {
-                OrderDetails::create([
-                    'order_id' => $order->id,
-                    'reference' => $order->reference,
+                $variants = json_decode($request->variants[$cart_item->id] ?? '[]', true);
+                SaleDetails::create([
+                    'sale_id' => $sale->id,
+                    'reference' => $sale->reference,
                     'product_id' => $cart_item->id,
                     'product_name' => $cart_item->name,
                     'product_code' => $cart_item->options->code,
-                    // 'product_code' => Cart::instance($this->cart_instance)->content(),
                     'quantity' => $cart_item->qty,
-                    'price' => $cart_item->price,
-                    'unit_price' => $cart_item->options->unit_price,
-                    'sub_total' => $cart_item->options->sub_total,
+                    'price' => $cart_item->price * 100,
+                    'unit_price' => $cart_item->options->unit_price * 100,
+                    'sub_total' => $cart_item->options->sub_total * 100,
+                    'product_discount_amount' => $cart_item->options->product_discount * 100,
+                    'product_discount_type' => $cart_item->options->product_discount_type,
+                    'product_tax_amount' => $cart_item->options->product_tax,
+                    'variant_detail' => json_encode($variants),
                 ]);
-                $total += ($cart_item->qty * $cart_item->price);
-                $order->total_amount = $total;
-                $order->save();
             }
-            //  Cart::instance('sale')->destroy();
+
+            // 4️⃣ Buat atau update payment
+            SalePayment::updateOrCreate(
+                ['sale_id' => $sale->id],
+                [
+                    'date' => now()->format('Y-m-d'),
+                    'reference' => 'INV/' . $sale->reference,
+                    'amount' => $sale->paid_amount,
+                    'sale_id' => $sale->id,
+                    'cashpay' => $request->cash ?? 0,
+                    'debitcard' => $request->debitcard ?? 0,
+                    'creditcard' => $request->creditcard ?? 0,
+                    'gopay' => $request->gopay ?? 0,
+                    'grabpay' => $request->grabpay ?? 0,
+                    'ovopay' => $request->ovo ?? 0,
+                    'shopeepay' => $request->shopeepay ?? 0,
+                    'danapay' => $request->dana ?? 0,
+                    'kredivopay' => $request->kredivo ?? 0,
+                    'qrispay' => $request->qris ?? 0,
+                    'change' => $request->paid_amount - $request->total_amount,
+                ]
+            );
         });
 
-        //------------------------------------------------------------------------------//
-        try {
-            // Buat koneksi ke printer
-            $settings = Setting::first();
-            //  $connector = new NetworkPrintConnector($printerIp, $port);
-            //  $connector = new WindowsPrintConnector("\\SVR-01\POS-58");
-            $connector = new WindowsPrintConnector($settings->name_printer);
-            //  $connector = new WindowsPrintConnector("//10.10.10.150/POS-58");
-            $printer = new Printer($connector);
-            $lineWidth = 32;
-            // Fungsi untuk merapikan teks
-            function rataKanan($name, $qty, $price, $lineWidth)
-            {
-                $nameWidth = 16; // Alokasi 16 karakter untuk nama produk
-                $qtyWidth = 8;   // Alokasi 8 karakter untuk Qty
-                $priceWidth = 8; // Alokasi 8 karakter untuk Harga
-
-                // Bungkus nama produk jika panjangnya melebihi alokasi
-                $nameLines = str_split($name, $nameWidth);
-                // Siapkan variabel untuk hasil format
-                $output = '';
-                // Tambahkan semua baris nama produk kecuali yang terakhir
-                for ($i = 0; $i < count($nameLines) - 1; $i++) {
-                    $output .= str_pad($nameLines[$i], $lineWidth) . "\n"; // Baris dengan nama saja
-                }
-                // Baris terakhir dengan Qty dan Harga
-                $lastLine = $nameLines[count($nameLines) - 1]; // Baris terakhir dari nama
-                $lastLine = str_pad($lastLine, $nameWidth);   // Tambahkan padding untuk nama
-                $qty = str_pad($qty, $qtyWidth, " ", STR_PAD_BOTH); // Qty di tengah
-                $price = str_pad($price, $priceWidth, " ", STR_PAD_LEFT); // Harga di kanan
-                // Gabungkan semua
-                $output .= $lastLine . $qty . $price;
-                return $output;
-            }
-            /* Mulai mencetak */
-            $number = Order::max('reference');
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->text($settings->company_name . "\n");
-            $printer->text($settings->company_address . "\n");
-            $printer->text("Tlp : " . $settings->company_phone . "\n");
-            $printer->text("--------------------------------\n");
-            $printer->setJustification(Printer::JUSTIFY_LEFT);
-            $printer->text("No. Order : " . $number . "\n");
-            //  $printer->text($number. "\n");
-            $pembeli = $request->input('customer_name');
-            $tgl = now()->format('d-m-Y H:i:s');  //date("Y-m-d H:i:s")
-            $printer->text("Tgl : ");
-            $printer->text($tgl . "\n");
-            $printer->text("Nama Customer : ");
-            $printer->text($pembeli . "\n");
-            $printer->text("--------------------------------\n");
-            $printer->text(rataKanan("Nama Produk", "Qty", "Harga", $lineWidth) . "\n");
-            $printer->text("--------------------------------\n");
-            $total = 0;
-            foreach (Cart::instance('sale')->content() as $cart_item) {
-                OrderDetails::create([
-                    $nama = $cart_item->name,
-                    $qty = number_format($cart_item->qty),
-                    $sub_total =  ($cart_item->qty * $cart_item->price),
-                ]);
-                $printer->text(rataKanan($nama, $qty, number_format($sub_total), $lineWidth) . "\n");
-                $total += ($cart_item->qty * $cart_item->price);
-            }
-
-            $printer->text("--------------------------------\n");
-            $printer->setEmphasis(true); // Tebal
-            $printer->text(rataKanan("TOTAL", "", number_format($total), $lineWidth) . "\n");
-            $printer->setEmphasis(false); // Tebal
-            $printer->text("--------------------------------\n");
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            //    $printer->text("Terima Kasih Atas Kunjungan Anda!\n");
-            $printer->text("--------------------------------\n");
-            // Potong kertas
-            $printer->cut();
-            // Tutup koneksi
-            $printer->close();
-            //  return "Struk berhasil dicetak!";
-        } catch (Exception $err) {
-            return "Gagal mencetak: " . $err->getMessage() . "\n";
-        }
-        //------------------------------------------------------------------------------//
+        // Kosongkan cart
         Cart::instance('sale')->destroy();
-        toast('POS Order Created!', 'success');
 
-        /* foreach (Cart::instance('sale')->content() as $cart_item) {
-            $data = [
-              'product_name' => $cart_item->name,
-              'product_code' => $cart_item->options->code,
-              'created_at' => date("Y-m-d H:i:s"),
-              'updated_at' => date("Y-m-d H:i:s"),
-              'message' => 'Order Created!'
-            ];
-            return response()->json($data);
-        } */
-        return redirect()->route('app.pos.index')->with('message', 'Data Order Successfully Saved to Database!'); //==>ini kembali kelayar inputan POS
-        // return view('prints.receipt_thermal')->with('message', 'Data Order Successfully Saved to Database!');
-        /*  $sale = Order::find('id');
-      $saleDetail = OrderDetails::find('order_id');
-      return cetakStruk($salesId); */
-        //  return view('prints.receipt_thermal')->with('message', 'Print Order Successfully!');
-        // $order = Order::with('products')->where('reference', $request->reference)->first();
+        toast('POS Sale Updated Successfully!', 'success');
 
-        //  $transaction = Order::with('order_details.product', 'order')->where('reference', $request->reference)->firstOrFail();
-        //  return view('print.nota', compact('transaction'))->with('message', 'Print Order Successfully!');
+        return redirect()->route('app.pos.index')->with('message', 'Sale successfully updated!');
     }
+
+
+    public function saveOrder(Request $request)
+    {
+        DB::transaction(function () use ($request) {
+            $due_amount = $request->total_amount - $request->paid_amount;
+            $customer_id = $request->input('customer_id') ?? null;
+
+            // Hitung status pembayaran
+            if ($due_amount == $request->total_amount) {
+                $payment_status = 'Unpaid';
+            } elseif ($due_amount > 0) {
+                $payment_status = 'Partial';
+            } else {
+                $payment_status = 'Paid';
+            }
+
+            $taxPercentage = $request->input('tax_percentage') ?? 0;
+            $discountPercentage = $request->input('discount_percentage') ?? 0;
+            $shippingAmount = $request->input('shipping_amount') ?? 0;
+            // Simpan data sales dengan status Pending
+            $sale = Sale::create([
+                'date' => now()->format('Y-m-d'),
+                'reference' => $this->generateSalesNumber(),
+                'customer_id' => $customer_id,
+                'customer_name' => $request->input('customer_name'),
+                'order_type' => $request->input('order_type'),
+                'table_id' => $request->input('table_id'),
+                'tax_percentage' => $taxPercentage,
+                'discount_percentage' => $discountPercentage,
+                'shipping_amount' => ($shippingAmount) * 100,
+                'paid_amount' => $request->paid_amount * 100,
+                'total_amount' => $request->total_amount * 100,
+                'status' => 'Pending', // ✅ Status diset Pending
+                'payment_status' => $payment_status,
+                'note' => $request->note,
+                'tax_amount' => Cart::instance('sale')->tax() * 100,
+                'discount_amount' => Cart::instance('sale')->discount() * 100,
+            ]);
+
+            // Simpan detail barang
+            foreach (Cart::instance('sale')->content() as $cart_item) {
+                SaleDetails::create([
+                    'sale_id' => $sale->id,
+                    'reference' => $sale->reference,
+                    'product_id' => $cart_item->id,
+                    'product_name' => $cart_item->name,
+                    'product_code' => $cart_item->options->code,
+                    'quantity' => $cart_item->qty,
+                    'price' => $cart_item->price * 100,
+                    'unit_price' => $cart_item->options->unit_price * 100,
+                    'sub_total' => $cart_item->options->sub_total * 100,
+                    'product_discount_amount' => $cart_item->options->product_discount * 100,
+                    'product_discount_type' => $cart_item->options->product_discount_type,
+                    'product_tax_amount' => $cart_item->options->product_tax,
+                ]);
+            }
+        });
+
+        // Kosongkan cart
+        Cart::instance('sale')->destroy();
+
+        // Tampilkan notifikasi
+        toast('Order Saved as Pending!', 'success');
+
+        return redirect()->route('app.pos.index')->with('message', 'Order Saved as Pending!');
+    }
+
 
     public function showorder()
     {

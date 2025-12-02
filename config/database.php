@@ -90,6 +90,20 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
         ],
+        // Template Koneksi untuk Setiap Tenant/User
+        'tenant' => [
+            'driver' => 'mysql',
+            'host' => env('DB_TENANT_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('DB_TENANT_PORT', env('DB_PORT', '3306')),
+            'database' => null, // Ini akan diisi secara dinamis
+            'username' => env('DB_TENANT_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('DB_TENANT_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
 
     ],
 
@@ -123,7 +137,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
+            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
         ],
 
         'default' => [

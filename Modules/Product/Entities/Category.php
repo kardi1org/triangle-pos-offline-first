@@ -10,8 +10,10 @@ class Category extends Model
     use HasFactory;
 
     protected $guarded = [];
+    protected $connection = 'tenant';
 
-    public function products() {
+    public function products()
+    {
         return $this->hasMany(Product::class, 'category_id', 'id');
     }
 }

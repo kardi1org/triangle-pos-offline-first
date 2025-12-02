@@ -12,18 +12,64 @@
                         </div>
                     </div>
                 @endif
-                {{--   <form id="checkout-form" action="{{ route('app.pos.store') }}" method="POST">   --}} {{-- --Add by Chris --}}
-                {{-- route('sale-payments.index', $data->id) //route('sales.cetakstruk', $salesId->sale_id) --}}
-                <form id="checkout-form" action="{{ route('save.saveorder') }}" method="POST"> {{-- --Add by Chris --}}
-                    {{--  <form id="checkout-form" action="{{ route('app.pos.print') }}" method="GET">   --}}{{-- --Add by Chris --}}
-                    @csrf
-                    <div class="form-group">
-                        <label for="customer_id">Customer Name<span class="text-danger"> *</span></label>
-                        <div class="input-group">
-                            <input type="text" id="customer_name" name="customer_name"
-                                wire:model.blur="customer_name" class="form-control"></input>
+                @if ($alertMessage)
+                    <div id="autoHideAlert" class="alert alert-{{ $alertType }} alert-dismissible fade show"
+                        role="alert">
+                        <div class="alert-body">
+                            <span>{{ $alertMessage }}</span>
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">×</span>
+                            </button>
                         </div>
                     </div>
+                @endif
+
+
+                {{--   <form id="checkout-form" action="{{ route('app.pos.store') }}" method="POST">   --}} {{-- --Add by Chris --}}
+                {{-- route('sale-payments.index', $data->id) //route('sales.cetakstruk', $salesId->sale_id) --}}
+                <form id="checkout-form">
+
+                    {{--  <form id="checkout-form" action="{{ route('app.pos.print') }}" method="GET">   --}}{{-- --Add by Chris --}}
+                    @csrf
+                    <!-- ✅ Toggle Dine In / Take Out -->
+                    <div class="form-group mb-2">
+                        <div class="btn-group" role="group" aria-label="Order Type">
+                            <button type="button"
+                                class="btn btn-sm {{ $order_type == 'dine_in' ? 'btn-primary' : 'btn-outline-primary' }}"
+                                wire:click="$set('order_type', 'dine_in')">
+                                Dine In
+                            </button>
+                            <button type="button"
+                                class="btn btn-sm {{ $order_type == 'take_out' ? 'btn-primary' : 'btn-outline-primary' }}"
+                                wire:click="$set('order_type', 'take_out')">
+                                Take Out
+                            </button>
+                        </div>
+
+                        {{-- ✅ hidden input agar ikut terkirim saat submit form --}}
+                        <input type="hidden" name="order_type" value="{{ $order_type }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="customer_id">Customer Name & Table<span class="text-danger"> *</span></label>
+                        <div class="input-group">
+                            <!-- Input Customer Name -->
+                            <input type="text" id="customer_name" name="customer_name"
+                                wire:model.blur="customer_name" class="form-control" placeholder="Enter customer name">
+
+                            <!-- Dropdown Meja -->
+                            <select id="table_id" name="table_id" wire:model="table_id" class="form-control ml-2"
+                                style="max-width: 180px;">
+                                <option value="">Select Table</option>
+                                @foreach ($tables as $table)
+                                    <option value="{{ $table->id }}">
+                                        {{ $table->name ?? 'Meja ' . $table->no_meja }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
 
                     <div class="cart-list">
                         @if ($cart_items->isNotEmpty())
@@ -46,7 +92,27 @@
                                             <div class="d-md-none text-muted small font-weight-bold mb-1">Product</div>
                                             <strong>{{ $cart_item->name }}</strong><br>
                                             <span class="badge badge-success">{{ $cart_item->options->code }}</span>
-                                            @include('livewire.includes.product-cart-modal')
+                                            {{-- @include('livewire.includes.product-cart-modal') --}}
+                                            {{-- Tambahkan variant --}}
+                                            @php
+                                                // Pastikan kunci yang digunakan tetap 'variants'
+                                                $variantsJson = json_encode($cart_item->options->variants ?? []);
+                                                // Encode seluruh JSON string menjadi Base64
+                                                $variantsBase64 = base64_encode($variantsJson);
+                                            @endphp
+
+                                            <span class="badge badge-info ms-1" style="cursor:pointer"
+                                                onclick="openVariantModal(
+        '{{ $cart_item->id }}',
+        '{{ $cart_item->qty }}',
+        '{{ $order_type }}',
+        '{{ $cart_item->name }}',
+        '{{ $variantsBase64 }}' {{-- <== MELEWATKAN STRING BASE64 --}}
+                                                )">
+                                                {{-- onclick="openVariantModal('{{ $cart_item->rowId }}', '{{ $cart_item->qty }}', '{{ $order_type }}', '{{ $cart_item->name }}', @json($cart_item->options->variant_detail ?? []))"> --}}
+
+                                                Variant
+                                            </span>
                                         </div>
 
                                         {{-- === Price === --}}
@@ -158,8 +224,6 @@
                         }
                     </style>
 
-
-
                     <div class="card mt-3">
                         <div class="card-header">
                             <h5 class="mb-0">Order Summary</h5>
@@ -219,29 +283,671 @@
                                     value="0" required step="0.01">
                             </div>
                         </div>
+                        <input type="hidden" value="{{ $global_tax }}" name="tax_percentage">
+                        <input type="hidden" value="{{ $global_discount }}" name="discount_percentage">
+                        <input type="hidden" value="{{ $shipping }}" name="shipping_amount">
                     </div>
 
                     <div class="form-group d-flex justify-content-center flex-wrap mb-0">
-                        <button onclick="saveOrder()" type="submit" value="save"
-                            class="btn btn-pill btn-primary mr-2 mb-1 align-content-center"{{ $total_amount == 0 || $cart_items->isEmpty() ? 'disabled' : '' }}>
-                            <i class="bi bi-check"></i> Save Order</button>
-                        <button onclick="getdatacart()" type="submit" class="btn btn-pill btn-primary mr-2 mb-1">
-                            <i class="bi bi-check "></i> Get Data &nbsp;</button>
-                        <button wire:loading.attr="disabled" wire:click="proceed" type="button"
-                            class="btn btn-pill btn-primary mr-2 mb-1"
-                            {{ $total_amount == 0 || $cart_items->isEmpty() ? 'disabled' : '' }}>
-                            <i class="bi bi-check"></i> Proceed &nbsp;
+                        <button type="button" wire:click="saveOrderPending" wire:loading.attr="disabled"
+                            wire:target="saveOrderPending" class="btn btn-pill btn-primary mr-2 mb-1"
+                            @disabled($cart_items->isEmpty() || $total_amount <= 0)>
+                            <span wire:loading.remove wire:target="saveOrderPending">
+                                <i class="bi bi-check"></i> Save Order
+                            </span>
+                            <span wire:loading wire:target="saveOrderPending">
+                                <i class="bi bi-hourglass"></i> Saving...
+                            </span>
                         </button>
-                        <button wire:loading.attr="disabled" wire:click="resetCart" type="button"
-                            class="btn btn-pill btn-danger mb-1 w-auto"><i class="bi bi-x"></i>
-                            Reset &nbsp;
-
+                        {{-- ✅ List Pending Orders --}}
+                        <button type="button" class="btn btn-pill btn-info mr-2 mb-1"
+                            wire:click="$dispatch('show-pending-orders-modal')">
+                            List Orders
+                        </button>
+                        {{-- ✅ Proceed --}}
+                        <button type="button" wire:click="proceed" wire:loading.attr="disabled"
+                            wire:target="proceed" class="btn btn-pill btn-primary mr-2 mb-1"
+                            @disabled($cart_items->isEmpty() || $total_amount <= 0)>
+                            <span wire:loading.remove wire:target="proceed">
+                                <i class="bi bi-check"></i> Proceed
+                            </span>
+                            <span wire:loading wire:target="proceed">
+                                <i class="bi bi-hourglass"></i> Processing...
+                            </span>
+                        </button>
+                        {{-- ✅ Reset --}}
+                        <button type="button" wire:click="resetCart" wire:loading.attr="disabled"
+                            wire:target="resetCart"
+                            class="btn btn-pill btn-danger mb-1 w-auto"{{ $total_amount == 0 || $cart_items->isEmpty() ? 'disabled' : '' }}>
+                            <span wire:loading.remove wire:target="resetCart">
+                                <i class="bi bi-x"></i> Reset
+                            </span>
+                            <span wire:loading wire:target="resetCart">
+                                <i class="bi bi-hourglass"></i> Clearing...
+                            </span>
                         </button>
                     </div>
                 </form>
             </div>
         </div>
 
+        <!-- ✅ Modal List Pending Orders -->
+        <div wire:ignore.self class="modal fade" id="pendingOrdersModal" tabindex="-1" role="dialog"
+            aria-labelledby="pendingOrdersModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title" id="pendingOrdersModalLabel">List Orders</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+
+                        @if (collect($pendingOrders)->isEmpty())
+                            <div class="text-center text-muted py-3">
+                                No pending orders found.
+                            </div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Reference</th>
+                                            <th>Customer</th>
+                                            <th>Date</th>
+                                            <th>Total</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($pendingOrders as $order)
+                                            <tr>
+                                                <td>{{ $loop->iteration }}</td>
+                                                <td>{{ $order->reference }}</td>
+                                                <td>{{ $order->customer_name }}</td>
+                                                <td>{{ $order->date }}</td>
+                                                <td>{{ format_currency($order->total_amount) }}</td>
+                                                <td class="text-center">
+                                                    <button wire:click="showOrderDetail({{ $order->id }})"
+                                                        class="btn btn-sm btn-info mr-1">
+                                                        Detail
+                                                    </button>
+                                                    <button wire:click="restorePendingOrder({{ $order->id }})"
+                                                        class="btn btn-sm btn-success">
+                                                        Select
+                                                    </button>
+                                                </td>
+
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
+                    <!-- ✅ Footer dengan tombol Close -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Close
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ✅ Modal Detail Order -->
+        <div wire:ignore.self class="modal fade" id="orderDetailModal" tabindex="-1" role="dialog"
+            aria-labelledby="orderDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title" id="orderDetailModalLabel">Order Detail</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        @if ($selectedOrderDetails && $selectedOrderDetails->count() > 0)
+                            <div class="table-responsive mb-3">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Product</th>
+                                            <th>Qty</th>
+                                            <th>Price</th>
+                                            <th>Sub Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($selectedOrderDetails as $index => $item)
+                                            <tr>
+                                                <td>{{ $index + 1 }}</td>
+                                                <td>{{ $item->product_name }}</td>
+                                                <td>{{ $item->quantity }}</td>
+                                                <td>{{ format_currency($item->unit_price) }}</td>
+                                                <td>{{ format_currency($item->sub_total) }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- ✅ Ringkasan Total di Sebelah Kanan -->
+                            <div class="d-flex justify-content-end">
+                                <div class="border-top pt-2" style="width: 300px;">
+                                    <div class="d-flex justify-content-between py-1">
+                                        <span>Order Tax ({{ $selectedOrderSummary['tax_percentage'] ?? 0 }}%)</span>
+                                        <span>(+)
+                                            {{ format_currency($selectedOrderSummary['tax_amount'] ?? 0) }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between py-1">
+                                        <span>Discount
+                                            ({{ $selectedOrderSummary['discount_percentage'] ?? 0 }}%)</span>
+                                        <span>(-)
+                                            {{ format_currency($selectedOrderSummary['discount_amount'] ?? 0) }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between py-1">
+                                        <span>Shipping</span>
+                                        <span>(+)
+                                            {{ format_currency($selectedOrderSummary['shipping_amount'] ?? 0) }}</span>
+                                    </div>
+                                    <hr class="my-1">
+                                    <div class="d-flex justify-content-between font-weight-bold">
+                                        <span>Total</span>
+                                        <span>{{ format_currency($selectedOrderSummary['total_amount'] ?? 0) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="text-center text-muted py-3">No order details found.</div>
+                        @endif
+                    </div>
+
+                    <!-- ✅ Tombol Close -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ Modal Variant -->
+        <div wire:ignore.self class="modal fade" id="variantModal" tabindex="-1"
+            aria-labelledby="variantModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-md">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="variantModalLabel">Product Variants</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+
+                    </div>
+                    <div class="modal-body">
+                        <div id="variantModalContent"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="saveVariantData()">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ Modal List Variant -->
+        <div class="modal fade" id="variantListModal" tabindex="-1" aria-labelledby="variantListLabel"
+            aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content rounded-3">
+                    <div class="modal-header">
+                        <h6 class="modal-title fw-bold" id="variantListLabel">Select Variant</h6>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="variantListContent">
+                        <!-- diisi via AJAX -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary btn-sm"
+                            id="selectVariantConfirm">Select</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         @include('livewire.pos.includes.checkout-modal')
 
+        @push('page_scripts')
+            <script>
+                document.addEventListener('livewire:navigated', () => {
+                    const livewire = window.Livewire;
+
+                    // Saat event auto-hide dipicu dari Livewire
+                    livewire.on('auto-hide-alert', () => {
+                        setTimeout(() => {
+                            const alert = document.getElementById('autoHideAlert');
+                            if (alert) {
+                                alert.classList.remove('show');
+                                alert.classList.add('fade');
+                                setTimeout(() => alert.remove(), 500);
+                            }
+                        }, 3000);
+                    });
+
+                    // Event baru untuk menghapus alert dari state Livewire
+                    livewire.on('clear-alert-after', (delay = 3000) => {
+                        setTimeout(() => {
+                            livewire.dispatch('clear-alert');
+                        }, delay);
+                    });
+                });
+            </script>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+
+                    // 🔹 Tutup modal dan bersihkan backdrop
+                    window.Livewire.on('close-pending-orders-modal', () => {
+                        const modal = $('#pendingOrdersModal');
+                        modal.modal('hide');
+
+                        // Tunggu sedikit, lalu bersihkan backdrop & class yang tersisa
+                        setTimeout(() => {
+                            $('.modal-backdrop').remove();
+                            $('body').removeClass('modal-open');
+                            $('body').css({
+                                'overflow': 'auto',
+                                'padding-right': '0'
+                            });
+                        }, 800);
+                    });
+
+                    // 🔹 Tutup modal detail
+                    window.Livewire.on('close-order-detail-modal', () => {
+                        const modal = $('#orderDetailModal');
+                        modal.modal('hide');
+                        setTimeout(() => {
+                            $('.modal-backdrop').remove();
+                            $('body').removeClass('modal-open').css({
+                                'overflow': 'auto',
+                                'padding-right': '0'
+                            });
+                        }, 800);
+                    });
+
+                    // 🔹 Buka modal detail
+                    window.Livewire.on('show-order-detail-modal', () => {
+                        $('#orderDetailModal').modal('show');
+                    });
+
+                    // 🔹 Buka modal list orders (pastikan data tampil)
+                    window.Livewire.on('show-pending-orders-modal', () => {
+                        // Bersihkan dulu backdrop
+                        $('.modal-backdrop').remove();
+                        $('body').removeClass('modal-open').css({
+                            'overflow': 'auto',
+                            'padding-right': '0'
+                        });
+
+                        // Tunggu sedikit biar render Livewire selesai, baru buka modal
+                        setTimeout(() => {
+                            Livewire.dispatch('reloadPendingOrders'); // 🟢 trigger refresh data
+                            $('#pendingOrdersModal').modal('show');
+                        }, 400);
+                    });
+
+                    // 🔹 Manual refresh modal state (bersihkan blur)
+                    Livewire.on('refresh-modal-state', () => {
+                        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                        document.body.classList.remove('modal-open');
+                        document.body.style = '';
+                    });
+                });
+            </script>
+            <script>
+                document.addEventListener('livewire:load', function() {
+                    Livewire.on('variantUpdated', () => {
+                        $('.modal-backdrop').remove();
+                        $('body').removeClass('modal-open');
+                        $('body').css('overflow', 'auto');
+                    });
+                });
+            </script>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+
+                    let currentInputTarget = null; // Menyimpan input variant aktif
+
+                    let variantSession = {};
+
+                    function normalizeVariantSession(productId, qty) {
+                        if (!variantSession[productId]) return;
+
+                        // Filter hanya index yang <= qty terbaru
+                        variantSession[productId] = variantSession[productId]
+                            .filter(v => v.index <= qty);
+
+                        // Re-index ulang jika diperlukan
+                        variantSession[productId].forEach((v, i) => {
+                            v.index = v.index; // posisi tetap sesuai order
+                        });
+                    }
+
+
+                    // 🔹 Buka modal variant utama
+
+                    window.openVariantModal = function(productId, qty, defaultOrderType, productName, variantDetail = '') {
+
+                        let variants = []; // Array untuk menampung data varian yang sudah diparse (dari Base64)
+
+                        // -----------------------------------------------------------
+                        // 1. BASE64 DECODE UNTUK DATA ORDER PENDING (Fix SyntaxError)
+                        // -----------------------------------------------------------
+                        // Jika input adalah string (Base64 dari order pending), dekode dan parse.
+                        if (typeof variantDetail === 'string' && variantDetail.trim() !== "") {
+                            try {
+                                // 1. Dekode Base64 string ke JSON string (menggunakan atob)
+                                const jsonString = atob(variantDetail);
+
+                                // 2. Parse JSON string ke objek/array Javascript
+                                variants = JSON.parse(jsonString);
+
+                                // Pastikan hasil akhirnya adalah array
+                                if (!Array.isArray(variants)) {
+                                    variants = [];
+                                }
+
+                                console.log('✅ Varian Berhasil Dimuat dari Base64:', variants);
+
+                            } catch (e) {
+                                console.error("❌ Error saat dekode/parse JSON varian:", e);
+                                variants = [];
+                            }
+                        } else {
+                            // Jika input bukan string (mode normal/tanpa Base64)
+                            variants = [];
+                        }
+
+                        // 🛑 Baris yang ini tidak perlu lagi karena 'variants' sudah didefinisikan sebagai array
+                        // if (!Array.isArray(variantDetail)) { variantDetail = []; }
+
+                        normalizeVariantSession(productId, qty); // 🟢 Logika Session tetap dipakai
+
+                        const modalContent = document.getElementById('variantModalContent');
+                        modalContent.innerHTML = '';
+                        document.getElementById('variantModalLabel').innerText = `${productName} - Variants`;
+                        modalContent.dataset.productId = productId;
+
+                        let html = `
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th style="width:120px;">Type Order</th>
+                        <th>Variant</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+                        for (let i = 1; i <= qty; i++) {
+
+                            // -----------------------------------------------------------
+                            // 2. MEMUAT DATA VARIAN KE DALAM HTML (Fix ReferenceError)
+                            // -----------------------------------------------------------
+                            const prefillData = variants[i - 1] || {};
+
+                            const prefillVariant = prefillData.variant || '';
+
+                            // 🔥 FIX ReferenceError: Deklarasi prefillTypeOrder sebelum digunakan
+                            const prefillTypeOrder = prefillData.typeOrder || defaultOrderType;
+
+                            // Gunakan prefillTypeOrder yang sudah didefinisikan
+                            const dineActive = prefillTypeOrder === 'dine_in' ? 'btn-primary' : 'btn-outline-primary';
+                            const takeActive = prefillTypeOrder === 'take_out' ? 'btn-primary' : 'btn-outline-primary';
+
+                            // -----------------------------------------------------------
+
+                            html += `
+            <tr>
+                <td class="text-center">${i}</td>
+                <td>
+                    <div class="btn-group btn-group-sm w-100">
+                        <button type="button" class="btn ${dineActive} type-btn px-2 py-1" style="width:65px;"
+                                data-type="dine_in" data-index="${i}">
+                            Dine In
+                        </button>
+                        <button type="button" class="btn ${takeActive} type-btn px-2 py-1" style="width:65px;"
+                                data-type="take_out" data-index="${i}">
+                            Take Out
+                        </button>
+                    </div>
+                </td>
+                <td>
+                    <div class="input-group input-group-md">
+                        <input type="text"
+                            class="form-control form-control-sm variant-input rounded-sm"
+                            readonly id="variant-input-${i}" value="${prefillVariant}">
+                        <button type="button" class="btn btn-outline-secondary btn-sm select-variant-btn ml-1 d-none"
+                                data-index="${i}" data-product-id="${productId}">
+                            Select
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+                        }
+
+                        html += '</tbody></table></div>';
+                        modalContent.innerHTML = html;
+
+                        // ===============================================================================
+                        // 🛑 PENTING: LOGIKA PENGISIAN ULANG DARI variantDetail (ORDER PENDING)
+                        //            dan variantSession (MODE NORMAL) TELAH DIHAPUS DARI SINI
+                        //            karena sudah dihandle di dalam loop 'for' di atas.
+                        // ===============================================================================
+
+                        // 🔹 Toggle type order
+                        modalContent.querySelectorAll('.type-btn').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                const parent = this.closest('tr');
+                                parent.querySelectorAll('.type-btn').forEach(b => {
+                                    b.classList.remove('btn-primary');
+                                    b.classList.add('btn-outline-primary');
+                                });
+                                this.classList.remove('btn-outline-primary');
+                                this.classList.add('btn-primary');
+                            });
+                        });
+
+                        // 🔹 Tombol select variant → buka list variant
+                        modalContent.querySelectorAll('.select-variant-btn').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                currentInputTarget = document.getElementById(
+                                    `variant-input-${this.dataset.index}`);
+                                loadVariantList(this.dataset.productId);
+                            });
+                        });
+
+                        // 🔹 Klik input variant → buka list variant (efek sama dengan tombol Select)
+                        modalContent.querySelectorAll('.variant-input').forEach(input => {
+                            input.addEventListener('click', function() {
+                                const index = this.id.split('-').pop();
+                                const btn = modalContent.querySelector(
+                                    `.select-variant-btn[data-index="${index}"]`);
+                                if (btn) {
+                                    currentInputTarget = this;
+                                    loadVariantList(btn.dataset.productId);
+                                }
+                            });
+                        });
+
+                        $('#variantModal').modal('show');
+                    };
+
+
+                    // 🔹 Load list variant dari backend (tampil sebagai tombol checklist)
+                    window.loadVariantList = function(productId) {
+                        const listContainer = document.getElementById('variantListContent');
+                        listContainer.innerHTML = '<p class="text-muted small mb-0">Loading...</p>';
+
+                        fetch(`/variants/list/${productId}`)
+                            .then(res => res.json())
+                            .then(data => {
+                                if (!data.length) {
+                                    listContainer.innerHTML =
+                                        '<p class="text-muted small mb-0">No variants available.</p>';
+                                } else {
+                                    listContainer.innerHTML = data.map(v => `
+                    <button type="button"
+                        class="btn btn-outline-primary btn-sm variant-btn me-2 mb-2"
+                        data-variant="${v.variant_name}">
+                        ${v.variant_name}
+                    </button>
+                `).join('');
+                                }
+                                $('#variantListModal').modal('show');
+                            })
+                            .catch(err => {
+                                console.error('Error loading variants:', err);
+                                listContainer.innerHTML =
+                                    '<p class="text-danger small">Failed to load variants.</p>';
+                            });
+                    };
+
+                    // 🔹 Klik tombol variant → toggle aktif seperti checklist
+                    document.addEventListener('click', function(e) {
+                        if (e.target.classList.contains('variant-btn')) {
+                            e.target.classList.toggle('active');
+                        }
+                    });
+
+                    // 🔹 Saat user klik "Select" di modal list variant
+                    document.getElementById('selectVariantConfirm').addEventListener('click', function() {
+                        // Ambil semua tombol variant yang aktif
+                        const selected = Array.from(document.querySelectorAll('.variant-btn.active'))
+                            .map(el => el.dataset.variant)
+                            .join(', ');
+
+                        // Isi ke input target
+                        if (currentInputTarget) {
+                            currentInputTarget.value = selected;
+                        }
+
+                        // Tutup modal
+                        $('#variantListModal').modal('hide');
+                    });
+
+                    // 🔹 Save hasil input variant
+                    window.saveVariantData = function() {
+                        const rows = document.querySelectorAll('#variantModalContent tbody tr');
+                        const productId = document.getElementById('variantModalContent').dataset.productId;
+
+                        const variants = Array.from(rows).map((row, i) => {
+                            const variant = row.querySelector('.variant-input').value.trim();
+                            const activeTypeBtn = row.querySelector('.type-btn.btn-primary');
+                            const typeOrder = activeTypeBtn ? activeTypeBtn.dataset.type : 'dine_in';
+                            return {
+                                index: i + 1,
+                                variant,
+                                typeOrder
+                            };
+                        });
+                        variantSession[productId] = variants;
+
+                        console.log('✅ Variant saved:', {
+                            productId,
+                            variants
+                        });
+                        console.log("KIRIM updateVariant →", productId, variants);
+
+                        // Kirim ke Livewire (update cart item)
+                        Livewire.dispatch('updateVariant', [productId, variants]);
+
+                        // Tutup modal
+                        $('#variantModal').modal('hide');
+                    };
+
+                    window.addEventListener('variant-modal-reset', (e) => {
+                        try {
+                            // Ambil productId dari event (Livewire kirim di detail)
+                            const productId = (e && e.detail && e.detail.productId) ? e.detail.productId : null;
+
+                            console.log('variant-modal-reset event received for productId:', productId);
+
+                            // 1) Hapus seluruh isi modal variant (ini yang benar)
+                            // modal content adalah #variantModalContent (bukan #variantBody)
+                            $('#variantModalContent').html('');
+
+                            // 2) Reset current input target agar tidak menunjuk input lama
+                            currentInputTarget = null;
+
+                            // 3) Hapus cache variantSession untuk productId yang dihapus
+                            if (productId) {
+                                if (variantSession[productId]) {
+                                    delete variantSession[productId];
+                                    console.log('Cleared variantSession for product', productId);
+                                }
+                            } else {
+                                // Jika tidak ada productId, kosongkan seluruh cache (aman)
+                                variantSession = {};
+                                console.log('Cleared entire variantSession');
+                            }
+
+                            // 4) Reset any temporary JS state used for variant modal
+                            if (window.selectedVariants) window.selectedVariants = {};
+                            if (window.variantState) window.variantState = {};
+                            if (window.variantData) window.variantData = {};
+                            window.defaultOrderType = 'dine_in';
+
+                            // 5) Jika modal sedang terbuka, tutup modal untuk memastikan state bersih
+                            $('#variantModal').modal('hide');
+                            $('#variantListModal').modal('hide');
+
+                        } catch (err) {
+                            console.error('Error in variant-modal-reset handler:', err);
+                        }
+                    });
+
+                    // 🔹 Reset seluruh variant & modal ketika klik Reset Cart
+                    window.addEventListener('variant-modal-reset-all', () => {
+                        try {
+                            console.log('Reset Cart → clearing all variant JS state');
+
+                            // 1) Kosongkan isi modal
+                            $('#variantModalContent').html('');
+                            $('#variantModal').modal('hide');
+                            $('#variantListModal').modal('hide');
+
+                            // 2) Reset variantSession JS global
+                            window.variantSession = {};
+                            variantSession = window.variantSession;
+
+                            // 3) Reset input target
+                            currentInputTarget = null;
+
+                            // 4) Reset order type default
+                            window.defaultOrderType = 'dine_in';
+
+                            // 5) Reset variable lain yg dipakai di modal
+                            if (window.selectedVariants) window.selectedVariants = {};
+                            if (window.variantState) window.variantState = {};
+                            if (window.variantData) window.variantData = {};
+
+                        } catch (err) {
+                            console.error('Error in variant-modal-reset-all:', err);
+                        }
+                    });
+
+                });
+            </script>
+        @endpush
     </div>
