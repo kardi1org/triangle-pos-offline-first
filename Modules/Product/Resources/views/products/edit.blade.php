@@ -16,12 +16,22 @@
             enctype="multipart/form-data">
             @csrf
             @method('patch')
+            <input type="hidden" id="product_id" value="{{ $product->id }}">
+
             <div class="row">
                 <div class="col-lg-12">
                     @include('utils.alerts')
-                    <div class="form-group">
-                        <button class="btn btn-primary">Update Product <i class="bi bi-check"></i></button>
+                    <div class="form-group d-flex justify-content-between align-items-center">
+                        <button type="submit" class="btn btn-primary">
+                            Update Product <i class="bi bi-check"></i>
+                        </button>
+
+                        <button type="button" class="btn btn-info text-white" data-toggle="modal"
+                            data-target="#variantModal">
+                            <i class="bi bi-layers"></i> Variant
+                        </button>
                     </div>
+
                 </div>
                 <div class="col-lg-12">
                     <div class="card">
@@ -180,6 +190,69 @@
             </div>
         </form>
     </div>
+
+    <!-- Variant Modal -->
+    <div class="modal fade" id="variantModal" tabindex="-1" role="dialog" aria-labelledby="variantModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-md" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title">Edit Variants</h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-bordered" id="variantTable">
+                        <tbody id="variantBody">
+                            @if ($product->variants->count() > 0)
+                                @foreach ($product->variants as $variant)
+                                    <tr class="variant-row">
+                                        <td>
+                                            <input type="text" name="variant_name[]" class="form-control"
+                                                value="{{ $variant->variant_name }}">
+                                            <input type="hidden" name="variant_id[]" value="{{ $variant->id }}">
+                                        </td>
+                                        <td class="text-center" style="width:70px;">
+                                            @if ($loop->last)
+                                                <button type="button" class="btn btn-success btn-sm add-variant"><i
+                                                        class="bi bi-plus"></i></button>
+                                            @else
+                                                <button type="button" class="btn btn-danger btn-sm remove-variant"><i
+                                                        class="bi bi-dash"></i></button>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @else
+                                {{-- Jika belum ada variant, tampilkan 1 baris kosong --}}
+                                <tr class="variant-row">
+                                    <td>
+                                        <input type="text" name="variant_name[]" class="form-control"
+                                            placeholder="Variant name">
+                                        <input type="hidden" name="variant_id[]" value="">
+                                    </td>
+                                    <td class="text-center" style="width:70px;">
+                                        <button type="button" class="btn btn-success btn-sm add-variant">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            @endif
+                        </tbody>
+
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="saveVariantsBtn" data-product-id="{{ $product->id }}"
+                        class="btn btn-primary">
+                        Save Variants
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 @endsection
 
 @section('third_party_scripts')
@@ -253,4 +326,114 @@
             });
         });
     </script> --}}
+    <style>
+        .modal-backdrop {
+            display: none !important;
+        }
+    </style>
+    <script>
+        $(document).ready(function() {
+
+            // 🔹 Tombol tambah variant baris baru
+            $(document).on('click', '.add-variant', function() {
+                let newRow = `
+                    <tr class="variant-row">
+                        <td>
+                            <input type="text" name="variant_name[]" class="form-control" placeholder="Variant name">
+                            <input type="hidden" name="variant_id[]" value="">
+                        </td>
+                        <td class="text-center" style="width:70px;">
+                            <button type="button" class="btn btn-danger btn-sm remove-variant">
+                                <i class="bi bi-dash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                $('#variantBody').append(newRow);
+
+                // Ubah tombol terakhir jadi plus
+                updateAddRemoveButtons();
+            });
+
+            // 🔹 Hapus baris variant
+            $(document).on('click', '.remove-variant', function() {
+                $(this).closest('tr').remove();
+                updateAddRemoveButtons();
+            });
+
+            // 🔹 Fungsi update tombol plus/minus
+            function updateAddRemoveButtons() {
+                let rows = $('#variantBody .variant-row');
+                rows.each(function(index) {
+                    let btnCell = $(this).find('td:last');
+                    if (index === rows.length - 1) {
+                        btnCell.html(`<button type="button" class="btn btn-success btn-sm add-variant">
+                                        <i class="bi bi-plus"></i>
+                                      </button>`);
+                    } else {
+                        btnCell.html(`<button type="button" class="btn btn-danger btn-sm remove-variant">
+                                        <i class="bi bi-dash"></i>
+                                      </button>`);
+                    }
+                });
+            }
+
+            // 🔹 Simpan variant (AJAX) dengan loading spinner
+            $('#saveVariantsBtn').on('click', function() {
+                let $btn = $(this); // referensi tombol
+                let originalHtml = $btn.html(); // simpan isi tombol asli
+
+                // 🔸 Tampilkan spinner dan teks "Saving..."
+                $btn.prop('disabled', true).html(`
+        <span class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>
+        Saving...
+    `);
+
+                let variants = [];
+
+                $('#variantBody tr').each(function() {
+                    let name = $(this).find('input[name="variant_name[]"]').val();
+                    let id = $(this).find('input[name="variant_id[]"]').val();
+                    if (name.trim() !== '') {
+                        variants.push({
+                            id: id,
+                            name: name
+                        });
+                    }
+                });
+
+                $.ajax({
+                    url: '/products/' + $('#product_id').val() + '/variants/save',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        variants: variants
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#variantList').empty();
+                            response.variants.forEach(v => {
+                                $('#variantList').append(
+                                    `<li class="list-group-item py-1 px-2">${v.variant_name}</li>`
+                                );
+                            });
+                            $('#variantModal').modal('hide');
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error(xhr.responseText);
+                        alert('Failed to save variants.');
+                    },
+                    complete: function() {
+                        // 🔸 Kembalikan tombol ke tampilan semula
+                        $btn.prop('disabled', false).html(originalHtml);
+                    }
+                });
+            });
+
+
+            // Inisialisasi tombol pertama
+            updateAddRemoveButtons();
+        });
+    </script>
 @endpush

@@ -10,8 +10,11 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <form id="checkout-form" action="{{ route('app.pos.store') }}" method="POST">
+            <form id="checkout-form" method="POST"
+                action="{{ !empty($current_reference) ? route('app.pos.update') : route('app.pos.store') }}">
+
                 @csrf
+                <input type="hidden" name="current_reference" value="{{ $current_reference }}">
                 <div class="modal-body">
                     @if (session()->has('checkout_message'))
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -103,6 +106,12 @@
                             <input type="hidden" value="{{ $global_tax }}" name="tax_percentage">
                             <input type="hidden" value="{{ $global_discount }}" name="discount_percentage">
                             <input type="hidden" value="{{ $shipping }}" name="shipping_amount">
+                            <input type="hidden" name="order_type" value="{{ $order_type }}">
+                            <input type="hidden" name="table_id" value="{{ $table_id }}">
+                            @foreach (Cart::instance($cart_instance)->content() as $item)
+                                <input type="hidden" name="variants[{{ $item->id }}]"
+                                    value="{{ json_encode($item->options->variants ?? []) }}">
+                            @endforeach
                             <div class="card p-0 border-1 shadow-sm">
                                 <div class="card-body">
                                     <div class="form-row">

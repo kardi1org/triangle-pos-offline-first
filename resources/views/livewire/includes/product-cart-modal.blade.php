@@ -37,21 +37,27 @@
                     <div class="form-group">
                         <label>Discount Type <span class="text-danger">*</span></label>
                         <select wire:model.live="discount_type.{{ $cart_item->id }}" class="form-control" required>
-                            <option value="fixed">Fixed</option>
-                            <option value="percentage">Percentage</option>
+                            <option value="fixed"
+                                {{ ($discount_type[$cart_item->id] ?? 'fixed') == 'fixed' ? 'selected' : '' }}>Fixed
+                            </option>
+                            <option value="percentage"
+                                {{ ($discount_type[$cart_item->id] ?? '') == 'percentage' ? 'selected' : '' }}>
+                                Percentage</option>
                         </select>
                     </div>
+
                     <div class="form-group">
-                        @if ($discount_type[$cart_item->id] == 'percentage')
+                        @if (($discount_type[$cart_item->id] ?? 'fixed') == 'percentage')
                             <label>Discount(%) <span class="text-danger">*</span></label>
                             <input wire:model="item_discount.{{ $cart_item->id }}" type="number" class="form-control"
-                                value="{{ $item_discount[$cart_item->id] }}" min="0" max="100">
-                        @elseif($discount_type[$cart_item->id] == 'fixed')
+                                value="{{ $item_discount[$cart_item->id] ?? 0 }}" min="0" max="100">
+                        @else
                             <label>Discount <span class="text-danger">*</span></label>
                             <input wire:model="item_discount.{{ $cart_item->id }}" type="number" class="form-control"
-                                value="{{ $item_discount[$cart_item->id] }}">
+                                value="{{ $item_discount[$cart_item->id] ?? 0 }}">
                         @endif
                     </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

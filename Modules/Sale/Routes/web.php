@@ -24,6 +24,8 @@ Route::group(['middleware' => 'auth'], function () {
     //POS
     Route::get('/app/pos', 'PosController@index')->name('app.pos.index');
     Route::post('/app/pos', 'PosController@store')->name('app.pos.store');
+    Route::post('/pos/update', 'PosController@update')->name('app.pos.update');
+
 
     //  Route::get('/show', 'PosController@showorder')->name('show.showorder'); //Add by Chris
     Route::post('/save-order', 'PosController@saveorder')->name('save.saveorder');  //Add by Chris

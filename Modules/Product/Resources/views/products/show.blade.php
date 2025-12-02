@@ -14,7 +14,24 @@
     <div class="container-fluid mb-4">
         <div class="row mb-3">
             <div class="col-md-12">
-                {!! \Milon\Barcode\Facades\DNS1DFacade::getBarCodeSVG($product->product_code, $product->product_barcode_symbology, 2, 110) !!}
+                @php
+                    // Barcode symbology yang hanya menerima digit (angka saja)
+                    $numericOnly = ['EAN13', 'EAN8', 'UPCA', 'UPCE'];
+
+                    // Jika symbology numeric tapi code berisi huruf, fallback ke C128
+                    if (
+                        in_array($product->product_barcode_symbology, $numericOnly) &&
+                        !ctype_digit($product->product_code)
+                    ) {
+                        $barcodeType = 'C128';
+                    } else {
+                        $barcodeType = $product->product_barcode_symbology;
+                    }
+                @endphp
+
+                {{-- Tampilkan barcode --}}
+                {!! \Milon\Barcode\Facades\DNS1DFacade::getBarCodeSVG($product->product_code, $barcodeType, 2, 110) !!}
+
             </div>
         </div>
         <div class="row">
@@ -69,7 +86,7 @@
                                 <tr>
                                     <th>Tax Type</th>
                                     <td>
-                                        @if($product->product_tax_type == 1)
+                                        @if ($product->product_tax_type == 1)
                                             Exclusive
                                         @elseif($product->product_tax_type == 2)
                                             Inclusive
@@ -90,18 +107,31 @@
 
             <div class="col-lg-3">
                 <div class="card h-100">
-                    <div class="card-body">
+                    <div class="card-body text-center">
                         @forelse($product->getMedia('images') as $media)
                             <img src="{{ $media->getUrl() }}" alt="Product Image" class="img-fluid img-thumbnail mb-2">
                         @empty
-                            <img src="{{ $product->getFirstMediaUrl('images') }}" alt="Product Image" class="img-fluid img-thumbnail mb-2">
+                            <img src="{{ $product->getFirstMediaUrl('images') }}" alt="Product Image"
+                                class="img-fluid img-thumbnail mb-2">
                         @endforelse
+
+                        {{-- ✅ Tambahan: Daftar Variant --}}
+                        @if ($product->variants->count() > 0)
+                            <hr>
+                            <h6 class="text-primary font-weight-bold mb-2">
+                                <i class="bi bi-tags-fill"></i> Variants
+                            </h6>
+                            <ul class="list-group list-group-flush text-left">
+                                @foreach ($product->variants as $variant)
+                                    <li class="list-group-item py-1 px-2">
+                                        {{ $variant->variant_name }}
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
     </div>
 @endsection
-
-
-
