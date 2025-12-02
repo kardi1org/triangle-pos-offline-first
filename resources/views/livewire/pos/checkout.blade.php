@@ -222,6 +222,25 @@
                         .cart-item .btn {
                             padding: 0.25rem 0.5rem;
                         }
+
+                        /* Pastikan CSS ini ada */
+                        .center-spinner-container {
+                            display: flex;
+                            justify-content: center;
+                            /* Pusat horizontal */
+                            align-items: center;
+                            /* Pusat vertikal */
+                            /* Tambahan penting: Tinggi 100% dari modal-body */
+                            height: 100%;
+                        }
+
+                        /* Anda mungkin perlu menambahkan gaya ini jika modal-body tidak memiliki tinggi yang jelas */
+                        .modal-body {
+                            min-height: 250px;
+                            /* Minimal tinggi agar spinner terlihat tengah secara vertikal */
+                            height: auto;
+                            /* Pastikan tinggi bisa menyesuaikan konten */
+                        }
                     </style>
 
                     <div class="card mt-3">
@@ -343,8 +362,7 @@
                         </button>
                     </div>
                     <div class="modal-body">
-
-                        @if (collect($pendingOrders)->isEmpty())
+                        @if (collect($this->pendingOrders)->isEmpty())
                             <div class="text-center text-muted py-3">
                                 No pending orders found.
                             </div>
@@ -356,28 +374,56 @@
                                             <th>#</th>
                                             <th>Reference</th>
                                             <th>Customer</th>
+                                            <th>Table</th>
                                             <th>Date</th>
                                             <th>Total</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach ($pendingOrders as $order)
+                                        @foreach ($this->pendingOrders as $order)
                                             <tr>
                                                 <td>{{ $loop->iteration }}</td>
                                                 <td>{{ $order->reference }}</td>
                                                 <td>{{ $order->customer_name }}</td>
+                                                <td>{{ optional($order->meja)->name ?? '-' }}</td>
                                                 <td>{{ $order->date }}</td>
                                                 <td>{{ format_currency($order->total_amount) }}</td>
                                                 <td class="text-center">
-                                                    <button wire:click="showOrderDetail({{ $order->id }})"
-                                                        class="btn btn-sm btn-info mr-1">
-                                                        Detail
-                                                    </button>
-                                                    <button wire:click="restorePendingOrder({{ $order->id }})"
-                                                        class="btn btn-sm btn-success">
-                                                        Select
-                                                    </button>
+                                                    <div class="d-flex justify-content-center">
+
+                                                        <button wire:click="showOrderDetail({{ $order->id }})"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="showOrderDetail({{ $order->id }})"
+                                                            class="btn btn-sm btn-info mr-1">
+
+                                                            <span wire:loading
+                                                                wire:target="showOrderDetail({{ $order->id }})">
+                                                                Loading...
+                                                            </span>
+
+                                                            <span wire:loading.remove
+                                                                wire:target="showOrderDetail({{ $order->id }})">
+                                                                Detail
+                                                            </span>
+                                                        </button>
+
+                                                        <button wire:click="restorePendingOrder({{ $order->id }})"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="restorePendingOrder({{ $order->id }})"
+                                                            class="btn btn-sm btn-success">
+
+                                                            <span wire:loading
+                                                                wire:target="restorePendingOrder({{ $order->id }})">
+                                                                Processing...
+                                                            </span>
+
+                                                            <span wire:loading.remove
+                                                                wire:target="restorePendingOrder({{ $order->id }})">
+                                                                Select
+                                                            </span>
+                                                        </button>
+                                                    </div>
                                                 </td>
 
                                             </tr>
@@ -517,8 +563,11 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+
+                        <button type="button" class="btn btn-success btn-sm" id="applyToAllVariants">Apply for
+                            All</button>
                         <button type="button" class="btn btn-primary btn-sm"
-                            id="selectVariantConfirm">Select</button>
+                            id="selectVariantConfirm">Apply</button>
                     </div>
                 </div>
             </div>
@@ -688,16 +737,16 @@
                         modalContent.dataset.productId = productId;
 
                         let html = `
-        <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width:40px;">#</th>
-                        <th style="width:120px;">Type Order</th>
-                        <th>Variant</th>
-                    </tr>
-                </thead>
-                <tbody>`;
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px;">#</th>
+                                <th style="width:120px;">Type Order</th>
+                                <th>Variant</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
                         for (let i = 1; i <= qty; i++) {
 
@@ -718,32 +767,32 @@
                             // -----------------------------------------------------------
 
                             html += `
-            <tr>
-                <td class="text-center">${i}</td>
-                <td>
-                    <div class="btn-group btn-group-sm w-100">
-                        <button type="button" class="btn ${dineActive} type-btn px-2 py-1" style="width:65px;"
-                                data-type="dine_in" data-index="${i}">
-                            Dine In
-                        </button>
-                        <button type="button" class="btn ${takeActive} type-btn px-2 py-1" style="width:65px;"
-                                data-type="take_out" data-index="${i}">
-                            Take Out
-                        </button>
-                    </div>
-                </td>
-                <td>
-                    <div class="input-group input-group-md">
-                        <input type="text"
-                            class="form-control form-control-sm variant-input rounded-sm"
-                            readonly id="variant-input-${i}" value="${prefillVariant}">
-                        <button type="button" class="btn btn-outline-secondary btn-sm select-variant-btn ml-1 d-none"
-                                data-index="${i}" data-product-id="${productId}">
-                            Select
-                        </button>
-                    </div>
-                </td>
-            </tr>`;
+                    <tr>
+                        <td class="text-center">${i}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm w-100">
+                                <button type="button" class="btn ${dineActive} type-btn px-2 py-1" style="width:65px;"
+                                        data-type="dine_in" data-index="${i}">
+                                    Dine In
+                                </button>
+                                <button type="button" class="btn ${takeActive} type-btn px-2 py-1" style="width:65px;"
+                                        data-type="take_out" data-index="${i}">
+                                    Take Out
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="input-group input-group-md">
+                                <input type="text"
+                                    class="form-control form-control-sm variant-input rounded-sm"
+                                    readonly id="variant-input-${i}" value="${prefillVariant}">
+                                <button type="button" class="btn btn-outline-secondary btn-sm select-variant-btn ml-1 d-none"
+                                        data-index="${i}" data-product-id="${productId}">
+                                    Select
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
                         }
 
                         html += '</tbody></table></div>';
@@ -845,6 +894,35 @@
                         // Tutup modal
                         $('#variantListModal').modal('hide');
                     });
+
+                    // 🔹 LOGIKA BARU: SELECT FOR ALL (Isi ke semua baris)
+                    const applyAllBtn = document.getElementById('applyToAllVariants');
+
+                    if (applyAllBtn) {
+                        applyAllBtn.addEventListener('click', function() {
+                            // 1. Ambil variant yang sedang dipilih (Aktif) di modal list
+                            // Hasil: "Asin, Manis"
+                            const selectedText = Array.from(document.querySelectorAll(
+                                    '#variantListContent .variant-btn.active'))
+                                .map(el => el.dataset.variant)
+                                .join(', ');
+
+                            // 2. Ambil SEMUA elemen input target di Modal Utama
+                            // Kita cari berdasarkan class '.variant-input' yang ada di dalam #variantModalContent
+                            const allInputs = document.querySelectorAll('#variantModalContent .variant-input');
+
+                            // 3. Loop ke setiap input dan isi valuenya
+                            allInputs.forEach(input => {
+                                input.value = selectedText;
+                            });
+
+                            // 4. Tutup modal list variant
+                            $('#variantListModal').modal('hide');
+
+                            // (Opsional) Reset target input karena kita sudah mengisi semuanya
+                            currentInputTarget = null;
+                        });
+                    }
 
                     // 🔹 Save hasil input variant
                     window.saveVariantData = function() {

@@ -62,7 +62,6 @@ class Checkout extends Component
     public $order_type = 'dine_in'; // default
     public $alertMessage = null;
     public $alertType = 'warning';
-    public $pendingOrders = [];
     public $current_reference = null;
     public $selectedOrder = null;
     public $selectedOrderDetails = [];
@@ -113,35 +112,15 @@ class Checkout extends Component
         }
     }
 
-    // #[On('updateVariant')]
-    // public function updateVariant($payload = null)
-    // {
-    //     if (!$payload) return;
-
-    //     $productId = $payload['productId'] ?? null;
-    //     $variants  = $payload['variants'] ?? [];
-
-    //     // Simpan juga ke session (kalau Anda butuh restore)
-    //     session()->put("variant_session.$productId", $variants);
-
-    //     // Update cart
-    //     $cart = Cart::instance('sale');
-    //     $cartItem = $cart->search(fn ($item) => $item->id == $productId)->first();
-
-    //     if ($cartItem) {
-
-    //         // Ambil semua options existing
-    //         $options = $cartItem->options->toArray();
-
-    //         // ⬅️ Pastikan pakai KUNCI YANG BENAR: `variant_detail`
-    //         $options['variants'] = $variants;
-
-    //         // Update cart
-    //         $cart->update($cartItem->rowId, [
-    //             'options' => $options
-    //         ]);
-    //     }
-    // }
+    public function getPendingOrdersProperty()
+    {
+        // Cukup kembalikan hasilnya tanpa mengisi $this->pendingOrders
+        return \Modules\Sale\Entities\Sale::with('meja')
+            ->where('status', 'Pending')
+            ->orderByDesc('created_at')
+            ->take(20)
+            ->get();
+    }
 
     #[On('updateVariant')]
     public function updateVariant($productId, $variants = [])
@@ -849,14 +828,13 @@ class Checkout extends Component
     }
 
     // 🔹 Ambil semua order pending
-    public function loadPendingOrders()
-    {
-        $this->pendingOrders = Sale::where('status', 'Pending')
-            ->orderByDesc('created_at')
-            ->take(20)
-            ->get();
-    }
-
+    // public function loadPendingOrders()
+    // {
+    //     $this->pendingOrders = Sale::with('meja')->where('status', 'Pending') // ✅ Sudah pakai with('meja')
+    //         ->orderByDesc('created_at')
+    //         ->take(20)
+    //         ->get();
+    // }
     // 🔹 Restore isi order pending ke cart
     public function restorePendingOrder($orderId)
     {
