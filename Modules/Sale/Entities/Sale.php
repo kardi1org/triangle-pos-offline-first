@@ -65,4 +65,12 @@ class Sale extends Model
     {
         return $value / 100;
     }
+
+    // Di dalam Model Sale.php
+
+    public function meja()
+    {
+        // Ubah 'tabel_id' menjadi 'table_id' (sesuai dengan kolom yang digunakan di Livewire)
+        return $this->belongsTo(\App\Models\Meja::class, 'table_id', 'id');
+    }
 }
