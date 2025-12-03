@@ -31,13 +31,16 @@ class ProductTable extends Component
     }
 
     public function generateBarcodes(Product $product, $quantity) {
-        if ($quantity > 100) {
-            return session()->flash('message', 'Max quantity is 100 per barcode generation!');
-        }
+      if ($quantity > 100) {
+        return session()->flash('message', 'Max quantity is 100 per barcode generation!');
+    }
 
-        if (!is_numeric($product->product_code)) {
-            return session()->flash('message', 'Can not generate Barcode with this type of Product Code');
-        }
+    $numericOnlySymbologies = ['EAN13', 'UPCA', 'EAN8', 'UPCE']; // Tambahkan jenis barcode yang hanya numerik
+
+    // Cek jika symbology-nya hanya numerik DAN kode produknya bukan angka
+     if (in_array($product->product_barcode_symbology, $numericOnlySymbologies) && !is_numeric($product->product_code)) {
+        return session()->flash('message', 'Can not generate Barcode with this type of Product Code');
+    }
 
         $this->barcodes = [];
 
