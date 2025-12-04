@@ -70,7 +70,7 @@ class Checkout extends Component
 
     public $item_variant = [];
     public $item_typeOrder = [];
-
+    public $previewOrderData = null;
 
     // ✅ event listener untuk clear alert
     #[On('clear-alert')]
@@ -110,6 +110,38 @@ class Checkout extends Component
                     [],
             ];
         }
+    }
+
+    public function previewOrder($orderId)
+    {
+        // 1. Ambil data dengan eager loading (penting)
+        $sale = \Modules\Sale\Entities\Sale::with('saleDetails', 'meja')
+            ->findOrFail($orderId);
+
+        $this->previewOrderData = [
+            'reference' => $sale->reference,
+            'typeOrder' => $sale->order_type ?? 'Dine In',
+            'customer_name' => $sale->customer_name,
+            'date' => $sale->date,
+            'meja_name' => optional($sale->meja)->name ?? '-',
+            'details' => $sale->saleDetails->map(function ($detail) {
+                return [
+                    'product_name' => $detail->product_name,
+                    'quantity' => $detail->quantity,
+                    'variant_detail' => $detail->variant_detail,
+                ];
+            })
+        ];
+
+        // 2. Dispatch Perintah (Prioritas ke penutupan modal pertama, lalu buka modal kedua)
+
+        // ✅ GANTI DENGAN PERINTAH UNTUK BLUR
+        $this->dispatch('blur-pending-orders-modal');
+
+        // Perintah 2: Buka modal preview (Dikirim setelah data diisi)
+        // Gunakan dispatch('self') jika Livewire 3, untuk target komponen ini
+        $this->dispatch('show-kitchen-preview-modal');
+        $this->dispatch('show-kitchen-preview'); // Nama event baru
     }
 
     public function getPendingOrdersProperty()

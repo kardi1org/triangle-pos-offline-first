@@ -222,24 +222,12 @@
                         .cart-item .btn {
                             padding: 0.25rem 0.5rem;
                         }
-
-                        /* Pastikan CSS ini ada */
-                        .center-spinner-container {
-                            display: flex;
-                            justify-content: center;
-                            /* Pusat horizontal */
-                            align-items: center;
-                            /* Pusat vertikal */
-                            /* Tambahan penting: Tinggi 100% dari modal-body */
-                            height: 100%;
-                        }
-
-                        /* Anda mungkin perlu menambahkan gaya ini jika modal-body tidak memiliki tinggi yang jelas */
-                        .modal-body {
-                            min-height: 250px;
-                            /* Minimal tinggi agar spinner terlihat tengah secara vertikal */
-                            height: auto;
-                            /* Pastikan tinggi bisa menyesuaikan konten */
+                    </style>
+                    <style>
+                        .modal.is-blurred .modal-dialog {
+                            /* Filter blur hanya diterapkan pada dialog */
+                            filter: blur(4px);
+                            pointer-events: none;
                         }
                     </style>
 
@@ -391,7 +379,20 @@
                                                 <td>{{ format_currency($order->total_amount) }}</td>
                                                 <td class="text-center">
                                                     <div class="d-flex justify-content-center">
+                                                        <button wire:click="previewOrder({{ $order->id }})"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="previewOrder({{ $order->id }})"
+                                                            class="btn btn-sm btn-secondary mr-1">
 
+                                                            <span wire:loading
+                                                                wire:target="previewOrder({{ $order->id }})">
+                                                                ...
+                                                            </span>
+                                                            <span wire:loading.remove
+                                                                wire:target="previewOrder({{ $order->id }})">
+                                                                Print
+                                                            </span>
+                                                        </button>
                                                         <button wire:click="showOrderDetail({{ $order->id }})"
                                                             wire:loading.attr="disabled"
                                                             wire:target="showOrderDetail({{ $order->id }})"
@@ -407,7 +408,6 @@
                                                                 Detail
                                                             </span>
                                                         </button>
-
                                                         <button wire:click="restorePendingOrder({{ $order->id }})"
                                                             wire:loading.attr="disabled"
                                                             wire:target="restorePendingOrder({{ $order->id }})"
@@ -441,6 +441,148 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- ✅ Print preview Order dapur -->
+        <div wire:ignore.self class="modal fade" id="kitchenPreviewModal" tabindex="-1" role="dialog"
+            aria-hidden="true" data-backdrop="static" data-keyboard="false">
+            <div class="modal-dialog modal-md" role="document">
+                <div class="modal-content">
+                    {{-- Header Modal --}}
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title">Kitchen Order</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"
+                            {{-- ✅ TAMBAHKAN ONCLICK INI --}} onclick="unblurPendingOrdersModal()">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+
+                    @if ($previewOrderData)
+                        <div class="modal-body" id="print-area">
+                            <div class="text-center mb-4">
+                                <h4>-- Kitchen Order --</h4>
+                                <hr>
+                            </div>
+
+                            {{-- Info Order --}}
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th>Referensi:</th>
+                                    <td>{{ $previewOrderData['reference'] }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Type Order:</th>
+                                    <td><strong>{{ strtoupper($previewOrderData['typeOrder']) }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Customer:</th>
+                                    <td>{{ $previewOrderData['customer_name'] }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Table:</th>
+                                    <td>{{ $previewOrderData['meja_name'] }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Date:</th>
+                                    <td>{{ $previewOrderData['date'] }}</td>
+                                </tr>
+                            </table>
+
+                            <h5 class="mt-4">Detail Item:</h5>
+                            <table class="table table-sm table-bordered">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class="text-right">Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($previewOrderData['details'] as $item)
+                                        @php
+                                            // ... (Kode parsing $variantDetail ke $variants tetap sama) ...
+                                            $variantDetail = $item['variant_detail'] ?? null;
+                                            $variants = [];
+
+                                            // ... (Logika parsing yang aman) ...
+                                            if (isset($variantDetail)) {
+                                                // KASUS A: Data sudah berupa array PHP
+                                                if (is_array($variantDetail)) {
+                                                    if (!empty($variantDetail) && $variantDetail !== [[]]) {
+                                                        $variants = $variantDetail;
+                                                    }
+                                                }
+                                                // KASUS B: Data masih berupa string JSON
+                                                elseif (is_string($variantDetail)) {
+                                                    $decoded = json_decode($variantDetail, true);
+                                                    if (is_array($decoded) && !empty($decoded)) {
+                                                        $variants = $decoded;
+                                                    }
+                                                }
+                                            }
+
+                                            // Ambil Type Order Utama dari header
+                                            $mainTypeOrder = $previewOrderData['typeOrder'] ?? 'UNKNOWN';
+
+                                            // Kita tidak lagi memerlukan $showDetailTypeOrder di sini karena logikanya ada di dalam loop $variants.
+
+                                        @endphp
+
+                                        <tr>
+                                            <td>
+                                                <strong>{{ $item['product_name'] }}</strong>
+
+                                                {{-- ✅ Tampilkan Variant Detail --}}
+                                                @if (!empty($variants))
+                                                    <div class="small text-muted mt-1" style="font-size: 0.85em;">
+                                                        @foreach ($variants as $variant)
+                                                            @php
+                                                                $variantText = $variant['variant'] ?? '';
+                                                                $variantType = $variant['typeOrder'] ?? null;
+                                                                $typeOrderText = '';
+
+                                                                // Cek apakah Type Order variant berbeda dari Type Order utama
+                                                                $isTypeOrderDifferent =
+                                                                    $variantType &&
+                                                                    strtoupper($variantType) !==
+                                                                        strtoupper($mainTypeOrder);
+                                                            @endphp
+
+                                                            {{-- KONDISI 1: Variant ADA (Tidak kosong) --}}
+                                                            @if (!empty($variantText))
+                                                                @if ($isTypeOrderDifferent)
+                                                                    @php $typeOrderText = ' (' . ($variantType) . ')'; @endphp
+                                                                @endif
+                                                                &bull; **{{ $variantText }}**{{ $typeOrderText }}<br>
+
+                                                                {{-- KONDISI 2: Variant KOSONG, TAPI Type Order BERBEDA (Ini skenario yang Anda maksud) --}}
+                                                            @elseif (empty($variantText) && $isTypeOrderDifferent)
+                                                                &bull; **Type: {{ $variantType }}** (Berbeda dari
+                                                                Utama)<br>
+
+                                                                {{-- Kondisi 3: Abaikan jika Variant KOSONG DAN Type Order SAMA dengan Utama (Tidak perlu ditampilkan) --}}
+                                                            @endif
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td class="text-right">{{ $item['quantity'] }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal"
+                                {{-- ✅ TAMBAHKAN ONCLICK INI --}} onclick="unblurPendingOrdersModal()">Close</button>
+
+                            <button type="button" class="btn btn-primary" onclick="printKOT()">Print</button>
+                        </div>
+                    @else
+                        <div class="modal-body text-center text-muted">Reload data...</div>
+                    @endif
+                </div>
             </div>
         </div>
 
@@ -1026,6 +1168,77 @@
                     });
 
                 });
+            </script>
+            <script>
+                // --- Variabel Global (Pastikan ID modal benar) ---
+                const PENDING_ORDERS_MODAL_ID = 'pendingOrdersModal';
+                const KITCHEN_PREVIEW_MODAL_ID = 'kitchenPreviewModal';
+
+                // ✅ FUNGSI UNTUK UNBLUR
+                function unblurPendingOrdersModal() {
+                    const pendingOrdersModal = document.getElementById(PENDING_ORDERS_MODAL_ID);
+                    if (pendingOrdersModal && pendingOrdersModal.classList.contains('is-blurred')) {
+                        pendingOrdersModal.classList.remove('is-blurred');
+                        // Jika ada event listener yang terlewat, ini menjamin unblur.
+                    }
+                }
+
+                // --- 1. LIVEWIRE LISTENERS (Tetap) ---
+                document.addEventListener('livewire:initialized', () => {
+                    // Event saat Print Preview Dapur dibuka
+                    Livewire.on('show-kitchen-preview', () => {
+                        // Tampilkan modal preview
+                        $('#' + KITCHEN_PREVIEW_MODAL_ID).modal('show');
+
+                        // BLUR: Terapkan kelas 'is-blurred'
+                        const pendingOrdersModal = document.getElementById(PENDING_ORDERS_MODAL_ID);
+                        if (pendingOrdersModal) {
+                            pendingOrdersModal.classList.add('is-blurred');
+                        }
+                    });
+
+                    // Event saat List Order dibuka (tetap normal)
+                    Livewire.on('show-pending-orders-modal', () => {
+                        $('#' + PENDING_ORDERS_MODAL_ID).modal('show');
+                    });
+                });
+
+                // --- 2. BOOTSTRAP EVENT LISTENERS (Dikompromikan/Dihapus) ---
+                // Kami mengabaikan listener hidden.bs.modal karena tidak konsisten.
+                // Jika masih ada di kode Anda, hapuslah.
+
+
+                // --- 3. FUNGSI PRINT KOT YANG DIJAMIN UNBLUR ---
+                function printKOT() {
+                    const printArea = document.getElementById('print-area');
+                    if (printArea) {
+                        // Persiapan cetak dengan iframe (Aman dan tidak merusak DOM)
+                        const printWindow = window.open('', '', 'height=400,width=600');
+                        printWindow.document.write('<html><head><title>Kitchen Order</title>');
+                        printWindow.document.write('</head><body >');
+                        printWindow.document.write(printArea.innerHTML);
+                        printWindow.document.write('</body></html>');
+                        printWindow.document.close();
+                        printWindow.print();
+
+                        // ✅ LANGKAH BARU: UNBLUR DIJALANKAN SEBELUM MODAL HIDE
+                        unblurPendingOrdersModal();
+
+                        // Sembunyikan modal setelah proses print terpicu
+                        $('#' + KITCHEN_PREVIEW_MODAL_ID).modal('hide');
+
+                        // Tutup window/iframe cetak setelah jeda
+                        setTimeout(() => {
+                            printWindow.close();
+                        }, 100);
+
+                    } else {
+                        console.error("Elemen 'print-area' tidak ditemukan.");
+                        // Jika ada error print, tetap pastikan blur hilang
+                        unblurPendingOrdersModal();
+                        $('#' + KITCHEN_PREVIEW_MODAL_ID).modal('hide');
+                    }
+                }
             </script>
         @endpush
     </div>
