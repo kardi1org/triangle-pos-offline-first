@@ -26,10 +26,13 @@ Route::group(['middleware' => 'auth'], function () {
     Route::post('/app/pos', 'PosController@store')->name('app.pos.store');
     Route::post('/pos/update', 'PosController@update')->name('app.pos.update');
 
-
     //  Route::get('/show', 'PosController@showorder')->name('show.showorder'); //Add by Chris
     Route::post('/save-order', 'PosController@saveorder')->name('save.saveorder');  //Add by Chris
     //  Route::get('/app/pos', 'PosController@index')->name('app.pos.index');  //Add by Chris
+
+    // Rute untuk mencetak struk
+    Route::get('/app/pos/sales/print/{reference}', 'PosController@printReceipt')
+        ->name('app.sales.pos.print_receipt');
 
     //Print Struk '/print/receipt/{salesId}'
     // Route::get('/cetakstruk/{sale_id}', 'PosController@cetakstruk')->name('order.cetakstruk'); // Add by Chris
@@ -45,31 +48,32 @@ Route::group(['middleware' => 'auth'], function () {
     //Route::get('/transactions/print', [PosController::class, 'print'])->name('apps.transactions.print');
 
     //Generate PDF
-    /* Route::get('/sales/pdf/{id}', function ($id) {
+    Route::get('/sales/pdf/{id}', function ($id) {
         $sale = \Modules\Sale\Entities\Sale::findOrFail($id);
-      //  $customer = \Modules\People\Entities\Customer::findOrFail($sale->customer_id);
-        $customer = \Modules\People\Entities\Customer::findOrFail($sale->customer_name);
+        //  $customer = \Modules\People\Entities\Customer::findOrFail($sale->customer_id);
+        //$customer = \Modules\People\Entities\Customer::findOrFail($sale->customer_name);
 
         $pdf = \PDF::loadView('sale::print', [
             'sale' => $sale,
-            'customer' => $customer,
+            //'customer' => $customer,
         ])->setPaper('a4');
 
-        return $pdf->stream('sale-'. $sale->reference .'.pdf');
+        return $pdf->stream('sale-' . $sale->reference . '.pdf');
     })->name('sales.pdf');
 
     Route::get('/sales/pos/pdf/{id}', function ($id) {
         $sale = \Modules\Sale\Entities\Sale::findOrFail($id);
 
-        $pdf = \PDF::loadView('sale::print-pos', ['sale' => $sale,
+        $pdf = \PDF::loadView('sale::print-pos', [
+            'sale' => $sale,
         ])->setPaper('a7')
             ->setOption('margin-top', 8)
             ->setOption('margin-bottom', 8)
             ->setOption('margin-left', 5)
             ->setOption('margin-right', 5);
 
-        return $pdf->stream('sale-'. $sale->reference .'.pdf');
-    })->name('sales.pos.pdf'); */
+        return $pdf->stream('sale-' . $sale->reference . '.pdf');
+    })->name('sales.pos.pdf');
 
     //Sales
     Route::resource('sales', 'SaleController');

@@ -272,7 +272,7 @@
     </li>
 @endcan
 
-@can('access_customers|access_suppliers')
+@can('access_customers')
     <li
         class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('customers.*') || request()->routeIs('suppliers.*') ? 'c-show' : '' }}">
         <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
@@ -374,13 +374,23 @@
     </li>
 @endcan
 
-@can('access_currencies|access_settings')
+@can('access_settings')
     <li
         class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('currencies*') || request()->routeIs('units*') ? 'c-show' : '' }}">
         <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
             <i class="c-sidebar-nav-icon bi bi-gear" style="line-height: 1;"></i> Settings
         </a>
-        @can('access_units')
+        @can('access_currencies')
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                <li class="c-sidebar-nav-item">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('mejas*') ? 'c-active' : '' }}"
+                        href="{{ route('mejas.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-receipt" style="line-height: 1;"></i> Table
+                    </a>
+                </li>
+            </ul>
+        @endcan
+        @can('access_currencies')
             <ul class="c-sidebar-nav-dropdown-items pl-2">
                 <li class="c-sidebar-nav-item">
                     <a class="c-sidebar-nav-link {{ request()->routeIs('units*') ? 'c-active' : '' }}"

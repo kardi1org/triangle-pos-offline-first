@@ -2,6 +2,7 @@
 
 namespace Modules\Sale\Http\Controllers;
 
+use Modules\Meja\Entities\Meja;
 use Gloudemans\Shoppingcart\Facades\Cart;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
@@ -74,6 +75,12 @@ class PosController extends Controller
                 ['customer_name' => $request->customer_name]
             ); */
 
+            // Ambil ID meja (dalam format JSON string)
+            $selectedTableIdsJson = $request->input('selected_table_ids');
+
+            // Ubah JSON string kembali menjadi PHP array
+            $selectedTableIdsArray = json_decode($selectedTableIdsJson, true);
+
             $sale = Sale::create([
                 'date' => now()->format('Y-m-d'),
                 'reference' => $this->generateSalesNumber(),
@@ -91,7 +98,8 @@ class PosController extends Controller
                 'note' => $request->note,
                 'tax_amount' => Cart::instance('sale')->tax() * 100,
                 'discount_amount' => Cart::instance('sale')->discount() * 100,
-            ]);;
+                'selected_table_ids' => $selectedTableIdsArray,
+            ]);
             foreach (Cart::instance('sale')->content() as $cart_item) {
                 $variants = json_decode($request->variants[$cart_item->id] ?? '[]', true);
                 SaleDetails::create([
@@ -241,6 +249,7 @@ class PosController extends Controller
         //return response()->json($data);
         //return redirect()->route('sales.cetakstruk');
         //   return redirect()->route('sales.index')->with('message', 'Data Sales Successfully Saved to Database!');
+        session()->flash('showPrintModal', Sale::max('reference'));
         return redirect()->route('app.pos.index')->with('message', 'Data Sales Successfully Saved to Database!'); //==>ini kembali kelayar inputan POS
     }
 
@@ -262,6 +271,12 @@ class PosController extends Controller
                 $payment_status = 'Paid';
             }
 
+            // Ambil ID meja (dalam format JSON string)
+            $selectedTableIdsJson = $request->input('selected_table_ids');
+
+            // Ubah JSON string kembali menjadi PHP array
+            $selectedTableIdsArray = json_decode($selectedTableIdsJson, true);
+
             // 1️⃣ Hapus detail lama berdasarkan reference
             SaleDetails::where('reference', $reference)->delete();
 
@@ -281,6 +296,7 @@ class PosController extends Controller
                 'note' => $request->note,
                 'tax_amount' => Cart::instance('sale')->tax() * 100,
                 'discount_amount' => Cart::instance('sale')->discount() * 100,
+                'selected_table_ids' => $selectedTableIdsArray,
             ]);
 
             // 3️⃣ Buat ulang sale details dari cart
@@ -331,9 +347,51 @@ class PosController extends Controller
 
         toast('POS Sale Updated Successfully!', 'success');
 
+        session()->flash('showPrintModal', $reference);
+
         return redirect()->route('app.pos.index')->with('message', 'Sale successfully updated!');
     }
 
+    // Modules\Sale\Http\Controllers\PosController.php
+
+    // Modules\Sale\Http\Controllers\PosController.php
+
+    public function printReceipt(Request $request, $reference)
+    {
+        // Pastikan Model Meja di-use: use App\Models\Meja;
+        $sale = Sale::with('saleDetails')->where('reference', $reference)->firstOrFail();
+
+        // 🎯 START: LOGIKA KONVERSI ID MEJA KE NAMA MEJA
+
+        // 1. Ambil ID meja langsung. TIDAK PERLU json_decode() karena sudah di-cast oleh Model Sale.
+        $tableIds = $sale->selected_table_ids;
+
+        // Pengecekan standar
+        if (is_array($tableIds) && !empty($tableIds)) {
+
+            // 2. Ambil Nama Meja dari database
+            $tableNames = Meja::whereIn('id', $tableIds)
+                ->pluck('name', 'id')
+                ->toArray();
+
+            // 3. Gabungkan nama meja menjadi satu string
+            $mappedNames = collect($tableIds)
+                ->map(fn ($id) => $tableNames[$id] ?? "ID: {$id}")
+                ->implode(', ');
+
+            // 4. Lampirkan string nama meja ke objek $sale
+            $sale->table_list = $mappedNames;
+        } else {
+            $sale->table_list = 'Take Away';
+        }
+
+        // 🎯 END: LOGIKA KONVERSI ID MEJA KE NAMA MEJA
+
+        $isModal = $request->query('modal') === 'true';
+
+        // Lanjutkan ke view
+        return view('sale::pos.print-receipt', compact('sale', 'isModal'));
+    }
 
     public function saveOrder(Request $request)
     {

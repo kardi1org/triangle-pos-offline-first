@@ -21,6 +21,12 @@ class CreateUsersTable extends Migration
             $table->string('password');
             $table->boolean('is_active');
             $table->rememberToken();
+            $table->string('tenant_database', 100)->nullable();
+            $table->string('tenant_host', 20)->nullable();
+            $table->string('tenant_port', 10)->nullable();
+            $table->string('tenant_username', 100)->nullable();
+            $table->string('tenant_password', 100)->nullable();
+            $table->date('valid_date')->nullable();
             $table->timestamps();
         });
     }

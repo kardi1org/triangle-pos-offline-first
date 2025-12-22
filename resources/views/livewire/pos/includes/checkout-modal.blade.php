@@ -112,6 +112,8 @@
                                 <input type="hidden" name="variants[{{ $item->id }}]"
                                     value="{{ json_encode($item->options->variants ?? []) }}">
                             @endforeach
+                            <input type="hidden" name="selected_table_ids"
+                                value="{{ json_encode($table_ids_array ?? []) }}">
                             <div class="card p-0 border-1 shadow-sm">
                                 <div class="card-body">
                                     <div class="form-row">
@@ -165,8 +167,8 @@
                                                     <td>Cash</td>
                                                     <td>
                                                         <input type="number" id="cash" name="cash"
-                                                            onchange="updatekembalian()" height="30px" width="100px"
-                                                            class="form-control"
+                                                            onchange="updatekembalian()" height="30px"
+                                                            width="100px" class="form-control"
                                                             onblur="if (this.value == '') {this.value = 0;}"
                                                             onfocus="if (this.value == 0) {this.value = '';}"
                                                             value=0></input>

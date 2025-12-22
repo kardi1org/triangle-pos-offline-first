@@ -131,9 +131,10 @@ class SaleController extends Controller
     {
         abort_if(Gate::denies('show_sales'), 403);
 
-        $customer = Customer::findOrFail($sale->customer_id);
+        // $customer = Customer::findOrFail($sale->customer_id);
 
-        return view('sale::show', compact('sale', 'customer'));
+        //return view('sale::show', compact('sale', 'customer'));
+        return view('sale::show', compact('sale'));
     }
 
 

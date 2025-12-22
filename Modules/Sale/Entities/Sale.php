@@ -71,6 +71,11 @@ class Sale extends Model
     public function meja()
     {
         // Ubah 'tabel_id' menjadi 'table_id' (sesuai dengan kolom yang digunakan di Livewire)
-        return $this->belongsTo(\App\Models\Meja::class, 'table_id', 'id');
+        return $this->belongsTo(\Modules\Meja\Entities\Meja::class, 'table_id', 'id');
     }
+
+    protected $casts = [
+        // ... casting untuk kolom lain ...
+        'selected_table_ids' => 'array', // 🎯 SOLUSI UTAMA: Menginstruksikan Laravel untuk mengkonversi array ke JSON saat menyimpan dan sebaliknya.
+    ];
 }

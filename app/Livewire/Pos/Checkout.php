@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Pos;
 
-use App\Models\Meja;
+use Modules\Meja\Entities\Meja;
 use Livewire\Component;
 //use App\Livewire\Pos\StorePosOrderRequest;
 //use App\Modules\Order\Http\Requests\StorePosOrderRequest;
@@ -72,6 +72,10 @@ class Checkout extends Component
     public $item_typeOrder = [];
     public $previewOrderData = null;
 
+    // Properties untuk menyimpan data meja yang dipilih
+    public $table_ids_array = [];    // Array of selected table IDs (e.g., [1, 5, 8])
+    public $selectedTableNames = ''; // String of selected table names (e.g., "Meja A01, Meja B12")
+
     // ✅ event listener untuk clear alert
     #[On('clear-alert')]
     public function clearAlert()
@@ -110,20 +114,55 @@ class Checkout extends Component
                     [],
             ];
         }
+
+        // Panggil ini untuk memastikan selectedTableNames terisi saat mount
+        $this->updateNameString();
     }
 
     public function previewOrder($orderId)
     {
-        // 1. Ambil data dengan eager loading (penting)
-        $sale = \Modules\Sale\Entities\Sale::with('saleDetails', 'meja')
-            ->findOrFail($orderId);
+        // 1. Ambil data Sale
+        $sale = Sale::with('saleDetails')->findOrFail($orderId);
+
+        // --- START: LOGIKA KONVERSI ID MEJA KE NAMA MEJA ---
+
+        // 2. 🎯 FORCE DECODE: Selalu dekode untuk memastikan ini adalah array
+        // Jika casting berhasil, json_decode akan menerima array, tetapi akan mengembalikan array yang sama.
+        // Jika casting GAGAL (seperti yang terjadi sekarang), ini akan memperbaiki masalah.
+        $tableIds = json_decode($sale->selected_table_ids, true);
+
+        // Fallback jika json_decode mengembalikan null (jika data benar-benar bukan JSON)
+        if (!is_array($tableIds)) {
+            $tableIds = [];
+        }
+
+        $mejaNameList = 'Take Away'; // Default value
+
+        // 3. Cek apakah array ID meja valid
+        if (!empty($tableIds)) {
+
+            // 4. Ambil Nama Meja dari database
+            $tableNames = Meja::whereIn('id', $tableIds)
+                ->pluck('name', 'id')
+                ->toArray();
+
+            // 5. Gabungkan nama meja menjadi satu string
+            $mejaNameList = collect($tableIds)
+                ->map(fn ($id) => $tableNames[$id] ?? "ID: {$id}")
+                ->implode(', ');
+        }
+
+        // --- AKHIR LOGIKA KONVERSI ---
 
         $this->previewOrderData = [
             'reference' => $sale->reference,
             'typeOrder' => $sale->order_type ?? 'Dine In',
             'customer_name' => $sale->customer_name,
             'date' => $sale->date,
-            'meja_name' => optional($sale->meja)->name ?? '-',
+
+            // Mengisi dengan nama yang sudah dikonversi
+            'meja_name' => $mejaNameList,
+
             'details' => $sale->saleDetails->map(function ($detail) {
                 return [
                     'product_name' => $detail->product_name,
@@ -133,25 +172,57 @@ class Checkout extends Component
             })
         ];
 
-        // 2. Dispatch Perintah (Prioritas ke penutupan modal pertama, lalu buka modal kedua)
-
-        // ✅ GANTI DENGAN PERINTAH UNTUK BLUR
+        // ... Dispatch Perintah ...
         $this->dispatch('blur-pending-orders-modal');
-
-        // Perintah 2: Buka modal preview (Dikirim setelah data diisi)
-        // Gunakan dispatch('self') jika Livewire 3, untuk target komponen ini
         $this->dispatch('show-kitchen-preview-modal');
-        $this->dispatch('show-kitchen-preview'); // Nama event baru
+        $this->dispatch('show-kitchen-preview');
     }
+
+    // app/Http/Livewire/PosComponent.php (atau sejenisnya)
 
     public function getPendingOrdersProperty()
     {
-        // Cukup kembalikan hasilnya tanpa mengisi $this->pendingOrders
-        return \Modules\Sale\Entities\Sale::with('meja')
-            ->where('status', 'Pending')
-            ->orderByDesc('created_at')
-            ->take(20)
-            ->get();
+        // 1. Ambil orders yang pending
+        $orders = Sale::where('status', 'pending')->get();
+
+        // 2. Ambil semua ID meja unik dari SEMUA orders, DECODE dulu.
+
+        $allTableIds = $orders->pluck('selected_table_ids')
+            ->map(function ($ids) {
+                // 🎯 BARIS PENTING: Mendekode JSON string ke array
+                $decodedIds = json_decode($ids, true);
+
+                // Memastikan hasilnya adalah array
+                return is_array($decodedIds) ? $decodedIds : [];
+            })
+            ->flatten()
+            ->unique()
+            ->filter()
+            ->toArray();
+
+        // 3. Ambil Nama Meja berdasarkan ID
+        $tables = Meja::whereIn('id', $allTableIds)
+            ->pluck('name', 'id')
+            ->toArray();
+
+        // 4. Proses dan gabungkan nama meja
+        foreach ($orders as $order) {
+            // Dekode lagi untuk order spesifik jika casting gagal
+            $orderTableIds = json_decode($order->selected_table_ids, true);
+
+            if (is_array($orderTableIds)) {
+                $tableNames = collect($orderTableIds)
+                    ->map(fn ($id) => $tables[$id] ?? "ID: {$id} (Meja Tidak Ditemukan)")
+                    ->all();
+
+                // Simpan nama meja yang sudah diproses
+                $order->table_names = $tableNames;
+            } else {
+                $order->table_names = [];
+            }
+        }
+
+        return $orders;
     }
 
     #[On('updateVariant')]
@@ -216,6 +287,74 @@ class Checkout extends Component
             'cart_items' => $cart_items,
             'tables' => $this->tables, // ✅ tambahkan ini
         ]);
+
+        // Ambil semua meja untuk ditampilkan di modal
+        $tables = Meja::all();
+
+        return view('livewire.checkout-component', [
+            'tables' => $tables,
+        ]);
+    }
+
+    // --- Metode Pemilihan Meja ---
+    public function toggleTable($tableId)
+    {
+        // Perubahan: Pengecekan status meja (Meja::find($tableId) dan if ($table->status == 2)) telah dihapus.
+        // Logika kini hanya fokus pada pengelolaan daftar ID meja.
+
+        $key = array_search($tableId, $this->table_ids_array);
+
+        if ($key !== false) {
+            // Meja sudah ada di daftar: Hapus ID dari array
+            unset($this->table_ids_array[$key]);
+        } else {
+            // Meja belum ada di daftar: Tambahkan ID ke array
+            $this->table_ids_array[] = $tableId;
+        }
+
+        // Merapikan ulang indeks array setelah unset (Penting untuk Livewire dan PHP)
+        $this->table_ids_array = array_values($this->table_ids_array);
+
+        // Panggil ini untuk memperbarui nama/string meja yang terlihat di input text (sesuai kode Anda)
+        $this->updateNameString();
+    }
+
+    public function removeTableByIndex($index)
+    {
+        // Ambil ID dari array berdasarkan index yang diklik
+        // Kita harus memastikan index sesuai dengan $this->table_ids_array
+
+        // Solusi: Ambil semua ID, hilangkan ID di posisi $index
+        $ids = $this->table_ids_array;
+        if (isset($ids[$index])) {
+            // Hapus elemen pada index tersebut
+            unset($ids[$index]);
+        }
+
+        // Reset dan update array IDs
+        $this->table_ids_array = array_values($ids);
+
+        // Update string nama meja yang ditampilkan
+        $this->updateNameString();
+    }
+
+    // --- Metode Update Nama Meja ---
+    public function updateNameString()
+    {
+        if (empty($this->table_ids_array)) {
+            $this->selectedTableNames = '';
+            return;
+        }
+
+        // Ambil data meja berdasarkan ID yang dipilih
+        $mejas = Meja::whereIn('id', $this->table_ids_array)->get();
+
+        // Buat string nama meja (e.g., "M1, M5, M8")
+        $names = $mejas->map(function ($table) {
+            return $table->name ?? 'Meja ' . $table->no_meja;
+        })->implode(', ');
+
+        $this->selectedTableNames = $names;
     }
 
     public function proceed()
@@ -338,7 +477,9 @@ class Checkout extends Component
             'order_type',
             'table_id',
             'check_quantity',
-            'current_reference'
+            'current_reference',
+            'table_ids_array',
+            'selectedTableNames'
         ]);
 
         // reset default
@@ -737,6 +878,9 @@ class Checkout extends Component
         $tax = (float) str_replace(',', '', Cart::instance($this->cart_instance)->tax());
         $discount = (float) str_replace(',', '', Cart::instance($this->cart_instance)->discount());
 
+        // ✅ Mengambil array ID meja yang sudah di-encode
+        $encoded_table_ids = json_encode($this->table_ids_array);
+
         // ✅ Cek apakah ini update atau create baru
         $sale = null;
 
@@ -749,9 +893,13 @@ class Checkout extends Component
 
                 // Update summary
                 $sale->update([
+                    // PENTING: Jangan update field 'id' yang sudah ada
                     'customer_name' => $this->customer_name ?? 'Guest',
                     'order_type' => $this->order_type,
-                    'table_id' => $this->table_id ?? null,
+
+                    // 🛑 PERBAIKAN 1: HAPUS 'table_id' karena kita pakai 'selected_table_ids'
+                    // 'table_id' => $this->table_id ?? null,
+
                     'total_amount' => ($total + $shipping) * 100,
                     'tax_percentage' => (float) ($this->global_tax ?? 0),
                     'discount_percentage' => (float) ($this->global_discount ?? 0),
@@ -760,6 +908,9 @@ class Checkout extends Component
                     'discount_amount' => $discount * 100,
                     'status' => 'Pending',
                     'payment_status' => 'Unpaid',
+
+                    // ✅ Menyimpan array ID meja (JSON)
+                    'selected_table_ids' => $encoded_table_ids,
                 ]);
             }
         }
@@ -774,7 +925,10 @@ class Checkout extends Component
                 'customer_id' => null,
                 'customer_name' => $this->customer_name ?? 'Guest',
                 'order_type' => $this->order_type,
-                'table_id' => $this->table_id ?? null,
+
+                // 🛑 PERBAIKAN 1: HAPUS 'table_id' karena kita pakai 'selected_table_ids'
+                // 'table_id' => $this->table_id ?? null,
+
                 'tax_percentage' => (float) ($this->global_tax ?? 0),
                 'discount_percentage' => (float) ($this->global_discount ?? 0),
                 'shipping_amount' => $shipping * 100,
@@ -783,6 +937,9 @@ class Checkout extends Component
                 'payment_status' => 'Unpaid',
                 'tax_amount' => $tax * 100,
                 'discount_amount' => $discount * 100,
+
+                // ✅ Menyimpan array ID meja (JSON)
+                'selected_table_ids' => $encoded_table_ids,
             ]);
 
             // Simpan reference agar bisa update nanti
@@ -791,12 +948,7 @@ class Checkout extends Component
 
         // ✅ Simpan detail baru
         foreach (Cart::instance('sale')->content() as $cart_item) {
-
-            logger()->info("VARIANTS DI CART", [
-                'product' => $cart_item->name,
-                'options' => $cart_item->options,
-                'variants' => $cart_item->options->variants ?? null
-            ]);
+            // ... (logging dihapus agar lebih ringkas) ...
 
             SaleDetails::create([
                 'sale_id' => $sale->id,
@@ -805,27 +957,26 @@ class Checkout extends Component
                 'product_name' => $cart_item->name,
                 'product_code' => $cart_item->options->code,
                 'quantity' => $cart_item->qty,
+
+                // ✅ PERBAIKAN 2: Pastikan semua amount dikali 100 di sini
                 'price' => (float) $cart_item->price * 100,
                 'unit_price' => (float) ($cart_item->options->unit_price ?? $cart_item->price) * 100,
                 'sub_total' => (float) ($cart_item->options->sub_total ?? $cart_item->subtotal) * 100,
                 'product_discount_amount' => (float) ($cart_item->options->product_discount ?? 0) * 100,
-                'product_discount_type' => $cart_item->options->product_discount_type ?? 'fixed',
-                'product_tax_amount' => (float) ($cart_item->options->product_tax ?? 0),
 
-                // 🔥 TAMBAHAN → SIMPAN VARIANT PER ITEM
-                // =======================================
+                'product_discount_type' => $cart_item->options->product_discount_type ?? 'fixed',
+                'product_tax_amount' => (float) ($cart_item->options->product_tax ?? 0) * 100, // <-- Pastikan ini juga dikali 100 jika disimpan dalam format integer
+
+                // 🔥 SIMPAN VARIANT PER ITEM
                 'variant_detail' => json_encode($cart_item->options->variants ?? []),
             ]);
         }
 
         // ✅ Bersihkan keranjang dan reset data form
         Cart::instance('sale')->destroy();
-        $this->reset(['customer_name', 'order_type', 'table_id', 'current_reference']);
+        // ✅ PERBAIKAN 3: Hapus 'table_id' dari daftar reset
+        $this->reset(['customer_name', 'order_type', 'current_reference', 'table_ids_array', 'selectedTableNames']);
         $this->resetCart();
-
-        // $this->alertType = 'success';
-        // $this->alertMessage = 'Order berhasil disimpan dengan status Pending!';
-        // $this->dispatch('auto-hide-alert');
     }
 
 
@@ -890,7 +1041,9 @@ class Checkout extends Component
             'check_quantity',
             'discount_type',
             'item_discount',
-            'total_amount'
+            'total_amount',
+            'table_ids_array',
+            'selectedTableNames',
         ]);
 
         // Kosongkan Livewire property quantity juga
@@ -946,6 +1099,29 @@ class Checkout extends Component
         $this->table_id = $order->table_id;
         $this->customer_name = $order->customer_name;
 
+        if (!empty($order->selected_table_ids)) {
+
+            // Cek casting model (baik array atau string JSON)
+            $tableIds = is_array($order->selected_table_ids)
+                ? $order->selected_table_ids
+                : json_decode($order->selected_table_ids, true);
+
+            // Pastikan hasil decode adalah array yang tidak kosong
+            if (!empty($tableIds)) {
+                // ✅ Set Livewire property array ID meja
+                $this->table_ids_array = array_map('intval', $tableIds);
+
+                // ✅ Ambil dan set string nama meja untuk badge
+                $mejas = Meja::whereIn('id', $this->table_ids_array)->get();
+                $this->selectedTableNames = $mejas->map(fn ($t) => $t->name ?? 'Meja ' . $t->no_meja)->implode(', ');
+            }
+        }
+
+        // Fallback: Jika field lama 'table_id' masih digunakan dan tidak ada selected_table_ids
+        $this->table_id = $order->table_id;
+
+        // =========================================================================
+
         $this->refreshCartTaxAndDiscount();
 
         // ✅ Tutup modal list order
@@ -953,7 +1129,7 @@ class Checkout extends Component
         $this->dispatch('close-order-detail-modal');
         $this->dispatch('close-pending-orders-modal');
 
-
+        $this->dispatch('syncTableSelection', scope: true);
         // $this->alertType = 'info';
         // $this->alertMessage = 'Order berhasil dimuat.';
         // $this->dispatch('auto-hide-alert');

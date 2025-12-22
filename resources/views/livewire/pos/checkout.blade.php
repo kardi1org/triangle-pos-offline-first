@@ -51,23 +51,53 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="customer_id">Customer Name & Table<span class="text-danger"> *</span></label>
+                        <label for="customer_name">Customer Name<span class="text-danger"> *</span></label>
+
                         <div class="input-group">
-                            <!-- Input Customer Name -->
-                            <input type="text" id="customer_name" name="customer_name"
+
+                            <input type="text" id="customer_name" name="customer_name" style="margin-right: 2px;"
                                 wire:model.blur="customer_name" class="form-control" placeholder="Enter customer name">
 
-                            <!-- Dropdown Meja -->
-                            <select id="table_id" name="table_id" wire:model="table_id" class="form-control ml-2"
-                                style="max-width: 180px;">
-                                <option value="">Select Table</option>
-                                @foreach ($tables as $table)
-                                    <option value="{{ $table->id }}">
-                                        {{ $table->name ?? 'Meja ' . $table->no_meja }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <button type="button" class="btn btn-outline-secondary" data-toggle="modal"
+                                data-target="#tableSelectionModal" title="Select Table">
+                                Select Table <i class="bi bi-grid-3x3-gap"></i>
+                            </button>
                         </div>
+
+                        <div class="form-group">
+                            <div class="input-group">
+                            </div>
+
+                            @if (!empty($selectedTableNames))
+                                <div class="mt-2">
+
+                                    <div class="d-flex align-items-center flex-wrap">
+
+                                        <small class="text-muted mb-1" style="margin-right: 4px;">Table:</small>
+
+                                        <div class="d-flex flex-wrap">
+                                            @php
+                                                $names = explode(', ', $selectedTableNames);
+                                            @endphp
+                                            @foreach ($names as $index => $name)
+                                                <span class="badge bg-primary text-white mb-1 p-1 text-sm"
+                                                    style="margin-right: 2px;">
+                                                    {{ $name }}
+                                                    <i class="bi bi-x-circle ms-1"
+                                                        style="font-size: 0.8em; cursor: pointer;"
+                                                        wire:click="removeTableByIndex({{ $index }})"
+                                                        title="Hapus Meja"></i>
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <input type="hidden" name="table_ids" wire:model="table_ids_array">
+                                </div>
+                            @endif
+
+                        </div>
+
                     </div>
 
 
@@ -231,6 +261,73 @@
                         }
                     </style>
 
+                    <style>
+                        .table-grid-container {
+                            display: grid;
+                            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                            gap: 15px;
+                            padding: 10px;
+                        }
+
+                        .table-card {
+                            border: 1px solid #ddd;
+                            border-radius: 8px;
+                            padding: 15px;
+                            text-align: center;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            position: relative;
+                            overflow: hidden;
+                        }
+
+                        /* Style untuk Meja yang terpilih */
+                        .table-card.selected {
+                            border: 3px solid #007bff;
+                            /* Warna biru untuk yang terpilih */
+                            background-color: #e9f5ff;
+                        }
+
+                        /* Style berdasarkan Status */
+                        .table-card.available {
+                            background-color: #e6ffed;
+                            /* Hijau muda */
+                            border-color: #28a745;
+                        }
+
+                        .table-card.occupied {
+                            background-color: #fff0f0;
+                            /* Merah muda */
+                            border-color: #dc3545;
+                            cursor: not-allowed;
+                            opacity: 0.6;
+                        }
+
+                        .table-card.cleaning {
+                            background-color: #fffbe6;
+                            /* Kuning muda */
+                            border-color: #ffc107;
+                        }
+
+                        .table-card h3 {
+                            margin: 0;
+                            font-size: 1.5rem;
+                            font-weight: bold;
+                        }
+
+                        .table-status {
+                            margin-top: 10px;
+                            font-size: 0.9rem;
+                        }
+
+                        .selection-overlay {
+                            position: absolute;
+                            top: 5px;
+                            right: 5px;
+                            color: #007bff;
+                            font-size: 1.5rem;
+                        }
+                    </style>
+
                     <div class="card mt-3">
                         <div class="card-header">
                             <h5 class="mb-0">Order Summary</h5>
@@ -272,8 +369,8 @@
                         <div class="col-lg-4">
                             <div class="form-group">
                                 <label for="tax_percentage">Order Tax (%)</label>
-                                <input wire:model.blur="global_tax" type="number" class="form-control" min="0"
-                                    max="100" value="{{ $global_tax }}" required>
+                                <input wire:model.blur="global_tax" type="number" class="form-control"
+                                    min="0" max="100" value="{{ $global_tax }}" required>
                             </div>
                         </div>
                         <div class="col-lg-4">
@@ -338,6 +435,83 @@
             </div>
         </div>
 
+        <!-- ✅ Modal List Meja -->
+        <div class="modal fade" id="tableSelectionModal" tabindex="-1" role="dialog"
+            aria-labelledby="tableSelectionModalLabel" aria-hidden="true" wire:ignore.self>
+
+            <div class="modal-dialog modal-lg" role="document" x-data="{
+                localSelectedIds: [],
+
+                // Fungsi untuk sinkronisasi dari Livewire ke Alpine
+                syncLivewireState() {
+                    // 🚀 PERBAIKAN: Konversi semua elemen array dari Livewire menjadi Integer
+                    this.localSelectedIds = $wire.table_ids_array.map(id => parseInt(id));
+                    // console.log('Synced IDs:', this.localSelectedIds); // DEBUG: Coba cek di console browser
+                },
+
+                // Fungsi untuk toggle ID di state lokal
+                toggleLocalTable(id) {
+                    // 🚀 PERBAIKAN: Konversi ID yang diterima dari klik ke Integer
+                    const intId = parseInt(id);
+                    const index = this.localSelectedIds.indexOf(intId);
+
+                    if (index > -1) {
+                        this.localSelectedIds.splice(index, 1);
+                    } else {
+                        this.localSelectedIds.push(intId);
+                    }
+                }
+            }" x-init="syncLivewireState()"
+                x-on:show.bs.modal="syncLivewireState()" x-on:sync-table-selection.window="syncLivewireState()">
+
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="tableSelectionModalLabel">Pilih Meja</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="table-grid-container" id="tableGridContainer">
+                            @foreach ($tables as $table)
+                                {{-- 🛑 KODE PHP PENENTU STATUS (statusClass, statusIcon, statusText) DIHAPUS --}}
+
+                                <div class="table-card" {{-- Hanya bergantung pada localSelectedIds --}}
+                                    :class="{ 'selected': localSelectedIds.includes({{ $table->id }}) }"
+                                    @click.stop="toggleLocalTable({{ $table->id }})">
+
+                                    <div class="table-info">
+                                        <h3>{{ $table->no_meja }}</h3>
+                                        <p>{{ $table->name }}</p>
+                                    </div>
+
+                                    {{-- 🛑 DIV table-status DIHAPUS, Ganti dengan info PAX sederhana --}}
+                                    <div class="table-status-simple">
+                                        <span>Kapasitas: {{ $table->qty_pax }} Pax</span>
+                                    </div>
+
+                                    <div class="selection-overlay"
+                                        x-show="localSelectedIds.includes({{ $table->id }})">
+                                        <i class="bi bi-check-lg"></i>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+
+                        <button type="button" class="btn btn-primary" data-dismiss="modal"
+                            @click="$wire.set('table_ids_array', localSelectedIds); $wire.call('updateNameString');">
+                            Konfirmasi Pilihan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ✅ Modal List Pending Orders -->
         <div wire:ignore.self class="modal fade" id="pendingOrdersModal" tabindex="-1" role="dialog"
             aria-labelledby="pendingOrdersModalLabel" aria-hidden="true">
@@ -374,7 +548,13 @@
                                                 <td>{{ $loop->iteration }}</td>
                                                 <td>{{ $order->reference }}</td>
                                                 <td>{{ $order->customer_name }}</td>
-                                                <td>{{ optional($order->meja)->name ?? '-' }}</td>
+                                                <td>
+                                                    @if (isset($order->table_names) && is_array($order->table_names) && count($order->table_names) > 0)
+                                                        {{ implode(', ', $order->table_names) }}
+                                                    @else
+                                                        -
+                                                    @endif
+                                                </td>
                                                 <td>{{ $order->date }}</td>
                                                 <td>{{ format_currency($order->total_amount) }}</td>
                                                 <td class="text-center">
@@ -500,20 +680,17 @@
                                 <tbody>
                                     @foreach ($previewOrderData['details'] as $item)
                                         @php
-                                            // ... (Kode parsing $variantDetail ke $variants tetap sama) ...
                                             $variantDetail = $item['variant_detail'] ?? null;
                                             $variants = [];
+                                            $aggregatedVariants = []; // <-- Variable untuk menampung hasil pengelompokan
 
-                                            // ... (Logika parsing yang aman) ...
+                                            // Logika parsing yang aman (tetap dipertahankan)
                                             if (isset($variantDetail)) {
-                                                // KASUS A: Data sudah berupa array PHP
                                                 if (is_array($variantDetail)) {
                                                     if (!empty($variantDetail) && $variantDetail !== [[]]) {
                                                         $variants = $variantDetail;
                                                     }
-                                                }
-                                                // KASUS B: Data masih berupa string JSON
-                                                elseif (is_string($variantDetail)) {
+                                                } elseif (is_string($variantDetail)) {
                                                     $decoded = json_decode($variantDetail, true);
                                                     if (is_array($decoded) && !empty($decoded)) {
                                                         $variants = $decoded;
@@ -521,48 +698,52 @@
                                                 }
                                             }
 
-                                            // Ambil Type Order Utama dari header
-                                            $mainTypeOrder = $previewOrderData['typeOrder'] ?? 'UNKNOWN';
+                                            // Logika Pengelompokan (Aggregation)
+                                            if (!empty($variants)) {
+                                                foreach ($variants as $variant) {
+                                                    $variantText = trim($variant['variant'] ?? '');
+                                                    $typeOrder = trim($variant['typeOrder'] ?? 'dine_in');
 
-                                            // Kita tidak lagi memerlukan $showDetailTypeOrder di sini karena logikanya ada di dalam loop $variants.
+                                                    // Tentukan kunci pengelompokan
+                                                    if (empty($variantText)) {
+                                                        // Jika variant kosong, kelompokkan berdasarkan Type Order saja (Contoh: Type: take_out)
+                                                        $key = 'Type: ' . $typeOrder;
+                                                        $display = 'Type: **' . strtoupper($typeOrder) . '**';
+                                                    } else {
+                                                        // Jika variant ada, kelompokkan berdasarkan Variant + Type Order
+                                                        $key = $variantText . ' (' . $typeOrder . ')';
+                                                        $display = '**' . $variantText . '** (' . $typeOrder . ')';
+                                                    }
 
+                                                    // Tambahkan ke hasil agregasi
+                                                    if (isset($aggregatedVariants[$key])) {
+                                                        $aggregatedVariants[$key]['qty'] += 1;
+                                                    } else {
+                                                        $aggregatedVariants[$key] = [
+                                                            'display' => $display,
+                                                            'qty' => 1,
+                                                        ];
+                                                    }
+                                                }
+                                            }
                                         @endphp
 
                                         <tr>
                                             <td>
                                                 <strong>{{ $item['product_name'] }}</strong>
 
-                                                {{-- ✅ Tampilkan Variant Detail --}}
-                                                @if (!empty($variants))
+                                                {{-- ✅ Tampilkan Hasil Pengelompokan --}}
+                                                @if (!empty($aggregatedVariants))
                                                     <div class="small text-muted mt-1" style="font-size: 0.85em;">
-                                                        @foreach ($variants as $variant)
-                                                            @php
-                                                                $variantText = $variant['variant'] ?? '';
-                                                                $variantType = $variant['typeOrder'] ?? null;
-                                                                $typeOrderText = '';
-
-                                                                // Cek apakah Type Order variant berbeda dari Type Order utama
-                                                                $isTypeOrderDifferent =
-                                                                    $variantType &&
-                                                                    strtoupper($variantType) !==
-                                                                        strtoupper($mainTypeOrder);
-                                                            @endphp
-
-                                                            {{-- KONDISI 1: Variant ADA (Tidak kosong) --}}
-                                                            @if (!empty($variantText))
-                                                                @if ($isTypeOrderDifferent)
-                                                                    @php $typeOrderText = ' (' . ($variantType) . ')'; @endphp
-                                                                @endif
-                                                                &bull; **{{ $variantText }}**{{ $typeOrderText }}<br>
-
-                                                                {{-- KONDISI 2: Variant KOSONG, TAPI Type Order BERBEDA (Ini skenario yang Anda maksud) --}}
-                                                            @elseif (empty($variantText) && $isTypeOrderDifferent)
-                                                                &bull; **Type: {{ $variantType }}** (Berbeda dari
-                                                                Utama)<br>
-
-                                                                {{-- Kondisi 3: Abaikan jika Variant KOSONG DAN Type Order SAMA dengan Utama (Tidak perlu ditampilkan) --}}
-                                                            @endif
+                                                        @foreach ($aggregatedVariants as $aggregated)
+                                                            {!! '&bull; ' . $aggregated['display'] . ' (' . $aggregated['qty'] . ')' !!}<br>
                                                         @endforeach
+                                                    </div>
+                                                @else
+                                                    <div class="small text-muted mt-1" style="font-size: 0.85em;">
+                                                        &bull; **Type:
+                                                        {{ strtoupper($previewOrderData['typeOrder']) }}**
+                                                        ({{ $item['quantity'] }})
                                                     </div>
                                                 @endif
                                             </td>
@@ -710,6 +891,30 @@
                             All</button>
                         <button type="button" class="btn btn-primary btn-sm"
                             id="selectVariantConfirm">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ Modal Print Struk -->
+        <div class="modal fade" id="printReceiptModal" tabindex="-1" aria-labelledby="printReceiptModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="printReceiptModalLabel">Cetak Struk Penjualan</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="receiptContent">
+                            Loading...
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                        <button type="button" class="btn btn-primary" id="printButton">Cetak Sekarang</button>
                     </div>
                 </div>
             </div>
@@ -1239,6 +1444,66 @@
                         $('#' + KITCHEN_PREVIEW_MODAL_ID).modal('hide');
                     }
                 }
+            </script>
+
+            <script>
+                // Ini memastikan backdrop (blur layer) dihapus jika tertinggal
+                $('#tableSelectionModal').on('hidden.bs.modal', function() {
+                    if ($('.modal-backdrop').length) {
+                        $('.modal-backdrop').remove();
+                    }
+                    // Pastikan class 'modal-open' juga dihapus dari body
+                    if ($('body').hasClass('modal-open')) {
+                        $('body').removeClass('modal-open');
+                    }
+                });
+            </script>
+
+            <script>
+                $(document).ready(function() {
+                    // Ambil referensi dari session flash
+                    const saleReference = "{{ session('showPrintModal') }}";
+
+                    if (saleReference) {
+                        // Jika ada referensi, muat konten struk dan tampilkan modal
+                        loadAndShowPrintModal(saleReference);
+                    }
+
+                    /**
+                     * Muat konten struk ke dalam modal dan menampilkannya.
+                     * @param {string} reference Nomor referensi penjualan (SL-XXXXX)
+                     */
+                    function loadAndShowPrintModal(reference) {
+                        // 1. Tentukan URL cetak (Pastikan rute ini sudah didefinisikan di routes/web.php)
+                        const printUrl = `/app/pos/sales/print/${reference}`;
+
+                        // 2. Muat konten struk menggunakan AJAX
+                        $('#receiptContent').html('<div class="text-center">Memuat Struk...</div>');
+
+                        // Kita akan memuat view cetak ke dalam iframe untuk memastikan formatting print-nya terjaga.
+                        const iframeHtml = `<iframe
+                                    src="${printUrl}?modal=true"
+                                    style="width: 100%; height: 400px; border: none;"
+                                    id="receiptIframe">
+                                </iframe>`;
+
+                        $('#receiptContent').html(iframeHtml);
+
+                        // 3. Tampilkan Modal (Asumsi Anda menggunakan Bootstrap/jQuery)
+                        $('#printReceiptModal').modal('show');
+                    }
+
+                    // 4. Handle tombol cetak di dalam modal
+                    $('#printButton').on('click', function() {
+                        const iframe = document.getElementById('receiptIframe');
+                        if (iframe) {
+                            // Pemicu fungsi print di dalam iframe
+                            iframe.contentWindow.print();
+                        } else {
+                            alert('Struk belum termuat.');
+                        }
+                    });
+                });
             </script>
         @endpush
     </div>

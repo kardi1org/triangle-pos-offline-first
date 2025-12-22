@@ -3,10 +3,11 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Modules\Currency\Database\Seeders\CurrencyDatabaseSeeder;
+use Database\Seeders\PaymentSeeder;
+use Modules\User\Database\Seeders\PermissionsTableSeeder;
 use Modules\Product\Database\Seeders\ProductDatabaseSeeder;
 use Modules\Setting\Database\Seeders\SettingDatabaseSeeder;
-use Modules\User\Database\Seeders\PermissionsTableSeeder;
+use Modules\Currency\Database\Seeders\CurrencyDatabaseSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,5 +23,6 @@ class DatabaseSeeder extends Seeder
         $this->call(CurrencyDatabaseSeeder::class);
         $this->call(SettingDatabaseSeeder::class);
         $this->call(ProductDatabaseSeeder::class);
+        $this->call(PaymentSeeder::class);
     }
 }

@@ -1,0 +1,11 @@
+{
+    "name": "Meja",
+    "alias": "meja",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Meja\\Providers\\MejaServiceProvider"
+    ],
+    "files": []
+}

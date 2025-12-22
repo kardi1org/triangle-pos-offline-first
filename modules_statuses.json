@@ -15,5 +15,6 @@
     "Quotation": true,
     "Reports": true,
     "Budget": true,
-    "Inventory": true
+    "Inventory": true,
+    "Meja": true
 }
