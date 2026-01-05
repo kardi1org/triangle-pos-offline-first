@@ -1118,11 +1118,11 @@
                         <td class="text-center">${i}</td>
                         <td>
                             <div class="btn-group btn-group-sm w-100">
-                                <button type="button" class="btn ${dineActive} type-btn px-2 py-1" style="width:65px;"
+                                <button type="button" class="btn ${dineActive} type-btn px-2 py-1" style="width:66px;"
                                         data-type="dine_in" data-index="${i}">
                                     Dine In
                                 </button>
-                                <button type="button" class="btn ${takeActive} type-btn px-2 py-1" style="width:65px;"
+                                <button type="button" class="btn ${takeActive} type-btn px-2 py-1" style="width:66px;"
                                         data-type="take_out" data-index="${i}">
                                     Take Out
                                 </button>

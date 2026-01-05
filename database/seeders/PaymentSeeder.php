@@ -26,6 +26,7 @@ class PaymentSeeder extends Seeder
             'Dana' => 'Y',
             'GrabPay' => 'Y',
             'QRIS' => 'Y',
+            'id' => 0,
         ]);
     }
 }

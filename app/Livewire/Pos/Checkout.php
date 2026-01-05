@@ -896,6 +896,7 @@ class Checkout extends Component
                     // PENTING: Jangan update field 'id' yang sudah ada
                     'customer_name' => $this->customer_name ?? 'Guest',
                     'order_type' => $this->order_type,
+                    'user_id' => auth()->id(),
 
                     // 🛑 PERBAIKAN 1: HAPUS 'table_id' karena kita pakai 'selected_table_ids'
                     // 'table_id' => $this->table_id ?? null,
@@ -922,6 +923,7 @@ class Checkout extends Component
             $sale = Sale::create([
                 'date' => now()->format('Y-m-d'),
                 'reference' => $reference,
+                'user_id' => auth()->id(),
                 'customer_id' => null,
                 'customer_name' => $this->customer_name ?? 'Guest',
                 'order_type' => $this->order_type,

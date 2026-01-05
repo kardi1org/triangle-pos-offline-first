@@ -16,5 +16,6 @@
     "Reports": true,
     "Budget": true,
     "Inventory": true,
-    "Meja": true
+    "Meja": true,
+    "Shift": true
 }

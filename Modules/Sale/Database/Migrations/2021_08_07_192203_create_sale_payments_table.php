@@ -15,13 +15,30 @@ class CreateSalePaymentsTable extends Migration
     {
         Schema::create('sale_payments', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('sale_id');
-            $table->integer('amount');
+
+            // Relasi ke tabel sales
+            $table->foreignId('sale_id')
+                ->constrained('sales') // Sesuaikan jika nama tabel induk berbeda
+                ->onDelete('cascade');
+
             $table->date('date');
-            $table->string('reference');
-            $table->string('payment_method');
+            $table->string('reference', 40);
+            $table->string('payment_method')->nullable();
             $table->text('note')->nullable();
-            $table->foreign('sale_id')->references('id')->on('sales')->cascadeOnDelete();
+
+            // Field nominal pembayaran (Integer sesuai permintaan int(10))
+            $table->integer('amount')->nullable();
+            $table->integer('cashpay')->nullable();
+            $table->integer('debitcard')->nullable();
+            $table->integer('creditcard')->nullable();
+            $table->integer('gopay')->nullable();
+            $table->integer('grabpay')->nullable();
+            $table->integer('ovopay')->nullable();
+            $table->integer('shopeepay')->nullable();
+            $table->integer('danapay')->nullable();
+            $table->integer('kredivopay')->nullable();
+            $table->integer('qrispay')->nullable();
+            $table->integer('change')->nullable();
             $table->timestamps();
         });
     }

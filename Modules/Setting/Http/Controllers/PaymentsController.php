@@ -54,16 +54,16 @@ class   PaymentsController extends Controller
         DB::table('payments')
             ->where('code', 1)
             ->update([
-                'cash' => $request->cash,
-                'debitcard' => $request->debitcard,
-                'gopay' => $request->gopay,
-                'creditcard' => $request->creditcard,
-                'ovo' => $request->ovo,
-                'shopeepay' => $request->shopeepay,
-                'kredivo' => $request->kredivo,
-                'dana' => $request->dana,
-                'grabpay' => $request->grabpay,
-                'qris' => $request->qris,
+                'cash'        => $request->cash        ?? 'N',
+                'debitcard'   => $request->debitcard   ?? 'N',
+                'gopay'       => $request->gopay       ?? 'N',
+                'creditcard'  => $request->creditcard  ?? 'N',
+                'ovo'         => $request->ovo         ?? 'N',
+                'shopeepay'   => $request->shopeepay   ?? 'N',
+                'kredivo'     => $request->kredivo     ?? 'N',
+                'dana'        => $request->dana         ?? 'N',
+                'grabpay'     => $request->grabpay     ?? 'N',
+                'qris'        => $request->qris         ?? 'N',
 
             ]);
 

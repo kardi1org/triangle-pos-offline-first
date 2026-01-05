@@ -27,78 +27,102 @@
                         </div>
                     @endif
 
-
                     <script>
                         function updatekembalian() {
 
-                            const cash = document.getElementById('cash');
-                            const kembalian = document.getElementById('kembalian');
-                            const total_amount = document.getElementById('total_amount');
-                            const paid_amount = document.getElementById('paid_amount');
-                            const debitcard = document.getElementById('debitcard');
-                            const creditcard = document.getElementById('creditcard');
-                            const gopay = document.getElementById('gopay');
-                            const ovo = document.getElementById('ovo');
-                            const shopeepay = document.getElementById('shopeepay');
-                            const kredivo = document.getElementById('kredivo');
-                            const dana = document.getElementById('dana');
-                            const grabpay = document.getElementById('grabpay');
-                            const qris = document.getElementById('qris');
-                            const actionButton = document.getElementById('actionbutton');
+                            // ===============================
+                            // HELPER
+                            // ===============================
+                            const el = (id) => document.getElementById(id);
+                            const num = (v) => isNaN(parseFloat(v)) ? 0 : parseFloat(v);
 
-                            // Create our number formatter.
-                            const formatter = new Intl.NumberFormat('en-US', {
-                                style: 'currency',
-                                currency: 'USD',
+                            const rupiah = (number) => new Intl.NumberFormat("id-ID", {
+                                style: "currency",
+                                currency: "IDR"
+                            }).format(number);
 
-                                // These options can be used to round to whole numbers.
-                                trailingZeroDisplay: 'stripIfInteger', // This is probably what most people
-                                // want. It will only stop printing
-                                // the fraction when the input
-                                // amount is a round number (int)
-                                // already. If that's not what you
-                                // need, have a look at the options
-                                // below.
-                                minimumFractionDigits: 0, // This suffices for whole numbers, but will
-                                // print 2500.10 as $2,500.1
-                                //maximumFractionDigits: 0, // Causes 2500.99 to be printed as $2,501
+                            // ===============================
+                            // ELEMENTS
+                            // ===============================
+                            const totalAmount = num(el('total_amount').value);
+                            const paidInput = el('paid_amount');
+                            const changeInput = el('kembalian');
+                            const actionButton = el('actionbutton');
+
+                            // ===============================
+                            // PAYMENT INPUTS (LIST)
+                            // ===============================
+                            const paymentIds = [
+                                'cash',
+                                'debitcard',
+                                'creditcard',
+                                'gopay',
+                                'ovo',
+                                'shopeepay',
+                                'kredivo',
+                                'dana',
+                                'grabpay',
+                                'qris'
+                            ];
+
+                            // ===============================
+                            // HITUNG TOTAL BAYAR
+                            // ===============================
+                            let paidAmount = 0;
+                            paymentIds.forEach(id => {
+                                const input = el(id);
+                                if (input) paidAmount += num(input.value);
                             });
 
-                            const rupiah = (number) => {
-                                return new Intl.NumberFormat("id-ID", {
-                                    style: "currency",
-                                    currency: "IDR"
-                                }).format(number);
-                            }
+                            paidInput.value = paidAmount;
+                            el('lblreceipt').innerHTML = rupiah(paidAmount);
 
-                            paid_amount.value = (isNaN(parseFloat(cash.value)) ? 0 : parseFloat(cash.value)) +
-                                (isNaN(parseFloat(debitcard.value)) ? 0 : parseFloat(debitcard.value)) +
-                                (isNaN(parseFloat(creditcard.value)) ? 0 : parseFloat(creditcard.value)) +
-                                (isNaN(parseFloat(gopay.value)) ? 0 : parseFloat(gopay.value)) +
-                                (isNaN(parseFloat(ovo.value)) ? 0 : parseFloat(ovo.value)) +
-                                (isNaN(parseFloat(shopeepay.value)) ? 0 : parseFloat(shopeepay.value)) +
-                                (isNaN(parseFloat(kredivo.value)) ? 0 : parseFloat(kredivo.value)) +
-                                (isNaN(parseFloat(dana.value)) ? 0 : parseFloat(dana.value)) +
-                                (isNaN(parseFloat(grabpay.value)) ? 0 : parseFloat(grabpay.value)) +
-                                (isNaN(parseFloat(qris.value)) ? 0 : parseFloat(qris.value))
+                            // ===============================
+                            // HITUNG KEMBALIAN
+                            // ===============================
+                            let change = paidAmount - totalAmount;
 
-                            document.getElementById('lblreceipt').innerHTML = rupiah(paid_amount.value);
-
-                            if ((paid_amount.value - parseFloat(total_amount.value)) < 0) {
-                                kembalian.value = 0;
-                                document.getElementById('lblkembalian').innerHTML = 'Rp 0,00';
-                            } else {
-                                kembalian.value = paid_amount.value - parseFloat(total_amount.value);
-                                document.getElementById('lblkembalian').innerHTML = rupiah(kembalian.value);
-                            }
-
-                            if (paid_amount.value < parseFloat(total_amount.value)) {
+                            if (change < 0) {
+                                change = 0;
                                 actionButton.disabled = true;
                             } else {
                                 actionButton.disabled = false;
                             }
+
+                            changeInput.value = change;
+                            el('lblkembalian').innerHTML = rupiah(change);
+
+                            const receiptLabel = document.getElementById('lblreceipt');
+                            const changeLabel = document.getElementById('lblkembalian');
+
+                            if (paidAmount < totalAmount) {
+                                receiptLabel.classList.add('text-danger', 'font-weight-bold');
+                                changeLabel.classList.add('text-danger', 'font-weight-bold');
+                            } else {
+                                receiptLabel.classList.remove('text-danger', 'font-weight-bold');
+                                changeLabel.classList.remove('text-danger', 'font-weight-bold');
+                            }
+
                         }
                     </script>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+
+                            const paymentIds = [
+                                'cash', 'debitcard', 'creditcard', 'gopay', 'ovo',
+                                'shopeepay', 'kredivo', 'dana', 'grabpay', 'qris'
+                            ];
+
+                            paymentIds.forEach(id => {
+                                const el = document.getElementById(id);
+                                if (el) {
+                                    el.addEventListener('keyup', updatekembalian);
+                                }
+                            });
+
+                        });
+                    </script>
+
 
                     <div class="row">
                         <div class="col-lg-7">

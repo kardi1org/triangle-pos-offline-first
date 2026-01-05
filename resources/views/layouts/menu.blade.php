@@ -4,6 +4,12 @@
     </a>
 </li>
 
+<li class="c-sidebar-nav-item {{ request()->routeIs('shift.*') ? 'active' : '' }}">
+    <a class="c-sidebar-nav-link" href="{{ route('shift.index') }}">
+        <i class="c-sidebar-nav-icon bi bi-clock-history" style="line-height: 1;"></i> Management Shift
+    </a>
+</li>
+
 @can('access_products')
     <li
         class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('products.*') || request()->routeIs('product-categories.*') ? 'c-show' : '' }}">
@@ -342,6 +348,12 @@
                     Report
                 </a>
             </li>
+            {{-- <li class="c-sidebar-nav-item">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('shift.reports') ? 'c-active' : '' }}"
+                    href="{{ route('shift.reports') }}">
+                    <i class="c-sidebar-nav-icon bi bi-file-earmark-bar-graph" style="line-height: 1;"></i> Laporan Shift
+                </a>
+            </li> --}}
         </ul>
     </li>
 @endcan

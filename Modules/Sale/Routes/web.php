@@ -19,7 +19,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 |
 */
 
-Route::group(['middleware' => 'auth'], function () {
+Route::group(['middleware' => ['auth', 'check.shift']], function () {
 
     //POS
     Route::get('/app/pos', 'PosController@index')->name('app.pos.index');

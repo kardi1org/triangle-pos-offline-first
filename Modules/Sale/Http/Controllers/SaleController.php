@@ -53,6 +53,7 @@ class SaleController extends Controller
                 'date' => $request->date,
                 'customer_id' => $request->customer_id,
                 //'customer_name' => Customer::findOrFail($request->customer_id)->customer_name,
+                'user_id' => auth()->id(),
                 'tax_percentage' => $request->tax_percentage,
                 'discount_percentage' => $request->discount_percentage,
                 'shipping_amount' => $request->shipping_amount * 100,   //* 100,

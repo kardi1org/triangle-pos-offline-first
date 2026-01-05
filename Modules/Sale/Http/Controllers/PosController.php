@@ -84,6 +84,7 @@ class PosController extends Controller
             $sale = Sale::create([
                 'date' => now()->format('Y-m-d'),
                 'reference' => $this->generateSalesNumber(),
+                'user_id' => auth()->id(),
                 'customer_id' => $request->$customer_id,
                 'customer_name' => $request->input('customer_name'),
                 'order_type' => $request->input('order_type'), // ✅ tambahkan
@@ -415,6 +416,7 @@ class PosController extends Controller
             $sale = Sale::create([
                 'date' => now()->format('Y-m-d'),
                 'reference' => $this->generateSalesNumber(),
+                'user_id' => auth()->id(),
                 'customer_id' => $customer_id,
                 'customer_name' => $request->input('customer_name'),
                 'order_type' => $request->input('order_type'),
