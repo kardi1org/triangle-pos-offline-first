@@ -12,5 +12,6 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/report/{id}', [ShiftController::class, 'show'])->name('shift.show');
         Route::get('/reports', [ShiftController::class, 'reportIndex'])->name('shift.reports');
         Route::get('/reports/detail/{id}', [ShiftController::class, 'getShiftDetails'])->name('shift.reports.detail');
+        Route::get('/reports/export', [ShiftController::class, 'exportExcel'])->name('shift.reports.export');
     });
 });

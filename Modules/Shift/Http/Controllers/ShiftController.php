@@ -8,6 +8,7 @@ use Modules\Shift\Entities\Shift;
 use Modules\Shift\Entities\CashTransaction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ShiftController extends Controller
 {
@@ -63,7 +64,7 @@ class ShiftController extends Controller
             'starting_cash' => $request->starting_cash,
             'status'        => 'open'
         ]);
-        toast('Shift berhasil dibuka.', 'success');
+        toast('Shift opened successfully.', 'success');
         return back();
     }
 
@@ -83,7 +84,7 @@ class ShiftController extends Controller
             'note' => $request->note,
             'transaction_date' => now(),
         ]);
-        toast('Transaksi kas ' . $request->type . ' berhasil dicatat.', 'success');
+        toast('Cash transaction saved successfully.', 'success');
         return back();
     }
 
@@ -113,11 +114,11 @@ class ShiftController extends Controller
             'ending_cash' => $request->ending_cash,
             'expected_ending_cash' => $expected,
             'status' => 'closed',
-            'note' => "Penjualan: $sales, Masuk: $income, Keluar: $expense. " . $request->note
+            'note' => "Sales: $sales, Income: $income, Expense: $expense. " . $request->note
         ]);
-        toast('Shift ditutup.', 'success');
-        return redirect()->route('shift.index')->with('message', 'Shift ditutup.');
-        //return redirect()->route('shift.show', $shift->id)->with('success', 'Shift ditutup.');
+        toast('Shift closed successfully.', 'success');
+        //return redirect()->route('shift.index')->with('message', 'Shift ditutup.');
+        return redirect()->route('shift.show', $shift->id)->with('success', 'Shift closed successfully.');
     }
 
     public function show($id)
@@ -140,7 +141,9 @@ class ShiftController extends Controller
             ->whereBetween('transaction_date', [$shift->open_time, $endTime])
             ->sum('amount');
 
-        return view('shift::show', compact('shift', 'sales', 'income', 'expense'));
+        $cashier = DB::connection('db_pos')->table('users')->where('id', $shift->user_id)->first();
+
+        return view('shift::show', compact('shift', 'sales', 'income', 'expense', 'cashier'));
     }
 
     public function reportIndex(Request $request)
@@ -160,7 +163,17 @@ class ShiftController extends Controller
 
         $shifts = $query->paginate(10); // Menampilkan 10 shift per halaman
 
-        return view('shift::report.index', compact('shifts'));
+        // Get all unique user IDs from the current page of shifts
+        $userIds = $shifts->pluck('user_id')->unique();
+
+        // Fetch those users from the CENTRAL database in ONE query
+        $users = DB::connection('db_pos')
+            ->table('users')
+            ->whereIn('id', $userIds)
+            ->get()
+            ->keyBy('id'); // Key by ID for easy lookup
+
+        return view('shift::report.index', compact('shifts', 'users'));
     }
 
     public function getShiftDetails($id)
@@ -181,6 +194,60 @@ class ShiftController extends Controller
             ->whereBetween('transaction_date', [$shift->open_time, $endTime])
             ->sum('amount');
 
-        return view('shift::report.details_partial', compact('shift', 'sales', 'income', 'expense'));
+        $cashier = DB::connection('db_pos')
+            ->table('users')
+            ->where('id', $shift->user_id)
+            ->first();
+
+        return view('shift::report.details_partial', compact('shift', 'sales', 'income', 'expense', 'cashier'));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $query = Shift::with('user')->orderBy('created_at', 'desc');
+
+        // Terapkan Filter yang sama
+        if ($request->start_date && $request->end_date) {
+            $query->whereDate('open_time', '>=', $request->start_date)
+                ->whereDate('open_time', '<=', $request->end_date);
+        }
+
+        $shifts = $query->get();
+
+        $csvFileName = 'shift_report_' . date('Y-m-d_H-i') . '.csv';
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$csvFileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function () use ($shifts) {
+            $file = fopen('php://output', 'w');
+
+            // Header Kolom Excel
+            fputcsv($file, ['Shift ID', 'Cashier Name', 'Open Time', 'Close Time', 'Exp. Cash (System)', 'Actual Cash (Physical)', 'Difference', 'Status']);
+
+            foreach ($shifts as $item) {
+                $selisih = $item->ending_cash - $item->expected_ending_cash;
+
+                fputcsv($file, [
+                    $item->id,
+                    $item->user->name,
+                    $item->open_time,
+                    $item->close_time ?? '-',
+                    $item->expected_ending_cash,
+                    $item->ending_cash,
+                    $selisih,
+                    $item->status
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

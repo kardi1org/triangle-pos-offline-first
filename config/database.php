@@ -105,6 +105,22 @@ return [
             'engine' => null,
         ],
 
+        'db_pos' => [
+            'driver' => 'mysql',
+            'url' => env('DATABASE_URL'),
+            'host' => env('DB_CENTRAL_HOST', '127.0.0.1'),
+            'port' => env('DB_CENTRAL_PORT', '3306'),
+            'database' => env('DB_CENTRAL_DATABASE', 'db_pos'), // Your main DB name
+            'username' => env('DB_CENTRAL_USERNAME', 'root'),
+            'password' => env('DB_CENTRAL_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
     ],
 
     /*

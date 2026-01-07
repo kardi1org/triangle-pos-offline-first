@@ -28,7 +28,7 @@ class CheckShiftStatus
                 if ($request->ajax()) {
                     return response()->json(['error' => 'Shift belum dibuka'], 403);
                 }
-                toast('Buka shift dulu!', 'error');
+                toast('Open a shift first!', 'error');
                 return redirect()->route('shift.index')->with('error', 'Buka shift dulu!');
             }
         }

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('cash_transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('user_id');
             $table->enum('type', ['pemasukan', 'pengeluaran']);
             $table->decimal('amount', 15, 2);
             $table->string('category'); // Misal: Listrik, Operasional, Parkir, dll
