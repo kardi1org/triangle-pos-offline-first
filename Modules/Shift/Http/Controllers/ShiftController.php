@@ -204,47 +204,58 @@ class ShiftController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $query = Shift::with('user')->orderBy('created_at', 'desc');
+        // 1. Ambil data dengan filter yang sama dengan halaman index
+        $query = Shift::query();
 
-        // Terapkan Filter yang sama
-        if ($request->start_date && $request->end_date) {
-            $query->whereDate('open_time', '>=', $request->start_date)
-                ->whereDate('open_time', '<=', $request->end_date);
+        if ($request->start_date) {
+            $query->whereDate('open_time', '>=', $request->start_date);
+        }
+        if ($request->end_date) {
+            $query->whereDate('open_time', '<=', $request->end_date);
         }
 
-        $shifts = $query->get();
+        $shifts = $query->orderBy('created_at', 'desc')->get();
 
-        $csvFileName = 'shift_report_' . date('Y-m-d_H-i') . '.csv';
+        // 2. Ambil semua User Name dari DB Central sekaligus (agar tidak error/null)
+        $userIds = $shifts->pluck('user_id')->unique();
+        $users = DB::connection('db_pos')
+            ->table('users')
+            ->whereIn('id', $userIds)
+            ->get()
+            ->keyBy('id');
+
+        // 3. Setup Header untuk Download File
+        $fileName = 'Shift_Report_' . now()->format('Ymd_His') . '.csv';
 
         $headers = [
             "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=$csvFileName",
+            "Content-Disposition" => "attachment; filename=$fileName",
             "Pragma"              => "no-cache",
             "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
             "Expires"             => "0"
         ];
 
-        $callback = function () use ($shifts) {
-            $file = fopen('php://output', 'w');
+        $columns = ['Shift ID', 'Cashier', 'Open Time', 'Close Time', 'Expected Cash', 'Actual Cash', 'Difference', 'Status'];
 
-            // Header Kolom Excel
-            fputcsv($file, ['Shift ID', 'Cashier Name', 'Open Time', 'Close Time', 'Exp. Cash (System)', 'Actual Cash (Physical)', 'Difference', 'Status']);
+        $callback = function () use ($shifts, $columns, $users) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
 
             foreach ($shifts as $item) {
-                $selisih = $item->ending_cash - $item->expected_ending_cash;
+                $diff = $item->ending_cash - $item->expected_ending_cash;
+                $cashierName = $users[$item->user_id]->name ?? 'Unknown';
 
                 fputcsv($file, [
                     $item->id,
-                    $item->user->name,
+                    $cashierName,
                     $item->open_time,
-                    $item->close_time ?? '-',
-                    $item->expected_ending_cash,
-                    $item->ending_cash,
-                    $selisih,
-                    $item->status
+                    $item->close_time ?? 'Active',
+                    number_format($item->expected_ending_cash, 0, '', ''),
+                    number_format($item->ending_cash, 0, '', ''),
+                    number_format($diff, 0, '', ''),
+                    ucfirst($item->status)
                 ]);
             }
-
             fclose($file);
         };
 

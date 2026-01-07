@@ -33,7 +33,7 @@
                             <button type="submit" class="btn btn-primary mr-2"><i class="bi bi-filter"></i> Filter</button>
                             <a href="{{ route('shift.reports') }}" class="btn btn-light border mr-2">Reset</a>
                             <a href="{{ route('shift.reports.export', request()->all()) }}"
-                                class="btn btn-success text-white">
+                                class="btn btn-success text-white" target="_blank">
                                 <i class="bi bi-file-earmark-excel"></i> Export Excel
                             </a>
                         </div>
