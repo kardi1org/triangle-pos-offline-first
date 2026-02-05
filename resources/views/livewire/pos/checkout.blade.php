@@ -624,6 +624,106 @@
             </div>
         </div>
 
+        <style>
+            /* =======================
+               PREVIEW (SCREEN)
+            ======================= */
+            #print-area {
+                font-family: monospace;
+                font-size: 12px;
+                line-height: 1.35;
+                color: #000;
+            }
+
+            /* =======================
+               PRINT THERMAL MODE
+            ======================= */
+            @media print {
+
+                /* RESET TOTAL */
+                @page {
+                    size: auto;
+                    margin: 0;
+                    /* 🔥 WAJIB */
+                }
+
+                html,
+                body {
+                    margin: 0;
+                    padding: 0;
+                    height: auto;
+                    overflow: visible;
+                }
+
+                /* SEMBUNYIKAN SEMUA */
+                body * {
+                    visibility: hidden !important;
+                }
+
+                /* TAMPILKAN HANYA AREA PRINT */
+                #print-area,
+                #print-area * {
+                    visibility: visible !important;
+                }
+
+                #print-area {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+
+                    width: 100%;
+                    max-width: 80mm;
+                    /* thermal 80mm */
+                    padding: 2px 3px;
+                    /* 🔥 super irit */
+                    margin: 0;
+
+                    box-sizing: border-box;
+                }
+
+                /* HILANGKAN MODAL BOOTSTRAP */
+                .modal,
+                .modal-dialog,
+                .modal-content,
+                .modal-header,
+                .modal-footer,
+                .modal-backdrop,
+                .close,
+                button {
+                    display: none !important;
+                }
+
+                /* TEKS */
+                h4,
+                h5 {
+                    margin: 3px 0;
+                    font-size: 13px;
+                    text-align: center;
+                }
+
+                div {
+                    margin: 0;
+                    padding: 0;
+                }
+
+                hr {
+                    border: 0;
+                    border-top: 1px dashed #000;
+                    margin: 4px 0;
+                }
+            }
+
+            /* =======================
+               MODE PRINTER BIASA (A4)
+               Opsional manual
+            ======================= */
+            #print-area.print-a4 {
+                max-width: 210mm;
+                font-size: 13px;
+                padding: 10px;
+            }
+        </style>
+
         <!-- ✅ Print preview Order dapur -->
         <div wire:ignore.self class="modal fade" id="kitchenPreviewModal" tabindex="-1" role="dialog"
             aria-hidden="true" data-backdrop="static" data-keyboard="false">
@@ -639,121 +739,101 @@
                     </div>
 
                     @if ($previewOrderData)
-                        <div class="modal-body" id="print-area">
-                            <div class="text-center mb-4">
-                                <h4>-- Kitchen Order --</h4>
-                                <hr>
+                        <div class="modal-body" id="print-area"
+                            style="font-family: monospace; font-size: 12px; line-height: 1.35;">
+
+                            {{-- HEADER --}}
+                            <div style="text-align:center; margin-bottom:6px;">
+                                <strong style="font-size:14px;">KITCHEN ORDER</strong><br>
+                                <span>-----------------------------</span>
                             </div>
 
-                            {{-- Info Order --}}
-                            <table class="table table-sm table-borderless">
-                                <tr>
-                                    <th>Referensi:</th>
-                                    <td>{{ $previewOrderData['reference'] }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Type Order:</th>
-                                    <td><strong>{{ strtoupper($previewOrderData['typeOrder']) }}</strong></td>
-                                </tr>
-                                <tr>
-                                    <th>Customer:</th>
-                                    <td>{{ $previewOrderData['customer_name'] }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Table:</th>
-                                    <td>{{ $previewOrderData['meja_name'] }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Date:</th>
-                                    <td>{{ $previewOrderData['date'] }}</td>
-                                </tr>
-                            </table>
+                            {{-- INFO ORDER --}}
+                            <div style="margin-bottom:6px;">
+                                <div>Ref : {{ $previewOrderData['reference'] }}</div>
+                                <div>Type: <strong>{{ strtoupper($previewOrderData['typeOrder']) }}</strong></div>
+                                <div>Cust: {{ $previewOrderData['customer_name'] }}</div>
+                                <div>Meja: {{ $previewOrderData['meja_name'] }}</div>
+                                <div>Tgl : {{ $previewOrderData['date'] }}</div>
+                            </div>
 
-                            <h5 class="mt-4">Detail Item:</h5>
-                            <table class="table table-sm table-bordered">
-                                <thead class="thead-dark">
-                                    <tr>
-                                        <th>Item</th>
-                                        <th class="text-right">Qty</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($previewOrderData['details'] as $item)
-                                        @php
-                                            $variantDetail = $item['variant_detail'] ?? null;
-                                            $variants = [];
-                                            $aggregatedVariants = []; // <-- Variable untuk menampung hasil pengelompokan
+                            <div>-----------------------------</div>
 
-                                            // Logika parsing yang aman (tetap dipertahankan)
-                                            if (isset($variantDetail)) {
-                                                if (is_array($variantDetail)) {
-                                                    if (!empty($variantDetail) && $variantDetail !== [[]]) {
-                                                        $variants = $variantDetail;
-                                                    }
-                                                } elseif (is_string($variantDetail)) {
-                                                    $decoded = json_decode($variantDetail, true);
-                                                    if (is_array($decoded) && !empty($decoded)) {
-                                                        $variants = $decoded;
-                                                    }
-                                                }
+                            {{-- ITEMS --}}
+                            @foreach ($previewOrderData['details'] as $item)
+                                @php
+                                    $variantDetail = $item['variant_detail'] ?? null;
+                                    $variants = [];
+                                    $aggregatedVariants = [];
+
+                                    if (isset($variantDetail)) {
+                                        if (
+                                            is_array($variantDetail) &&
+                                            !empty($variantDetail) &&
+                                            $variantDetail !== [[]]
+                                        ) {
+                                            $variants = $variantDetail;
+                                        } elseif (is_string($variantDetail)) {
+                                            $decoded = json_decode($variantDetail, true);
+                                            if (is_array($decoded) && !empty($decoded)) {
+                                                $variants = $decoded;
+                                            }
+                                        }
+                                    }
+
+                                    if (!empty($variants)) {
+                                        foreach ($variants as $variant) {
+                                            $variantText = trim($variant['variant'] ?? '');
+                                            $typeOrder = trim($variant['typeOrder'] ?? 'dine_in');
+
+                                            if ($variantText === '') {
+                                                $key = 'TYPE-' . $typeOrder;
+                                                $label = 'TYPE ' . strtoupper($typeOrder);
+                                            } else {
+                                                $key = $variantText . '-' . $typeOrder;
+                                                $label = strtoupper($variantText) . ' (' . $typeOrder . ')';
                                             }
 
-                                            // Logika Pengelompokan (Aggregation)
-                                            if (!empty($variants)) {
-                                                foreach ($variants as $variant) {
-                                                    $variantText = trim($variant['variant'] ?? '');
-                                                    $typeOrder = trim($variant['typeOrder'] ?? 'dine_in');
-
-                                                    // Tentukan kunci pengelompokan
-                                                    if (empty($variantText)) {
-                                                        // Jika variant kosong, kelompokkan berdasarkan Type Order saja (Contoh: Type: take_out)
-                                                        $key = 'Type: ' . $typeOrder;
-                                                        $display = 'Type: **' . strtoupper($typeOrder) . '**';
-                                                    } else {
-                                                        // Jika variant ada, kelompokkan berdasarkan Variant + Type Order
-                                                        $key = $variantText . ' (' . $typeOrder . ')';
-                                                        $display = '**' . $variantText . '** (' . $typeOrder . ')';
-                                                    }
-
-                                                    // Tambahkan ke hasil agregasi
-                                                    if (isset($aggregatedVariants[$key])) {
-                                                        $aggregatedVariants[$key]['qty'] += 1;
-                                                    } else {
-                                                        $aggregatedVariants[$key] = [
-                                                            'display' => $display,
-                                                            'qty' => 1,
-                                                        ];
-                                                    }
-                                                }
+                                            if (!isset($aggregatedVariants[$key])) {
+                                                $aggregatedVariants[$key] = [
+                                                    'label' => $label,
+                                                    'qty' => 0,
+                                                ];
                                             }
-                                        @endphp
+                                            $aggregatedVariants[$key]['qty']++;
+                                        }
+                                    }
+                                @endphp
 
-                                        <tr>
-                                            <td>
-                                                <strong>{{ $item['product_name'] }}</strong>
+                                {{-- NAMA PRODUK --}}
+                                <div style="margin-top:6px;">
+                                    <strong>{{ strtoupper($item['product_name']) }}</strong>
+                                    <span style="float:right;">x{{ $item['quantity'] }}</span>
+                                </div>
 
-                                                {{-- ✅ Tampilkan Hasil Pengelompokan --}}
-                                                @if (!empty($aggregatedVariants))
-                                                    <div class="small text-muted mt-1" style="font-size: 0.85em;">
-                                                        @foreach ($aggregatedVariants as $aggregated)
-                                                            {!! '&bull; ' . $aggregated['display'] . ' (' . $aggregated['qty'] . ')' !!}<br>
-                                                        @endforeach
-                                                    </div>
-                                                @else
-                                                    <div class="small text-muted mt-1" style="font-size: 0.85em;">
-                                                        &bull; **Type:
-                                                        {{ strtoupper($previewOrderData['typeOrder']) }}**
-                                                        ({{ $item['quantity'] }})
-                                                    </div>
-                                                @endif
-                                            </td>
-                                            <td class="text-right">{{ $item['quantity'] }}</td>
-                                        </tr>
+                                {{-- VARIANT --}}
+                                @if (!empty($aggregatedVariants))
+                                    @foreach ($aggregatedVariants as $v)
+                                        <div style="padding-left:8px; font-size:11px;">
+                                            - {{ $v['label'] }} x{{ $v['qty'] }}
+                                        </div>
                                     @endforeach
-                                </tbody>
-                            </table>
+                                @else
+                                    <div style="padding-left:8px; font-size:11px;">
+                                        - TYPE {{ strtoupper($previewOrderData['typeOrder']) }}
+                                    </div>
+                                @endif
 
+                                <div>-----------------------------</div>
+                            @endforeach
+
+                            {{-- FOOTER --}}
+                            <div style="text-align:center; margin-top:6px;">
+                                <strong>--- END ORDER ---</strong>
+                            </div>
                         </div>
+                        <div style="height:1px;"></div>
+
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-dismiss="modal"
                                 {{-- ✅ TAMBAHKAN ONCLICK INI --}} onclick="unblurPendingOrdersModal()">Close</button>
@@ -914,11 +994,49 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
-                        <button type="button" class="btn btn-primary" id="printButton">Cetak Sekarang</button>
+                        <button type="button" class="btn btn-primary" id="printButton"><i
+                                class="bi bi-printer"></i> Print Struk</button>
+                        <!-- 🆕 Tombol Kitchen Order -->
+                        <button type="button" class="btn btn-warning" id="kitchenOrderButton">
+                            <i class="bi bi-printer"></i> Print Kitchen
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- ✅ Modal Preview Kitchen Order -->
+        <div class="modal fade" id="kitchenOrderModal" tabindex="-1" aria-labelledby="kitchenOrderModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="kitchenOrderModalLabel">
+                            Kitchen Order
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div id="kitchenOrderContent">
+                            Loading...
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                        <button class="btn btn-danger" id="printKitchenButton">
+                            <i class="bi bi-printer"></i> Print Kitchen
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
 
 
         @include('livewire.pos.includes.checkout-modal')
@@ -1416,33 +1534,55 @@
                 // --- 3. FUNGSI PRINT KOT YANG DIJAMIN UNBLUR ---
                 function printKOT() {
                     const printArea = document.getElementById('print-area');
-                    if (printArea) {
-                        // Persiapan cetak dengan iframe (Aman dan tidak merusak DOM)
-                        const printWindow = window.open('', '', 'height=400,width=600');
-                        printWindow.document.write('<html><head><title>Kitchen Order</title>');
-                        printWindow.document.write('</head><body >');
-                        printWindow.document.write(printArea.innerHTML);
-                        printWindow.document.write('</body></html>');
-                        printWindow.document.close();
-                        printWindow.print();
+                    if (!printArea) return;
 
-                        // ✅ LANGKAH BARU: UNBLUR DIJALANKAN SEBELUM MODAL HIDE
-                        unblurPendingOrdersModal();
+                    const win = window.open('', 'PRINT_KOT', 'width=400,height=600');
 
-                        // Sembunyikan modal setelah proses print terpicu
-                        $('#' + KITCHEN_PREVIEW_MODAL_ID).modal('hide');
+                    win.document.write(`
+                                        <html>
+                                        <head>
+                                            <title>Kitchen Order</title>
+                                            <style>
+                                                @page {
+                                                    size: auto;
+                                                    margin: 0;
+                                                }
+                                                html, body {
+                                                    margin: 0;
+                                                    padding: 0;
+                                                    font-family: monospace;
+                                                    font-size: 12px;
+                                                }
+                                                #print-area {
+                                                    width: 80mm;
+                                                    padding: 2px 3px;
+                                                    box-sizing: border-box;
+                                                }
+                                                hr {
+                                                    border: 0;
+                                                    border-top: 1px dashed #000;
+                                                    margin: 4px 0;
+                                                }
+                                            </style>
+                                        </head>
 
-                        // Tutup window/iframe cetak setelah jeda
-                        setTimeout(() => {
-                            printWindow.close();
-                        }, 100);
+                                        <body onload="
+                                                        window.print();
+                                                        setTimeout(() => window.close(), 500);
+                                                    ">
 
-                    } else {
-                        console.error("Elemen 'print-area' tidak ditemukan.");
-                        // Jika ada error print, tetap pastikan blur hilang
-                        unblurPendingOrdersModal();
-                        $('#' + KITCHEN_PREVIEW_MODAL_ID).modal('hide');
-                    }
+                                            <div id="print-area">
+                                                ${printArea.innerHTML}
+                                            </div>
+                                        </body>
+                                        </html>
+                                    `);
+
+                    win.document.close();
+
+                    // rapikan UI utama
+                    unblurPendingOrdersModal();
+                    $('#kitchenPreviewModal').modal('hide');
                 }
             </script>
 
@@ -1461,48 +1601,80 @@
 
             <script>
                 $(document).ready(function() {
-                    // Ambil referensi dari session flash
+
                     const saleReference = "{{ session('showPrintModal') }}";
 
                     if (saleReference) {
-                        // Jika ada referensi, muat konten struk dan tampilkan modal
                         loadAndShowPrintModal(saleReference);
                     }
 
-                    /**
-                     * Muat konten struk ke dalam modal dan menampilkannya.
-                     * @param {string} reference Nomor referensi penjualan (SL-XXXXX)
-                     */
+                    /* ============================
+                     * STRUK (SUDAH ADA - TETAP)
+                     * ============================ */
                     function loadAndShowPrintModal(reference) {
-                        // 1. Tentukan URL cetak (Pastikan rute ini sudah didefinisikan di routes/web.php)
                         const printUrl = `/app/pos/sales/print/${reference}`;
 
-                        // 2. Muat konten struk menggunakan AJAX
                         $('#receiptContent').html('<div class="text-center">Memuat Struk...</div>');
 
-                        // Kita akan memuat view cetak ke dalam iframe untuk memastikan formatting print-nya terjaga.
-                        const iframeHtml = `<iframe
-                                    src="${printUrl}?modal=true"
-                                    style="width: 100%; height: 400px; border: none;"
-                                    id="receiptIframe">
-                                </iframe>`;
+                        const iframeHtml = `
+                <iframe
+                    src="${printUrl}?modal=true"
+                    style="width: 100%; height: 400px; border: none;"
+                    id="receiptIframe">
+                </iframe>
+            `;
 
                         $('#receiptContent').html(iframeHtml);
-
-                        // 3. Tampilkan Modal (Asumsi Anda menggunakan Bootstrap/jQuery)
                         $('#printReceiptModal').modal('show');
                     }
 
-                    // 4. Handle tombol cetak di dalam modal
                     $('#printButton').on('click', function() {
                         const iframe = document.getElementById('receiptIframe');
                         if (iframe) {
-                            // Pemicu fungsi print di dalam iframe
                             iframe.contentWindow.print();
                         } else {
                             alert('Struk belum termuat.');
                         }
                     });
+
+                    /* ============================
+                     * 🆕 KITCHEN ORDER
+                     * ============================ */
+
+                    $('#kitchenOrderButton').on('click', function() {
+                        if (!saleReference) {
+                            alert('Order belum tersedia.');
+                            return;
+                        }
+                        loadAndShowKitchenModal(saleReference);
+                    });
+
+                    function loadAndShowKitchenModal(reference) {
+                        const kitchenUrl = `/app/pos/sales/print-kitchen/${reference}`;
+
+                        $('#kitchenOrderContent').html('<div class="text-center">Memuat Kitchen Order...</div>');
+
+                        const iframeHtml = `
+                <iframe
+                    src="${kitchenUrl}?modal=true"
+                    style="width: 100%; height: 400px; border: none;"
+                    id="kitchenIframe">
+                </iframe>
+            `;
+
+                        $('#kitchenOrderContent').html(iframeHtml);
+                        $('#kitchenOrderModal').modal('show');
+                    }
+
+                    $('#printKitchenButton').on('click', function() {
+                        const iframe = document.getElementById('kitchenIframe');
+                        if (iframe) {
+                            iframe.contentWindow.print();
+                        } else {
+                            alert('Kitchen order belum termuat.');
+                        }
+                    });
+
                 });
             </script>
         @endpush

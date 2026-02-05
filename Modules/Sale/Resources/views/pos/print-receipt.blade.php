@@ -6,16 +6,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Struk Penjualan {{ $sale->reference }}</title>
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            font-size: 10px;
+        /* =========================
+           RESET PRINT THERMAL
+        ========================== */
+        @media print {
+            @page {
+                size: auto;
+                margin: 0;
+                /* 🔥 penting */
+            }
 
-            /* Hapus width: 80mm; jika $isModal adalah true */
+            body {
+                margin: 0;
+                padding: 3px 4px;
+                /* atas-bawah | kiri-kanan */
+            }
+        }
+
+        body {
+            font-family: monospace;
+            /* thermal lebih presisi */
+            font-size: 10px;
+            line-height: 1.3;
+
+            /* Width thermal */
             @if (!isset($isModal) || !$isModal)
                 width: 80mm;
             @endif
+
             margin: 0;
-            padding: 5px;
+            padding: 3px 4px;
+        }
+
+        /* =========================
+           RESET DEFAULT TAG
+        ========================== */
+        h1,
+        h2,
+        h3,
+        p {
+            margin: 0;
+            padding: 0;
         }
 
         .center {
@@ -25,14 +56,14 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 5px;
+            margin-top: 4px;
         }
 
         th,
         td {
-            text-align: left;
             padding: 1px 0;
             border-bottom: 1px dashed #000;
+            vertical-align: top;
         }
 
         .no-border th,
@@ -43,7 +74,14 @@
         .total-row {
             font-weight: bold;
         }
+
+        hr {
+            border: 0;
+            border-top: 1px dashed #000;
+            margin: 4px 0;
+        }
     </style>
+
 </head>
 
 <body onload="window.print()">

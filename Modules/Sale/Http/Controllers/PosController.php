@@ -755,5 +755,13 @@ class PosController extends Controller
         });
     }
 
+    public function printKitchen($reference)
+    {
+        $sale = Sale::where('reference', $reference)->firstOrFail();
+
+        return view('sale::prints.kitchen', compact('sale'));
+    }
+
+
     /*------------------------------------------------------------------------------- */
 }
