@@ -105,9 +105,11 @@
                                 </a>
                             </div>
                             <div class="col-6">
-                                <button onclick="window.print()" class="btn btn-dark btn-block">
+                                <a href="{{ route('shift.print', $shift->id) }}" target="_blank"
+                                    class="btn btn-dark btn-block">
                                     <i class="bi bi-printer"></i> Print Summary
-                                </button>
+                                </a>
+
                             </div>
                         </div>
                     </div>

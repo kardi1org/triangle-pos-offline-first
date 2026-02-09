@@ -359,39 +359,28 @@ class PosController extends Controller
 
     public function printReceipt(Request $request, $reference)
     {
-        // Pastikan Model Meja di-use: use App\Models\Meja;
+        // Ambil data sale dari database tenant (pastikan model Sale sudah menggunakan koneksi tenant)
         $sale = Sale::with('saleDetails')->where('reference', $reference)->firstOrFail();
 
-        // 🎯 START: LOGIKA KONVERSI ID MEJA KE NAMA MEJA
+        // 🎯 AMBIL DATA SETTING DARI DATABASE TENANT
+        // Pastikan Anda memiliki model Setting yang diarahkan ke database tenant
+        // Ini akan mengambil data langsung dari tabel 'settings' di database yang aktif (tenant)
+        $settings = \Illuminate\Support\Facades\DB::table('settings')->first();
 
-        // 1. Ambil ID meja langsung. TIDAK PERLU json_decode() karena sudah di-cast oleh Model Sale.
+        // --- LOGIKA KONVERSI ID MEJA (Tetap seperti kode Anda) ---
         $tableIds = $sale->selected_table_ids;
-
-        // Pengecekan standar
         if (is_array($tableIds) && !empty($tableIds)) {
-
-            // 2. Ambil Nama Meja dari database
-            $tableNames = Meja::whereIn('id', $tableIds)
-                ->pluck('name', 'id')
-                ->toArray();
-
-            // 3. Gabungkan nama meja menjadi satu string
-            $mappedNames = collect($tableIds)
-                ->map(fn ($id) => $tableNames[$id] ?? "ID: {$id}")
-                ->implode(', ');
-
-            // 4. Lampirkan string nama meja ke objek $sale
+            $tableNames = Meja::whereIn('id', $tableIds)->pluck('name', 'id')->toArray();
+            $mappedNames = collect($tableIds)->map(fn ($id) => $tableNames[$id] ?? "ID: {$id}")->implode(', ');
             $sale->table_list = $mappedNames;
         } else {
             $sale->table_list = 'Take Away';
         }
 
-        // 🎯 END: LOGIKA KONVERSI ID MEJA KE NAMA MEJA
-
         $isModal = $request->query('modal') === 'true';
 
-        // Lanjutkan ke view
-        return view('sale::pos.print-receipt', compact('sale', 'isModal'));
+        // Kirim variabel $settings ke view
+        return view('sale::pos.print-receipt', compact('sale', 'isModal', 'settings'));
     }
 
     public function saveOrder(Request $request)

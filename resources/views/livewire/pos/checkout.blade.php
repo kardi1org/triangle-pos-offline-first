@@ -1544,33 +1544,49 @@
                                             <title>Kitchen Order</title>
                                             <style>
                                                 @page {
-                                                    size: auto;
+                                                    size: 58mm auto; /* Memaksa ukuran kertas thermal */
                                                     margin: 0;
                                                 }
                                                 html, body {
                                                     margin: 0;
                                                     padding: 0;
                                                     font-family: monospace;
-                                                    font-size: 12px;
+                                                    /* Disamakan dengan font struk penjualan agar seragam */
+                                                    font-size: 11px;
+                                                    line-height: 1.2;
+                                                    background-color: #fff;
+                                                    color: #000;
                                                 }
                                                 #print-area {
-                                                    width: 80mm;
-                                                    padding: 2px 3px;
+                                                    /* Menggunakan 48mm sebagai area cetak aman agar kanan tidak terpotong */
+                                                    width: 48mm;
+                                                    padding: 10px 0 10px 2mm; /* Ada jarak aman dari pinggir kiri */
                                                     box-sizing: border-box;
+                                                }
+                                                /* Memastikan tabel di dalam print-area tidak meluber */
+                                                table {
+                                                    width: 100%;
+                                                    border-collapse: collapse;
+                                                    table-layout: fixed;
+                                                }
+                                                td {
+                                                    word-wrap: break-word;
+                                                    vertical-align: top;
                                                 }
                                                 hr {
                                                     border: 0;
                                                     border-top: 1px dashed #000;
-                                                    margin: 4px 0;
+                                                    margin: 5px 0;
                                                 }
+                                                .center { text-align: center; }
+                                                .text-right { text-align: right; }
+
+                                                /* Tambahan CSS agar tampilan teks tebal lebih jelas */
+                                                strong { font-weight: bold; }
                                             </style>
                                         </head>
 
-                                        <body onload="
-                                                        window.print();
-                                                        setTimeout(() => window.close(), 500);
-                                                    ">
-
+                                        <body onload="window.print(); setTimeout(() => window.close(), 500);">
                                             <div id="print-area">
                                                 ${printArea.innerHTML}
                                             </div>

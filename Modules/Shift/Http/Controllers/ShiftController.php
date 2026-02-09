@@ -261,4 +261,17 @@ class ShiftController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+    public function print($id)
+    {
+        $shift = Shift::findOrFail($id);
+        $cashier = $shift->user; // Sesuaikan dengan relasi user Anda
+
+        // Asumsikan sales, income, expense sudah dihitung/disimpan
+        $sales = $shift->sales_amount;
+        $income = $shift->income_amount;
+        $expense = $shift->expense_amount;
+
+        return view('shift::print', compact('shift', 'cashier', 'sales', 'income', 'expense'));
+    }
 }

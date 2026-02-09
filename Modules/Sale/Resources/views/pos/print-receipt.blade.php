@@ -3,101 +3,108 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Struk Penjualan {{ $sale->reference }}</title>
     <style>
-        /* =========================
-           RESET PRINT THERMAL
-        ========================== */
-        @media print {
-            @page {
-                size: auto;
-                margin: 0;
-                /* 🔥 penting */
-            }
-
-            body {
-                margin: 0;
-                padding: 3px 4px;
-                /* atas-bawah | kiri-kanan */
-            }
+        /* 1. SETTING KERTAS THERMAL */
+        @page {
+            size: 58mm auto;
+            margin: 0;
         }
 
         body {
             font-family: monospace;
-            /* thermal lebih presisi */
-            font-size: 10px;
-            line-height: 1.3;
-
-            /* Width thermal */
-            @if (!isset($isModal) || !$isModal)
-                width: 80mm;
-            @endif
-
-            margin: 0;
-            padding: 3px 4px;
-        }
-
-        /* =========================
-           RESET DEFAULT TAG
-        ========================== */
-        h1,
-        h2,
-        h3,
-        p {
+            font-size: 11px;
+            line-height: 1.2;
             margin: 0;
             padding: 0;
+            /* Area cetak aman printer 58mm adalah 48mm */
+            width: 48mm;
+            background-color: #fff;
+            color: #000;
+        }
+
+        /* 2. WRAPPER UTAMA */
+        .ticket-container {
+            width: 100%;
+            padding: 10px 0 10px 2mm;
+            /* Geser 2mm dari kiri agar tidak kena besi printer */
+            box-sizing: border-box;
         }
 
         .center {
             text-align: center;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 4px;
+        .text-right {
+            text-align: right;
         }
 
-        th,
-        td {
-            padding: 1px 0;
-            border-bottom: 1px dashed #000;
-            vertical-align: top;
-        }
-
-        .no-border th,
-        .no-border td {
-            border-bottom: none;
-        }
-
-        .total-row {
+        .font-bold {
             font-weight: bold;
         }
 
-        hr {
-            border: 0;
+        /* 3. TABEL FIXED (Kunci agar kanan tidak terpotong) */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            /* WAJIB: Mengunci lebar kolom */
+            margin-top: 4px;
+        }
+
+        td {
+            padding: 2px 0;
+            vertical-align: top;
+            word-wrap: break-word;
+            /* Lipat teks jika kepanjangan */
+        }
+
+        .divider {
             border-top: 1px dashed #000;
-            margin: 4px 0;
+            margin: 5px 0;
+        }
+
+        /* Lebar Kolom Struk */
+        .col-desc {
+            width: 60%;
+        }
+
+        .col-price {
+            width: 40%;
+        }
+
+        .col-label {
+            width: 35%;
+        }
+
+        .col-value {
+            width: 65%;
+        }
+
+        @media print {
+            body {
+                width: 48mm;
+            }
         }
     </style>
-
 </head>
 
 <body onload="window.print()">
 
-    <div class="center">
-        <h3>DATAPRIMA POS</h3>
-        <p>Jl. Trembesi Kemayoran</p>
-        <p>Telp: 0812-XXXX-XXXX</p>
-        <hr style="border-top: 1px dashed #000; margin: 5px 0;">
-    </div>
+    <div class="ticket-container">
+        {{-- HEADER --}}
+        <div class="center">
+            <strong style="font-size: 13px;">{{ $settings->company_name ?? 'POS SYSTEM' }}</strong><br>
+            {{ $settings->company_address ?? '' }}<br>
+            Telp: {{ $settings->company_phone ?? '' }}
+            <div class="divider"></div>
+        </div>
 
-    <div class="no-border">
+        {{-- INFO TRANSAKSI --}}
         <table>
             <tr>
-                <td width="30%">Ref.</td>
-                <td>: {{ $sale->reference }}</td>
+                <td class="col-label">Ref.</td>
+                <td class="col-value">: {{ $sale->reference }}</td>
             </tr>
             <tr>
                 <td>Tanggal</td>
@@ -108,8 +115,8 @@
                 <td>: {{ auth()->user()->name ?? 'N/A' }}</td>
             </tr>
             <tr>
-                <td>Pelanggan</td>
-                <td>: {{ $sale->customer_name }}</td>
+                <td>Cust.</td>
+                <td>: {{ substr($sale->customer_name, 0, 15) }}</td>
             </tr>
             @if (isset($sale->table_list))
                 <tr>
@@ -118,74 +125,81 @@
                 </tr>
             @endif
         </table>
-    </div>
 
-    <hr style="border-top: 1px dashed #000; margin: 5px 0;">
+        <div class="divider"></div>
 
-    <table>
-        @foreach ($sale->saleDetails as $item)
+        {{-- DETAIL ITEM --}}
+        <table>
+            @foreach ($sale->saleDetails as $item)
+                <tr>
+                    <td colspan="2">
+                        {{ $item->product_name ?? $item->name }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="col-desc">
+                        {{ $item->quantity }} x {{ number_format($item->price, 0, ',', '.') }}
+                    </td>
+                    <td class="col-price text-right">
+                        {{ number_format($item->quantity * $item->price, 0, ',', '.') }}
+                    </td>
+                </tr>
+            @endforeach
+        </table>
+
+        <div class="divider" style="margin-top: 8px;"></div>
+
+        {{-- TOTALAN --}}
+        <table>
             <tr>
-                <td colspan="2" class="no-border">
-                    {{ $item->product_name ?? $item->name }}
+                <td class="col-label font-bold">SUBTOTAL</td>
+                <td class="col-value text-right font-bold">{{ number_format($sale->total_amount, 0, ',', '.') }}</td>
+            </tr>
+            <tr>
+                <td>PPN ({{ $sale->tax_percentage }}%)</td>
+                <td class="text-right">{{ number_format($sale->tax_amount, 0, ',', '.') }}</td>
+            </tr>
+            <tr>
+                <td>Diskon</td>
+                <td class="text-right">(-) {{ number_format($sale->discount_amount, 0, ',', '.') }}</td>
+            </tr>
+            <tr class="font-bold">
+                <td style="font-size: 12px;">GRAND TOTAL</td>
+                <td class="text-right" style="font-size: 12px;">{{ number_format($sale->total_amount, 0, ',', '.') }}
                 </td>
             </tr>
             <tr>
-                <td>
-                    {{ $item->quantity }} x {{ format_currency($item->price) }}
-                </td>
-                <td style="text-align: right">
-                    {{ format_currency($item->quantity * $item->price) }}
-                </td>
+                <td>TUNAI</td>
+                <td class="text-right">{{ number_format($sale->paid_amount, 0, ',', '.') }}</td>
             </tr>
-        @endforeach
+            <tr>
+                <td>KEMBALI</td>
+                <td class="text-right">{{ number_format($sale->paid_amount - $sale->total_amount, 0, ',', '.') }}</td>
+            </tr>
+        </table>
 
-        <tr>
-            <td colspan="2" class="no-border">&nbsp;</td>
-        </tr>
+        <div class="divider"></div>
 
-        <tr class="total-row">
-            <td>SUBTOTAL</td>
-            <td style="text-align: right">{{ format_currency($sale->total_amount) }}</td>
-        </tr>
-        <tr>
-            <td>PPN ({{ $sale->tax_percentage }}%)</td>
-            <td style="text-align: right">{{ format_currency($sale->tax_amount) }}</td>
-        </tr>
-        <tr>
-            <td>Diskon ({{ $sale->discount_percentage }}%)</td>
-            <td style="text-align: right">(-) {{ format_currency($sale->discount_amount) }}</td>
-        </tr>
-        <tr class="total-row">
-            <td>GRAND TOTAL</td>
-            <td style="text-align: right">{{ format_currency($sale->total_amount) }}</td>
-        </tr>
-        <tr>
-            <td>TUNAI/DITERIMA</td>
-            <td style="text-align: right">{{ format_currency($sale->paid_amount) }}</td>
-        </tr>
-        <tr>
-            <td>KEMBALIAN</td>
-            <td style="text-align: right">{{ format_currency($sale->paid_amount - $sale->total_amount) }}</td>
-        </tr>
-    </table>
-
-    <hr style="border-top: 1px dashed #000; margin: 5px 0;">
-
-    <div class="center">
-        <p>Terima kasih atas kunjungan Anda.</p>
-        <p>Selamat menikmati!</p>
+        {{-- FOOTER --}}
+        <div class="center">
+            <p>Terima kasih atas kunjungan Anda.</p>
+            <p>Selamat menikmati!</p>
+        </div>
     </div>
 
     <script>
-        // Hanya picu print otomatis jika BUKAN dipanggil dari modal
         @if (!isset($isModal) || !$isModal)
-            window.print();
-
-            // Pilihan: Tutup jendela setelah mencetak atau jika print dibatalkan
             window.onafterprint = function() {
                 setTimeout(function() {
                     window.close();
                 }, 500);
+            };
+
+            // Pengaman Firefox
+            window.onfocus = function() {
+                setTimeout(function() {
+                    window.close();
+                }, 800);
             };
         @endif
     </script>

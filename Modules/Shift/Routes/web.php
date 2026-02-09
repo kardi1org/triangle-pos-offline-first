@@ -13,5 +13,6 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/reports', [ShiftController::class, 'reportIndex'])->name('shift.reports');
         Route::get('/reports/detail/{id}', [ShiftController::class, 'getShiftDetails'])->name('shift.reports.detail');
         Route::get('/reports/export', [ShiftController::class, 'exportExcel'])->name('shift.reports.export');
+        Route::get('/shift/print/{id}', [ShiftController::class, 'print'])->name('shift.print');
     });
 });
