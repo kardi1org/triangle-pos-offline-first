@@ -264,14 +264,31 @@ class ShiftController extends Controller
 
     public function print($id)
     {
-        $shift = Shift::findOrFail($id);
-        $cashier = $shift->user; // Sesuaikan dengan relasi user Anda
+        $shift = Shift::with('user')->findOrFail($id);
+        $endTime = $shift->close_time ?? now();
 
-        // Asumsikan sales, income, expense sudah dihitung/disimpan
-        $sales = $shift->sales_amount;
-        $income = $shift->income_amount;
-        $expense = $shift->expense_amount;
+        // Gunakan logika yang sama dengan getShiftDetails
+        $sales = $this->calculateNetCashSales($shift->user_id, $shift->open_time, $endTime);
 
-        return view('shift::print', compact('shift', 'cashier', 'sales', 'income', 'expense'));
+        $income = CashTransaction::where('user_id', $shift->user_id)
+            ->where('type', 'pemasukan')
+            ->whereBetween('transaction_date', [$shift->open_time, $endTime])
+            ->sum('amount');
+
+        $expense = CashTransaction::where('user_id', $shift->user_id)
+            ->where('type', 'pengeluaran')
+            ->whereBetween('transaction_date', [$shift->open_time, $endTime])
+            ->sum('amount');
+
+        // Ambil data kasir dari database pusat (db_pos) sesuai logika Anda
+        $cashier = \Illuminate\Support\Facades\DB::connection('db_pos')
+            ->table('users')
+            ->where('id', $shift->user_id)
+            ->first();
+
+        // Ambil setting tenant untuk nama perusahaan
+        $settings = \Illuminate\Support\Facades\DB::table('settings')->first();
+
+        return view('shift::print', compact('shift', 'sales', 'income', 'expense', 'cashier', 'settings'));
     }
 }

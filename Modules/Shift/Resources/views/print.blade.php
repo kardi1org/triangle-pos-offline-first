@@ -5,142 +5,91 @@
     <meta charset="UTF-8">
     <title>Print Shift #{{ $shift->id }}</title>
     <style>
-        /* 1. RESET TOTAL UNTUK THERMAL */
         @page {
+            size: 58mm auto;
             margin: 0;
-            /* Menghapus margin kertas bawaan browser */
         }
 
         body {
+            font-family: monospace;
+            font-size: 11px;
+            /* Seragam dengan struk penjualan */
+            line-height: 1.2;
             margin: 0;
             padding: 0;
-            font-family: 'Courier New', Courier, monospace;
+            width: 48mm;
+            /* Area aman agar tidak terpotong */
             background-color: #fff;
             color: #000;
+        }
+
+        .wrapper {
             width: 100%;
+            padding: 10px 0 10px 2mm;
+            box-sizing: border-box;
         }
 
-        /* 2. WRAPPER DENGAN LEBAR DINAMIS */
-        .print-wrapper {
-            /* Menggunakan width 92% agar ada sedikit nafas di kiri-kanan */
-            /* sehingga tidak mentok ke pinggir besi pemotong printer */
-            width: 92%;
-            margin: 0 auto;
-            padding: 10px 0;
-            overflow: hidden;
-        }
-
-        .header {
+        .center {
             text-align: center;
-            margin-bottom: 5px;
-        }
-
-        .company-name {
-            font-size: 12pt;
-            font-weight: bold;
-            margin: 0;
-        }
-
-        .report-title {
-            font-size: 10pt;
-            margin: 2px 0;
-        }
-
-        .shift-id {
-            font-size: 8pt;
-        }
-
-        .divider {
-            border-bottom: 1px dashed #000;
-            margin: 5px 0;
-        }
-
-        /* 3. TABEL HARUS LAYOUT FIXED AGAR TIDAK MELEBAR */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 9pt;
-            table-layout: fixed;
-            /* Memaksa tabel tidak melebihi lebar wrapper */
-        }
-
-        td {
-            padding: 2px 0;
-            vertical-align: top;
-            word-wrap: break-word;
-            /* Memotong kata jika terlalu panjang */
         }
 
         .text-right {
             text-align: right;
         }
 
-        /* Mengatur lebar kolom agar nama label tidak mendorong angka keluar */
-        .col-label {
-            width: 55%;
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
         }
 
-        .col-value {
-            width: 45%;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        td {
+            padding: 2px 0;
+            vertical-align: top;
+            word-wrap: break-word;
         }
 
         .font-bold {
             font-weight: bold;
         }
 
-        .gap-section {
-            margin: 8px 0;
-            text-align: center;
+        .gap-box {
             border: 1px solid #000;
             padding: 5px;
-        }
-
-        .gap-value {
-            font-size: 11pt;
-            font-weight: bold;
-        }
-
-        .footer {
+            margin: 8px 0;
             text-align: center;
-            font-size: 8pt;
-            margin-top: 10px;
-        }
-
-        /* 4. MEDIA PRINT KHUSUS UNTUK MENGHINDARI PEMOTONGAN */
-        @media print {
-            body {
-                width: 84% !important;
-            }
-
-            .print-wrapper {
-                width: 95% !important;
-                /* Sedikit lebih lebar saat diprint */
-                margin: 0 auto !important;
-            }
         }
     </style>
 </head>
 
-<body onload="window.print()">
+<body onload="window.print(); setTimeout(() => window.close(), 500);">
 
-    <div class="print-wrapper">
-        <div class="header">
-            <div class="company-name">{{ settings()->company_name ?? 'POS SYSTEM' }}</div>
-            <div class="report-title">SHIFT SUMMARY</div>
-            <div class="shift-id">#{{ $shift->id }}</div>
+    <div class="wrapper">
+        <div class="center">
+            <strong style="font-size: 13px;">{{ $settings->company_name ?? 'POS SYSTEM' }}</strong><br>
+            <span>SHIFT SUMMARY</span><br>
+            <small>#{{ $shift->id }}</small>
+            <div class="divider"></div>
         </div>
-
-        <div class="divider"></div>
 
         <table>
             <tr>
-                <td class="col-label">KASIR</td>
-                <td class="col-value text-right">{{ strtoupper(substr($cashier->name ?? 'User', 0, 12)) }}</td>
+                <td style="width: 40%;">KASIR</td>
+                <td class="text-right">{{ strtoupper(substr($cashier->name ?? 'N/A', 0, 15)) }}</td>
             </tr>
             <tr>
-                <td class="col-label">WAKTU</td>
-                <td class="col-value text-right">{{ \Carbon\Carbon::parse($shift->close_time)->format('d/m/y H:i') }}
-                </td>
+                <td>MULAI</td>
+                <td class="text-right">{{ \Carbon\Carbon::parse($shift->open_time)->format('d/m/y H:i') }}</td>
+            </tr>
+            <tr>
+                <td>SELESAI</td>
+                <td class="text-right">
+                    {{ $shift->close_time ? \Carbon\Carbon::parse($shift->close_time)->format('d/m/y H:i') : '-' }}</td>
             </tr>
         </table>
 
@@ -148,53 +97,48 @@
 
         <table>
             <tr>
-                <td class="col-label">MODAL AWAL</td>
-                <td class="col-value text-right">{{ number_format($shift->starting_cash, 0, ',', '.') }}</td>
+                <td>MODAL AWAL</td>
+                <td class="text-right">{{ number_format($shift->starting_cash, 0, ',', '.') }}</td>
             </tr>
             <tr>
-                <td class="col-label">PENJUALAN</td>
-                <td class="col-value text-right">+{{ number_format($sales ?? 0, 0, ',', '.') }}</td>
+                <td>PENJUALAN (CASH)</td>
+                <td class="text-right">+{{ number_format($sales, 0, ',', '.') }}</td>
             </tr>
             <tr>
-                <td class="col-label">PENGELUARAN</td>
-                <td class="col-value text-right">-{{ number_format($expense ?? 0, 0, ',', '.') }}</td>
+                <td>PEMASUKAN LAIN</td>
+                <td class="text-right">+{{ number_format($income, 0, ',', '.') }}</td>
+            </tr>
+            <tr>
+                <td>PENGELUARAN</td>
+                <td class="text-right">-{{ number_format($expense, 0, ',', '.') }}</td>
             </tr>
             <tr class="font-bold">
-                <td style="padding-top:5px">SISTEM</td>
+                <td style="padding-top:5px">SALDO SISTEM</td>
                 <td class="text-right" style="padding-top:5px">
-                    {{ number_format($shift->expected_ending_cash, 0, ',', '.') }}</td>
+                    {{ number_format($shift->expected_ending_cash, 0, ',', '.') }}
+                </td>
             </tr>
             <tr class="font-bold">
-                <td>FISIK</td>
-                <td class="text-right">Rp{{ number_format($shift->ending_cash, 0, ',', '.') }}</td>
+                <td>UANG FISIK</td>
+                <td class="text-right">{{ number_format($shift->ending_cash, 0, ',', '.') }}</td>
             </tr>
         </table>
 
         @php $diff = $shift->ending_cash - $shift->expected_ending_cash; @endphp
-        <div class="gap-section">
-            <div style="font-size: 8pt;">SELISIH (GAP)</div>
-            <div class="gap-value">{{ $diff >= 0 ? '+' : '' }}{{ number_format($diff, 0, ',', '.') }}</div>
+        <div class="gap-box">
+            <div style="font-size: 9px;">SELISIH (GAP)</div>
+            <div class="font-bold" style="font-size: 12px;">
+                {{ $diff >= 0 ? '+' : '' }}{{ number_format($diff, 0, ',', '.') }}
+            </div>
         </div>
 
         <div class="divider"></div>
-
-        <div class="footer">
-            <div>{{ now()->format('d/m/y H:i') }}</div>
-            <div>- SELESAI -</div>
+        <div class="center" style="font-size: 9px;">
+            <div>Dicetak pada: {{ now()->format('d/m/Y H:i') }}</div>
+            <div class="font-bold">- LAPORAN SHIFT -</div>
         </div>
     </div>
 
-    <script>
-        window.onafterprint = function() {
-            window.close();
-        };
-        // Fallback fokus untuk Firefox
-        setTimeout(function() {
-            window.onfocus = function() {
-                window.close();
-            }
-        }, 500);
-    </script>
 </body>
 
 </html>
