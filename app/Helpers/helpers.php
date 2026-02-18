@@ -1,5 +1,30 @@
 <?php
 
+use Modules\FeatureManager\Entities\FeatureManagement;
+use Illuminate\Support\Facades\Auth;
+
+if (!function_exists('isFeatureEnabled')) {
+    function isFeatureEnabled($key)
+    {
+        // Pastikan user sudah login
+        if (!Auth::check()) {
+            return false;
+        }
+
+        $package = Auth::user()->package_id; // Pastikan kolom package_id ada di tabel users
+
+        // Jika package_id kosong, default ke package 1 (Free)
+        if (!$package) {
+            $package = 1;
+        }
+
+        return \Modules\FeatureManager\Entities\FeatureManagement::on('mysql') // <--- Tambahkan ini
+            ->where('feature_key', $key)
+            ->where('package_' . auth()->user()->codepaket, 1)
+            ->exists();
+    }
+}
+
 if (!function_exists('settings')) {
     function settings()
     {

@@ -387,6 +387,15 @@
     </li>
 @endcan
 
+@if (auth()->user()->hasRole('Super Admin'))
+    <li class="c-sidebar-nav-item">
+        <a class="c-sidebar-nav-link {{ request()->routeIs('feature-manager.*') ? 'c-active' : '' }}"
+            href="{{ route('feature-manager.index') }}">
+            <i class="c-sidebar-nav-icon bi bi-shield-lock" style="line-height: 1;"></i> Feature Manager
+        </a>
+    </li>
+@endif
+
 @can('access_settings')
     <li
         class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('currencies*') || request()->routeIs('units*') ? 'c-show' : '' }}">

@@ -151,30 +151,84 @@
 
         {{-- TOTALAN --}}
         <table>
+            {{-- Hitung Subtotal Murni (Total - Tax - Shipping - SC - LainA - LainB + Discount) --}}
+            @php
+                $subtotal_murni =
+                    $sale->total_amount -
+                    $sale->tax_amount -
+                    $sale->shipping_amount -
+                    ($sale->service_charge ?? 0) -
+                    ($sale->lain_a ?? 0) -
+                    ($sale->lain_b ?? 0) +
+                    $sale->discount_amount;
+            @endphp
+
             <tr>
-                <td class="col-label font-bold">SUBTOTAL</td>
-                <td class="col-value text-right font-bold">{{ number_format($sale->total_amount, 0, ',', '.') }}</td>
+                <td class="col-label">SUBTOTAL</td>
+                <td class="col-value text-right">{{ number_format($subtotal_murni, 0, ',', '.') }}</td>
             </tr>
-            <tr>
-                <td>PPN ({{ $sale->tax_percentage }}%)</td>
-                <td class="text-right">{{ number_format($sale->tax_amount, 0, ',', '.') }}</td>
-            </tr>
-            <tr>
-                <td>Diskon</td>
-                <td class="text-right">(-) {{ number_format($sale->discount_amount, 0, ',', '.') }}</td>
-            </tr>
+
+            @if ($sale->tax_amount > 0)
+                <tr>
+                    <td>PPN ({{ $sale->tax_percentage }}%)</td>
+                    <td class="text-right">(+) {{ number_format($sale->tax_amount, 0, ',', '.') }}</td>
+                </tr>
+            @endif
+
+            @if ($sale->discount_amount > 0)
+                <tr>
+                    <td>DISKON ({{ $sale->discount_percentage }}%)</td>
+                    <td class="text-right">(-) {{ number_format($sale->discount_amount, 0, ',', '.') }}</td>
+                </tr>
+            @endif
+
+            @if ($sale->shipping_amount > 0)
+                <tr>
+                    <td>DELIVERY</td>
+                    <td class="text-right">(+) {{ number_format($sale->shipping_amount, 0, ',', '.') }}</td>
+                </tr>
+            @endif
+
+            {{-- Rule: Service Charge muncul jika order_type dine_in dan nilainya > 0 --}}
+            @if ($sale->order_type == 'dine_in' && ($sale->service_charge ?? 0) > 0)
+                <tr>
+                    <td>SERVICE CHARGE (5%)</td>
+                    <td class="text-right">(+) {{ number_format($sale->service_charge, 0, ',', '.') }}</td>
+                </tr>
+            @endif
+
+            {{-- Lain-lain A --}}
+            @if (($sale->lain_a ?? 0) > 0)
+                <tr>
+                    <td>LAIN-LAIN A</td>
+                    <td class="text-right">(+) {{ number_format($sale->lain_a, 0, ',', '.') }}</td>
+                </tr>
+            @endif
+
+            {{-- Lain-lain B --}}
+            @if (($sale->lain_b ?? 0) > 0)
+                <tr>
+                    <td>LAIN-LAIN B</td>
+                    <td class="text-right">(+) {{ number_format($sale->lain_b, 0, ',', '.') }}</td>
+                </tr>
+            @endif
+
             <tr class="font-bold">
-                <td style="font-size: 12px;">GRAND TOTAL</td>
-                <td class="text-right" style="font-size: 12px;">{{ number_format($sale->total_amount, 0, ',', '.') }}
+                <td style="font-size: 14px; border-top: 1px dashed #000;">GRAND TOTAL</td>
+                <td class="text-right" style="font-size: 14px; border-top: 1px dashed #000;">
+                    {{ number_format($sale->total_amount, 0, ',', '.') }}
                 </td>
             </tr>
+
             <tr>
                 <td>TUNAI</td>
                 <td class="text-right">{{ number_format($sale->paid_amount, 0, ',', '.') }}</td>
             </tr>
+
             <tr>
-                <td>KEMBALI</td>
-                <td class="text-right">{{ number_format($sale->paid_amount - $sale->total_amount, 0, ',', '.') }}</td>
+                <td class="font-bold">KEMBALI</td>
+                <td class="text-right font-bold">
+                    {{ number_format($sale->paid_amount - $sale->total_amount, 0, ',', '.') }}</td>
             </tr>
         </table>
 

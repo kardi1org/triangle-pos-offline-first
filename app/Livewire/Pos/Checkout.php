@@ -75,7 +75,8 @@ class Checkout extends Component
     // Properties untuk menyimpan data meja yang dipilih
     public $table_ids_array = [];    // Array of selected table IDs (e.g., [1, 5, 8])
     public $selectedTableNames = ''; // String of selected table names (e.g., "Meja A01, Meja B12")
-
+    public $lain_a = 0;
+    public $lain_b = 0;
     // ✅ event listener untuk clear alert
     #[On('clear-alert')]
     public function clearAlert()
@@ -95,6 +96,8 @@ class Checkout extends Component
         $this->global_discount = 0;
         $this->global_tax = 0;
         $this->shipping = 0.00;
+        $this->lain_a = 0;
+        $this->lain_b = 0;
         $this->check_quantity = [];
         $this->quantity = [];
         $this->discount_type = [];
@@ -452,14 +455,51 @@ class Checkout extends Component
         }
     }
 
-    public function calculateTotal()
-    {
-        $total = (float) str_replace(',', '', Cart::instance($this->cart_instance)->total());
-        $shipping = (float) $this->shipping;
+    // Di dalam class Livewire Anda
 
-        return $total + $shipping;
+    public function updatedOrderType($value)
+    {
+        // Setiap kali tombol Dine In / Take Out diklik, hitung ulang total
+        $this->total_amount = $this->calculateTotal();
     }
 
+    public function calculateTotal()
+    {
+        // 1. Hitung Pure Subtotal (Harga Barang x Qty) tanpa potongan diskon apapun
+        $pure_subtotal = 0;
+        foreach (Cart::instance('sale')->content() as $cartItem) {
+            $pure_subtotal += ($cartItem->price * $cartItem->qty);
+        }
+
+        // 2. Hitung Service Charge berdasarkan Pure Subtotal
+        $this->service_charge = (isFeatureEnabled('summary_service') && $this->order_type == 'dine_in')
+            ? ($pure_subtotal * 0.05)
+            : 0;
+
+        // 3. Ambil nilai Tax dan Discount dari Cart
+        // Catatan: Tax biasanya dihitung otomatis oleh library berdasarkan subtotal di Cart
+        $tax = (float) str_replace(',', '', Cart::instance('sale')->tax());
+        $discount = (float) str_replace(',', '', Cart::instance('sale')->discount());
+
+        // 4. Ambil nilai biaya tambahan lainnya
+        $shipping = (float) ($this->shipping ?? 0);
+        $lain_a = (float) ($this->lain_a ?? 0);
+        $lain_b = (float) ($this->lain_b ?? 0);
+
+        // 5. Kembalikan Grand Total
+        // Rumus: (Subtotal Kotor + Pajak + Service + Shipping + Lain-lain) - Total Diskon
+        return ($pure_subtotal + $tax + $shipping + $this->service_charge + $lain_a + $lain_b) - $discount;
+    }
+
+    public function updatedLainA()
+    {
+        $this->total_amount = $this->calculateTotal();
+    }
+
+    public function updatedLainB()
+    {
+        $this->total_amount = $this->calculateTotal();
+    }
 
     public function resetCart()
     {
@@ -486,6 +526,8 @@ class Checkout extends Component
         $this->global_discount = 0;
         $this->global_tax = 0;
         $this->shipping = 0.00;
+        $this->lain_a = 0; // Tambahkan ini
+        $this->lain_b = 0; // Tambahkan ini
 
         // 🔹 dispatch event untuk reset JS modal variant
         $this->dispatch('variant-modal-reset-all');
@@ -872,86 +914,64 @@ class Checkout extends Component
             return;
         }
 
-        // Pastikan angka bertipe numerik
+        // Ambil nilai numerik dari cart
         $total = (float) str_replace(',', '', Cart::instance($this->cart_instance)->total());
+        $subtotal = (float) str_replace(',', '', Cart::instance($this->cart_instance)->subtotal());
         $shipping = (float) ($this->shipping ?? 0);
         $tax = (float) str_replace(',', '', Cart::instance($this->cart_instance)->tax());
         $discount = (float) str_replace(',', '', Cart::instance($this->cart_instance)->discount());
 
-        // ✅ Mengambil array ID meja yang sudah di-encode
-        $encoded_table_ids = json_encode($this->table_ids_array);
+        // Hitung Extra Charges (Cek Rule)
+        // Di dalam saveOrderPending()
+        $service_charge = (isFeatureEnabled('summary_service') && $this->order_type == 'dine_in')
+            ? ($subtotal * 0.05)
+            : 0;
+        $lain_a = isFeatureEnabled('summary_others') ? (float)$this->lain_a : 0;
+        $lain_b = isFeatureEnabled('summary_others') ? (float)$this->lain_b : 0;
 
-        // ✅ Cek apakah ini update atau create baru
+        // Total Akhir untuk Database
+        $grand_total_db = ($total + $shipping + $service_charge + $lain_a + $lain_b) * 100;
+
+        $encoded_table_ids = json_encode($this->table_ids_array);
         $sale = null;
+
+        $saleData = [
+            'customer_name' => $this->customer_name ?? 'Guest',
+            'order_type' => $this->order_type,
+            'user_id' => auth()->id(),
+            'tax_percentage' => (float) ($this->global_tax ?? 0),
+            'discount_percentage' => (float) ($this->global_discount ?? 0),
+            'shipping_amount' => $shipping * 100,
+            'tax_amount' => $tax * 100,
+            'discount_amount' => $discount * 100,
+            'total_amount' => $grand_total_db,
+            'status' => 'Pending',
+            'payment_status' => 'Unpaid',
+            'selected_table_ids' => $encoded_table_ids,
+            // Kolom Baru
+            'service_charge' => $service_charge * 100,
+            'lain_a' => $lain_a * 100,
+            'lain_b' => $lain_b * 100,
+        ];
 
         if (!empty($this->current_reference)) {
             $sale = Sale::where('reference', $this->current_reference)->first();
-
             if ($sale) {
-                // Hapus detail lama
                 SaleDetails::where('sale_id', $sale->id)->delete();
-
-                // Update summary
-                $sale->update([
-                    // PENTING: Jangan update field 'id' yang sudah ada
-                    'customer_name' => $this->customer_name ?? 'Guest',
-                    'order_type' => $this->order_type,
-                    'user_id' => auth()->id(),
-
-                    // 🛑 PERBAIKAN 1: HAPUS 'table_id' karena kita pakai 'selected_table_ids'
-                    // 'table_id' => $this->table_id ?? null,
-
-                    'total_amount' => ($total + $shipping) * 100,
-                    'tax_percentage' => (float) ($this->global_tax ?? 0),
-                    'discount_percentage' => (float) ($this->global_discount ?? 0),
-                    'shipping_amount' => $shipping * 100,
-                    'tax_amount' => $tax * 100,
-                    'discount_amount' => $discount * 100,
-                    'status' => 'Pending',
-                    'payment_status' => 'Unpaid',
-
-                    // ✅ Menyimpan array ID meja (JSON)
-                    'selected_table_ids' => $encoded_table_ids,
-                ]);
+                $sale->update($saleData);
             }
         }
 
-        // ✅ Kalau tidak ada reference, buat baru
         if (!$sale) {
             $reference = $this->generateSalesNumber();
-
-            $sale = Sale::create([
-                'date' => now()->format('Y-m-d'),
-                'reference' => $reference,
-                'user_id' => auth()->id(),
-                'customer_id' => null,
-                'customer_name' => $this->customer_name ?? 'Guest',
-                'order_type' => $this->order_type,
-
-                // 🛑 PERBAIKAN 1: HAPUS 'table_id' karena kita pakai 'selected_table_ids'
-                // 'table_id' => $this->table_id ?? null,
-
-                'tax_percentage' => (float) ($this->global_tax ?? 0),
-                'discount_percentage' => (float) ($this->global_discount ?? 0),
-                'shipping_amount' => $shipping * 100,
-                'total_amount' => ($total + $shipping) * 100,
-                'status' => 'Pending',
-                'payment_status' => 'Unpaid',
-                'tax_amount' => $tax * 100,
-                'discount_amount' => $discount * 100,
-
-                // ✅ Menyimpan array ID meja (JSON)
-                'selected_table_ids' => $encoded_table_ids,
-            ]);
-
-            // Simpan reference agar bisa update nanti
+            $saleData['date'] = now()->format('Y-m-d');
+            $saleData['reference'] = $reference;
+            $sale = Sale::create($saleData);
             $this->current_reference = $reference;
         }
 
-        // ✅ Simpan detail baru
+        // ... (Loop SaleDetails tetap sama seperti kode Anda) ...
         foreach (Cart::instance('sale')->content() as $cart_item) {
-            // ... (logging dihapus agar lebih ringkas) ...
-
             SaleDetails::create([
                 'sale_id' => $sale->id,
                 'reference' => $sale->reference,
@@ -959,29 +979,20 @@ class Checkout extends Component
                 'product_name' => $cart_item->name,
                 'product_code' => $cart_item->options->code,
                 'quantity' => $cart_item->qty,
-
-                // ✅ PERBAIKAN 2: Pastikan semua amount dikali 100 di sini
                 'price' => (float) $cart_item->price * 100,
                 'unit_price' => (float) ($cart_item->options->unit_price ?? $cart_item->price) * 100,
                 'sub_total' => (float) ($cart_item->options->sub_total ?? $cart_item->subtotal) * 100,
                 'product_discount_amount' => (float) ($cart_item->options->product_discount ?? 0) * 100,
-
                 'product_discount_type' => $cart_item->options->product_discount_type ?? 'fixed',
-                'product_tax_amount' => (float) ($cart_item->options->product_tax ?? 0) * 100, // <-- Pastikan ini juga dikali 100 jika disimpan dalam format integer
-
-                // 🔥 SIMPAN VARIANT PER ITEM
+                'product_tax_amount' => (float) ($cart_item->options->product_tax ?? 0) * 100,
                 'variant_detail' => json_encode($cart_item->options->variants ?? []),
             ]);
         }
 
-        // ✅ Bersihkan keranjang dan reset data form
         Cart::instance('sale')->destroy();
-        // ✅ PERBAIKAN 3: Hapus 'table_id' dari daftar reset
-        $this->reset(['customer_name', 'order_type', 'current_reference', 'table_ids_array', 'selectedTableNames']);
+        $this->reset(['customer_name', 'order_type', 'current_reference', 'table_ids_array', 'selectedTableNames', 'lain_a', 'lain_b']);
         $this->resetCart();
     }
-
-
 
     public function generateSalesNumber(): string
     {
@@ -1100,6 +1111,8 @@ class Checkout extends Component
         $this->order_type = $order->order_type;
         $this->table_id = $order->table_id;
         $this->customer_name = $order->customer_name;
+        $this->lain_a = $order->lain_a;
+        $this->lain_b = $order->lain_b;
 
         if (!empty($order->selected_table_ids)) {
 
@@ -1155,7 +1168,11 @@ class Checkout extends Component
             'discount_percentage' => $order->discount_percentage,
             'discount_amount' => $order->discount_amount,
             'shipping_amount' => $order->shipping_amount,
+            'service_charge' => $order->service_charge, // Tambahkan ini
+            'lain_a' => $order->lain_a,                 // Tambahkan ini
+            'lain_b' => $order->lain_b,
             'total_amount' => $order->total_amount,
+            'order_type' => $order->order_type,
         ];
 
         // Buka modal detail

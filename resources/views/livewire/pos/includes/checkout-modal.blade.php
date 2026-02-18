@@ -123,6 +123,51 @@
                         });
                     </script>
 
+                    @php
+                        /*
+    |--------------------------------------------------------------------------
+    | CENTRALIZED ORDER CALCULATION (SATU SUMBER KEBENARAN)
+    |--------------------------------------------------------------------------
+    */
+
+                        // 1️⃣ Subtotal ASLI (tanpa diskon)
+                        $pure_subtotal = 0;
+                        foreach (Cart::instance($cart_instance)->content() as $item) {
+                            $pure_subtotal += $item->price * $item->qty;
+                        }
+
+                        // 2️⃣ Discount
+                        $discount_val = (float) str_replace(',', '', Cart::instance($cart_instance)->discount());
+
+                        // 3️⃣ Subtotal setelah diskon
+                        $subtotal_after_discount = max($pure_subtotal - $discount_val, 0);
+
+                        // 4️⃣ Tax
+                        $tax_val = (float) str_replace(',', '', Cart::instance($cart_instance)->tax());
+
+                        // 5️⃣ Service charge (SETELAH diskon)
+                        $service_charge =
+                            isFeatureEnabled('summary_service') && $order_type == 'dine_in'
+                                ? $subtotal_after_discount * 0.05
+                                : 0;
+
+                        // 6️⃣ Delivery
+                        $shipping_val = isFeatureEnabled('summary_pkg') ? (float) ($shipping ?? 0) : 0;
+
+                        // 7️⃣ Others
+                        $lain_a_val = isFeatureEnabled('summary_others') ? (float) ($lain_a ?? 0) : 0;
+
+                        $lain_b_val = isFeatureEnabled('summary_others') ? (float) ($lain_b ?? 0) : 0;
+
+                        // 8️⃣ GRAND TOTAL FINAL
+                        $grand_total =
+                            $subtotal_after_discount +
+                            $tax_val +
+                            $service_charge +
+                            $shipping_val +
+                            $lain_a_val +
+                            $lain_b_val;
+                    @endphp
 
                     <div class="row">
                         <div class="col-lg-7">
@@ -138,6 +183,11 @@
                             @endforeach
                             <input type="hidden" name="selected_table_ids"
                                 value="{{ json_encode($table_ids_array ?? []) }}">
+                            <input type="hidden" name="service_charge" value="{{ $service_charge }}">
+                            <input type="hidden" name="lain_a"
+                                value="{{ isFeatureEnabled('summary_others') ? $lain_a_val : 0 }}">
+                            <input type="hidden" name="lain_b"
+                                value="{{ isFeatureEnabled('summary_others') ? $lain_b_val : 0 }}">
                             <div class="card p-0 border-1 shadow-sm">
                                 <div class="card-body">
                                     <div class="form-row">
@@ -146,9 +196,9 @@
                                                 <label for="total_amount">Total Amount <span
                                                         class="text-danger"></span></label>
                                                 <input type="hidden" name="total_amount" id="total_amount"
-                                                    class="form-control" value="{{ $total_amount }}" readonly required>
+                                                    class="form-control" value="{{ $grand_total }}" readonly required>
                                                 <div class="form-group">
-                                                    <td> {{ format_currency($total_amount) }}</td>
+                                                    <td> {{ format_currency($grand_total) }}</td>
                                                 </div>
                                             </div>
 
@@ -381,6 +431,30 @@
                         </div>
                         <div class="col-lg-5">
                             <div class="table-responsive">
+                                @php
+                                    // Subtotal asli (tanpa diskon)
+                                    $pure_subtotal = 0;
+                                    foreach (Cart::instance($cart_instance)->content() as $item) {
+                                        $pure_subtotal += $item->price * $item->qty;
+                                    }
+
+                                    // Discount value
+                                    $discount_val = (float) str_replace(
+                                        ',',
+                                        '',
+                                        Cart::instance($cart_instance)->discount(),
+                                    );
+
+                                    // Subtotal setelah diskon
+                                    $subtotal_after_discount = max($pure_subtotal - $discount_val, 0);
+
+                                    // Service charge dihitung SETELAH diskon
+                                    $service_charge =
+                                        isFeatureEnabled('summary_service') && $order_type == 'dine_in'
+                                            ? $subtotal_after_discount * 0.05
+                                            : 0;
+                                @endphp
+
                                 <table class="table table-striped">
                                     <tr>
                                         <th>Total Products</th>
@@ -390,28 +464,62 @@
                                             </span>
                                         </td>
                                     </tr>
+                                    {{-- Subtotal (Sebelum Pajak & Biaya Lain) --}}
+                                    <tr>
+                                        <th>Subtotal</th>
+                                        <td>{{ format_currency($pure_subtotal) }}</td>
+                                    </tr>
+
+                                    {{-- Order Tax --}}
                                     <tr>
                                         <th>Order Tax ({{ $global_tax }}%)</th>
                                         <td>(+) {{ format_currency(Cart::instance($cart_instance)->tax()) }}</td>
                                     </tr>
+
+                                    {{-- Discount --}}
                                     <tr>
                                         <th>Discount ({{ $global_discount }}%)</th>
                                         <td>(-) {{ format_currency(Cart::instance($cart_instance)->discount()) }}</td>
                                     </tr>
-                                    <tr>
-                                        <th>Shipping</th>
-                                        <input type="hidden" value="{{ $shipping }}" name="shipping_amount">
-                                        <td>(+) {{ format_currency($shipping) }}</td>
-                                    </tr>
+
+                                    {{-- Delivery (Rule: summary_pkg) --}}
+                                    @if (isFeatureEnabled('summary_pkg'))
+                                        <tr>
+                                            <th>Delivery</th>
+                                            <td>(+) {{ format_currency($shipping) }}</td>
+                                        </tr>
+                                    @endif
+
+                                    {{-- Service Charge (Rule: summary_service DAN Dine In) --}}
+                                    @if (isFeatureEnabled('summary_service') && $order_type == 'dine_in')
+                                        <tr>
+                                            <th>Service Charge (5%)</th>
+                                            <td>(+) {{ format_currency($service_charge) }}</td>
+                                        </tr>
+                                    @endif
+
+
+                                    {{-- Lain-lain A (Rule: summary_others) --}}
+                                    @if (isFeatureEnabled('summary_others') && $lain_a > 0)
+                                        <tr>
+                                            <th>Lain-lain A</th>
+                                            <td>(+) {{ format_currency($lain_a) }}</td>
+                                        </tr>
+                                    @endif
+
+                                    {{-- Lain-lain B (Rule: summary_others) --}}
+                                    @if (isFeatureEnabled('summary_others') && $lain_b > 0)
+                                        <tr>
+                                            <th>Lain-lain B</th>
+                                            <td>(+) {{ format_currency($lain_b) }}</td>
+                                        </tr>
+                                    @endif
+
                                     <tr class="text-primary">
                                         <th>Grand Total</th>
-                                        @php
-                                            $total_with_shipping =
-                                                Cart::instance($cart_instance)->total() + (float) $shipping;
-                                            // $sub_total = Cart::instance($cart_instance)->total()
-                                        @endphp
+
                                         <th>
-                                            (=) {{ format_currency($total_with_shipping) }}
+                                            (=) {{ format_currency($grand_total) }}
                                         </th>
                                     </tr>
                                 </table>

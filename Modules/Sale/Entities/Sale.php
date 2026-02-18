@@ -66,6 +66,19 @@ class Sale extends Model
         return $value / 100;
     }
 
+    public function getServiceChargeAttribute($value)
+    {
+        return $value / 100;
+    }
+    public function getLainAAttribute($value)
+    {
+        return $value / 100;
+    }
+    public function getLainBAttribute($value)
+    {
+        return $value / 100;
+    }
+
     // Di dalam Model Sale.php
 
     public function meja()

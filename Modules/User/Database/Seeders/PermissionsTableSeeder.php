@@ -124,16 +124,21 @@ class PermissionsTableSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create([
-                'name' => $permission
+            // Menggunakan firstOrCreate agar tidak error jika permission sudah ada
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web'
             ]);
         }
 
-        $role = Role::create([
-            'name' => 'Admin'
+        // Menggunakan firstOrCreate untuk Role Admin
+        $role = Role::firstOrCreate([
+            'name' => 'Admin',
+            'guard_name' => 'web'
         ]);
 
-        $role->givePermissionTo($permissions);
+        // Sinkronisasi permission ke role (menggantikan givePermissionTo agar tidak duplikat)
+        $role->syncPermissions($permissions);
         $role->revokePermissionTo('access_user_management');
     }
 }

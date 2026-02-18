@@ -17,5 +17,6 @@
     "Budget": true,
     "Inventory": true,
     "Meja": true,
-    "Shift": true
+    "Shift": true,
+    "FeatureManager": true
 }

@@ -8,6 +8,7 @@ use Modules\User\Database\Seeders\PermissionsTableSeeder;
 use Modules\Product\Database\Seeders\ProductDatabaseSeeder;
 use Modules\Setting\Database\Seeders\SettingDatabaseSeeder;
 use Modules\Currency\Database\Seeders\CurrencyDatabaseSeeder;
+use Modules\FeatureManager\Database\Seeders\FeatureManagerDatabaseSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -24,5 +25,6 @@ class DatabaseSeeder extends Seeder
         $this->call(SettingDatabaseSeeder::class);
         $this->call(ProductDatabaseSeeder::class);
         $this->call(PaymentSeeder::class);
+        $this->call(\Modules\FeatureManager\Database\Seeders\FeatureManagerDatabaseSeeder::class);
     }
 }
