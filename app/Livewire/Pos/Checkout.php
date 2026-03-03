@@ -77,6 +77,9 @@ class Checkout extends Component
     public $selectedTableNames = ''; // String of selected table names (e.g., "Meja A01, Meja B12")
     public $lain_a = 0;
     public $lain_b = 0;
+    public $tax_amount = 0; // Tambahkan ini
+    public $service_charge = 0; // Pastikan ini juga ada
+    public $service_charge_percentage = 0;
     // ✅ event listener untuk clear alert
     #[On('clear-alert')]
     public function clearAlert()
@@ -120,6 +123,37 @@ class Checkout extends Component
 
         // Panggil ini untuk memastikan selectedTableNames terisi saat mount
         $this->updateNameString();
+
+        $settings = \Modules\Setting\Entities\OrderSummarySetting::where('is_active', true)->get();
+
+        // Petakan nilai default ke properti Livewire
+        foreach ($settings as $setting) {
+            switch ($setting->feature_key) {
+                case 'order_tax':
+                    $this->global_tax = $setting->default_value;
+                    break;
+                case 'discount_global':
+                    $this->global_discount = $setting->default_value;
+                    break;
+                case 'service_charge':
+                    // Untuk persentase service charge, kita simpan nilainya
+                    // agar calculateTotal() bisa menggunakannya
+                    $this->service_charge_percentage = $setting->default_value;
+                    break;
+                case 'delivery_fee':
+                    $this->shipping = $setting->default_value;
+                    break;
+                case 'lain_a':
+                    $this->lain_a = $setting->default_value;
+                    break;
+                case 'lain_b':
+                    $this->lain_b = $setting->default_value;
+                    break;
+            }
+        }
+
+        // Jalankan kalkulasi pertama kali agar angka langsung muncul
+        $this->calculateTotal();
     }
 
     public function previewOrder($orderId)
@@ -465,30 +499,200 @@ class Checkout extends Component
 
     public function calculateTotal()
     {
-        // 1. Hitung Pure Subtotal (Harga Barang x Qty) tanpa potongan diskon apapun
+        $settings = \Modules\Setting\Entities\OrderSummarySetting::where('is_active', true)->get();
+
+        // 1. Ambil data service charge terbaru
+        $scData = \Modules\ServiceCharge\Entities\ServiceCharge::where('is_active', 1)->first();
+        $sc_percent = $scData->percentage ?? 0;
+        $sc_type = $scData->calculation_type ?? 1; // 1: Gross, 2: Netto
+
+        // 2. Hitung Pure Subtotal
         $pure_subtotal = 0;
         foreach (Cart::instance('sale')->content() as $cartItem) {
             $pure_subtotal += ($cartItem->price * $cartItem->qty);
         }
 
-        // 2. Hitung Service Charge berdasarkan Pure Subtotal
-        $this->service_charge = (isFeatureEnabled('summary_service') && $this->order_type == 'dine_in')
-            ? ($pure_subtotal * 0.05)
-            : 0;
+        $tax_base = $pure_subtotal;
+        $after_tax_charges = 0;
+        $this->service_charge = 0; // Reset nilai awal
 
-        // 3. Ambil nilai Tax dan Discount dari Cart
-        // Catatan: Tax biasanya dihitung otomatis oleh library berdasarkan subtotal di Cart
-        $tax = (float) str_replace(',', '', Cart::instance('sale')->tax());
+        // 3. Loop Kalkulasi
+        foreach ($settings as $setting) {
+            $current_value = 0;
+
+            switch ($setting->feature_key) {
+                case 'service_charge':
+                    // TAMBAHKAN KONDISI isFeatureEnabled DI SINI
+                    if (isFeatureEnabled('summary_service') && $this->order_type == 'dine_in') {
+                        $discount_now = (float) str_replace(',', '', Cart::instance('sale')->discount());
+
+                        if ($sc_type == \Modules\ServiceCharge\Entities\ServiceCharge::TYPE_NETTO) {
+                            $current_value = ($pure_subtotal - $discount_now) * ($sc_percent / 100);
+                        } else {
+                            $current_value = $pure_subtotal * ($sc_percent / 100);
+                        }
+                        $this->service_charge = $current_value;
+                    }
+                    break;
+
+                case 'delivery_fee':
+                    if (isFeatureEnabled('summary_pkg')) {
+                        $current_value = (float) ($this->shipping ?? 0);
+                    }
+                    break;
+
+                case 'discount_global':
+                    // Diskon selalu dihitung jika ada nilainya
+                    $current_value = (float) str_replace(',', '', Cart::instance('sale')->discount());
+                    break;
+
+                case 'lain_a':
+                    if (isFeatureEnabled('summary_others')) {
+                        $current_value = (float) ($this->lain_a ?? 0);
+                    }
+                    break;
+
+                case 'lain_b':
+                    if (isFeatureEnabled('summary_others')) {
+                        $current_value = (float) ($this->lain_b ?? 0);
+                    }
+                    break;
+            }
+
+            // 4. Distribusi Posisi (Before vs After Tax)
+            if ($setting->tax_position == 'before') {
+                if ($setting->feature_key == 'discount_global') {
+                    $tax_base -= $current_value;
+                } else {
+                    $tax_base += $current_value;
+                }
+            } else {
+                if ($setting->feature_key != 'order_tax') {
+                    if ($setting->feature_key == 'discount_global') {
+                        $after_tax_charges -= $current_value;
+                    } else {
+                        $after_tax_charges += $current_value;
+                    }
+                }
+            }
+        }
+
+        // 5. Hitung Pajak dari Tax Base (DPP)
+        $tax_percentage = (float) ($this->global_tax ?? 0) / 100;
+        $this->tax_amount = max(0, $tax_base * $tax_percentage);
+
+        // 6. Final Grand Total
+        $grand_total = $tax_base + $this->tax_amount + $after_tax_charges;
+
+        return max(0, $grand_total);
+    }
+
+    public function saveOrderPending()
+    {
+        if (Cart::instance('sale')->count() == 0) {
+            $this->alertType = 'warning';
+            $this->alertMessage = 'Keranjang masih kosong!';
+            $this->dispatch('auto-hide-alert');
+            return;
+        }
+
+        // 1. Jalankan kalkulasi total
+        // Ini akan mengupdate $this->tax_amount dan $this->service_charge secara dinamis
+        // sesuai dengan urutan Before/After Tax di database.
+        $grand_total_float = $this->calculateTotal();
+
+        // 2. Persiapkan variabel numerik
+        $shipping = (float) ($this->shipping ?? 0);
         $discount = (float) str_replace(',', '', Cart::instance('sale')->discount());
 
-        // 4. Ambil nilai biaya tambahan lainnya
-        $shipping = (float) ($this->shipping ?? 0);
-        $lain_a = (float) ($this->lain_a ?? 0);
-        $lain_b = (float) ($this->lain_b ?? 0);
+        // Pastikan fitur aktif (Sesuai dengan logika calculateTotal)
+        $lain_a = isFeatureEnabled('summary_others') ? (float)$this->lain_a : 0;
+        $lain_b = isFeatureEnabled('summary_others') ? (float)$this->lain_b : 0;
 
-        // 5. Kembalikan Grand Total
-        // Rumus: (Subtotal Kotor + Pajak + Service + Shipping + Lain-lain) - Total Diskon
-        return ($pure_subtotal + $tax + $shipping + $this->service_charge + $lain_a + $lain_b) - $discount;
+        $encoded_table_ids = json_encode($this->table_ids_array);
+        $sale = null;
+
+        // 3. Siapkan data untuk tabel sales
+        $saleData = [
+            'customer_name'       => $this->customer_name ?? 'Guest',
+            'order_type'          => $this->order_type,
+            'user_id'             => auth()->id(),
+            'tax_percentage'      => (float) ($this->global_tax ?? 0),
+            'discount_percentage' => (float) ($this->global_discount ?? 0),
+            'shipping_amount'     => $shipping * 100,
+
+            // PENTING: Gunakan $this->tax_amount hasil kalkulasi dinamis (Before/After)
+            'tax_amount'          => $this->tax_amount * 100,
+
+            'discount_amount'     => $discount * 100,
+            'total_amount'        => $grand_total_float * 100,
+            'status'              => 'Pending',
+            'payment_status'      => 'Unpaid',
+            'selected_table_ids'  => $encoded_table_ids,
+
+            // Kolom biaya tambahan dinamis hasil calculateTotal()
+            'service_charge'      => $this->service_charge * 100,
+            'lain_a'              => $lain_a * 100,
+            'lain_b'              => $lain_b * 100,
+        ];
+
+        // Gunakan Transaction agar data konsisten
+        \DB::transaction(function () use ($saleData, &$sale) {
+            if (!empty($this->current_reference)) {
+                $sale = Sale::where('reference', $this->current_reference)->first();
+                if ($sale) {
+                    // Bersihkan detail lama jika ini adalah update dari pending
+                    SaleDetails::where('sale_id', $sale->id)->delete();
+                    $sale->update($saleData);
+                }
+            }
+
+            if (!$sale) {
+                $reference = $this->generateSalesNumber();
+                $saleData['date'] = now()->format('Y-m-d');
+                $saleData['reference'] = $reference;
+                $sale = Sale::create($saleData);
+                $this->current_reference = $reference;
+            }
+
+            // 4. Simpan Detail Produk
+            foreach (Cart::instance('sale')->content() as $cart_item) {
+                SaleDetails::create([
+                    'sale_id'                 => $sale->id,
+                    'reference'               => $sale->reference,
+                    'product_id'              => $cart_item->id,
+                    'product_name'            => $cart_item->name,
+                    'product_code'            => $cart_item->options->code,
+                    'quantity'                => $cart_item->qty,
+                    'price'                   => (float) $cart_item->price * 100,
+                    'unit_price'              => (float) ($cart_item->options->unit_price ?? $cart_item->price) * 100,
+                    'sub_total'               => (float) ($cart_item->price * $cart_item->qty) * 100,
+                    'product_discount_amount' => (float) ($cart_item->options->product_discount ?? 0) * 100,
+                    'product_discount_type'   => $cart_item->options->product_discount_type ?? 'fixed',
+                    'product_tax_amount'      => (float) ($cart_item->options->product_tax ?? 0) * 100,
+                    'variant_detail'          => json_encode($cart_item->options->variants ?? []),
+                ]);
+            }
+        });
+
+        // 5. Bersihkan state dan reset semua input
+        Cart::instance('sale')->destroy();
+        $this->reset([
+            'customer_name',
+            'order_type',
+            'current_reference',
+            'table_ids_array',
+            'selectedTableNames',
+            'lain_a',
+            'lain_b',
+            'service_charge',
+            'tax_amount' // Reset pajak manual juga
+        ]);
+
+        $this->resetCart();
+
+        // Beri notifikasi sukses
+        session()->flash('message', 'Order pending berhasil disimpan!');
     }
 
     public function updatedLainA()
@@ -902,96 +1106,6 @@ class Checkout extends Component
             'qty'     => $newQty,
             'options' => $options,
         ]);
-    }
-
-
-    public function saveOrderPending()
-    {
-        if (Cart::instance('sale')->count() == 0) {
-            $this->alertType = 'warning';
-            $this->alertMessage = 'Keranjang masih kosong!';
-            $this->dispatch('auto-hide-alert');
-            return;
-        }
-
-        // Ambil nilai numerik dari cart
-        $total = (float) str_replace(',', '', Cart::instance($this->cart_instance)->total());
-        $subtotal = (float) str_replace(',', '', Cart::instance($this->cart_instance)->subtotal());
-        $shipping = (float) ($this->shipping ?? 0);
-        $tax = (float) str_replace(',', '', Cart::instance($this->cart_instance)->tax());
-        $discount = (float) str_replace(',', '', Cart::instance($this->cart_instance)->discount());
-
-        // Hitung Extra Charges (Cek Rule)
-        // Di dalam saveOrderPending()
-        $service_charge = (isFeatureEnabled('summary_service') && $this->order_type == 'dine_in')
-            ? ($subtotal * 0.05)
-            : 0;
-        $lain_a = isFeatureEnabled('summary_others') ? (float)$this->lain_a : 0;
-        $lain_b = isFeatureEnabled('summary_others') ? (float)$this->lain_b : 0;
-
-        // Total Akhir untuk Database
-        $grand_total_db = ($total + $shipping + $service_charge + $lain_a + $lain_b) * 100;
-
-        $encoded_table_ids = json_encode($this->table_ids_array);
-        $sale = null;
-
-        $saleData = [
-            'customer_name' => $this->customer_name ?? 'Guest',
-            'order_type' => $this->order_type,
-            'user_id' => auth()->id(),
-            'tax_percentage' => (float) ($this->global_tax ?? 0),
-            'discount_percentage' => (float) ($this->global_discount ?? 0),
-            'shipping_amount' => $shipping * 100,
-            'tax_amount' => $tax * 100,
-            'discount_amount' => $discount * 100,
-            'total_amount' => $grand_total_db,
-            'status' => 'Pending',
-            'payment_status' => 'Unpaid',
-            'selected_table_ids' => $encoded_table_ids,
-            // Kolom Baru
-            'service_charge' => $service_charge * 100,
-            'lain_a' => $lain_a * 100,
-            'lain_b' => $lain_b * 100,
-        ];
-
-        if (!empty($this->current_reference)) {
-            $sale = Sale::where('reference', $this->current_reference)->first();
-            if ($sale) {
-                SaleDetails::where('sale_id', $sale->id)->delete();
-                $sale->update($saleData);
-            }
-        }
-
-        if (!$sale) {
-            $reference = $this->generateSalesNumber();
-            $saleData['date'] = now()->format('Y-m-d');
-            $saleData['reference'] = $reference;
-            $sale = Sale::create($saleData);
-            $this->current_reference = $reference;
-        }
-
-        // ... (Loop SaleDetails tetap sama seperti kode Anda) ...
-        foreach (Cart::instance('sale')->content() as $cart_item) {
-            SaleDetails::create([
-                'sale_id' => $sale->id,
-                'reference' => $sale->reference,
-                'product_id' => $cart_item->id,
-                'product_name' => $cart_item->name,
-                'product_code' => $cart_item->options->code,
-                'quantity' => $cart_item->qty,
-                'price' => (float) $cart_item->price * 100,
-                'unit_price' => (float) ($cart_item->options->unit_price ?? $cart_item->price) * 100,
-                'sub_total' => (float) ($cart_item->options->sub_total ?? $cart_item->subtotal) * 100,
-                'product_discount_amount' => (float) ($cart_item->options->product_discount ?? 0) * 100,
-                'product_discount_type' => $cart_item->options->product_discount_type ?? 'fixed',
-                'product_tax_amount' => (float) ($cart_item->options->product_tax ?? 0) * 100,
-                'variant_detail' => json_encode($cart_item->options->variants ?? []),
-            ]);
-        }
-
-        Cart::instance('sale')->destroy();
-        $this->reset(['customer_name', 'order_type', 'current_reference', 'table_ids_array', 'selectedTableNames', 'lain_a', 'lain_b']);
-        $this->resetCart();
     }
 
     public function generateSalesNumber(): string

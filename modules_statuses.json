@@ -18,5 +18,6 @@
     "Inventory": true,
     "Meja": true,
     "Shift": true,
-    "FeatureManager": true
+    "FeatureManager": true,
+    "ServiceCharge": true
 }

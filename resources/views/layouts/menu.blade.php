@@ -51,53 +51,57 @@
     </li>
 @endcan
 
-@can('access_adjustments')
-    <li class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('adjustments.*') ? 'c-show' : '' }}">
-        <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
-            <i class="c-sidebar-nav-icon bi bi-clipboard-check" style="line-height: 1;"></i> Stock Adjustments
-        </a>
-        <ul class="c-sidebar-nav-dropdown-items pl-2">
-            @can('create_adjustments')
+@if (isFeatureEnabled('inv_adjust'))
+    @can('access_adjustments')
+        <li class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('adjustments.*') ? 'c-show' : '' }}">
+            <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+                <i class="c-sidebar-nav-icon bi bi-clipboard-check" style="line-height: 1;"></i> Stock Adjustments
+            </a>
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                @can('create_adjustments')
+                    <li class="c-sidebar-nav-item ">
+                        <a class="c-sidebar-nav-link {{ request()->routeIs('adjustments.create') ? 'c-active' : '' }}"
+                            href="{{ route('adjustments.create') }}">
+                            <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Adjustment
+                        </a>
+                    </li>
+                @endcan
                 <li class="c-sidebar-nav-item ">
-                    <a class="c-sidebar-nav-link {{ request()->routeIs('adjustments.create') ? 'c-active' : '' }}"
-                        href="{{ route('adjustments.create') }}">
-                        <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Adjustment
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('adjustments.index') ? 'c-active' : '' }}"
+                        href="{{ route('adjustments.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Adjustments
                     </a>
                 </li>
-            @endcan
-            <li class="c-sidebar-nav-item ">
-                <a class="c-sidebar-nav-link {{ request()->routeIs('adjustments.index') ? 'c-active' : '' }}"
-                    href="{{ route('adjustments.index') }}">
-                    <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Adjustments
-                </a>
-            </li>
-        </ul>
-    </li>
-@endcan
+            </ul>
+        </li>
+    @endcan
+@endif
 
-@can('access_quotations')
-    <li class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('quotations.*') ? 'c-show' : '' }}">
-        <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
-            <i class="c-sidebar-nav-icon bi bi-cart-check" style="line-height: 1;"></i> Quotations
-        </a>
-        <ul class="c-sidebar-nav-dropdown-items pl-2">
-            @can('create_adjustments')
+@if (isFeatureEnabled('fin_quotation'))
+    @can('access_quotations')
+        <li class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('quotations.*') ? 'c-show' : '' }}">
+            <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+                <i class="c-sidebar-nav-icon bi bi-cart-check" style="line-height: 1;"></i> Quotations
+            </a>
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                @can('create_adjustments')
+                    <li class="c-sidebar-nav-item ">
+                        <a class="c-sidebar-nav-link {{ request()->routeIs('quotations.create') ? 'c-active' : '' }}"
+                            href="{{ route('quotations.create') }}">
+                            <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Quotation
+                        </a>
+                    </li>
+                @endcan
                 <li class="c-sidebar-nav-item ">
-                    <a class="c-sidebar-nav-link {{ request()->routeIs('quotations.create') ? 'c-active' : '' }}"
-                        href="{{ route('quotations.create') }}">
-                        <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Quotation
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('quotations.index') ? 'c-active' : '' }}"
+                        href="{{ route('quotations.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Quotations
                     </a>
                 </li>
-            @endcan
-            <li class="c-sidebar-nav-item ">
-                <a class="c-sidebar-nav-link {{ request()->routeIs('quotations.index') ? 'c-active' : '' }}"
-                    href="{{ route('quotations.index') }}">
-                    <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Quotations
-                </a>
-            </li>
-        </ul>
-    </li>
-@endcan
+            </ul>
+        </li>
+    @endcan
+@endif
 
 @can('access_purchases')
     <li
@@ -207,76 +211,80 @@
     </li>
 @endcan
 
-@can('access_expenses')
-    <li
-        class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('budget.*') || request()->routeIs('budget-categories.*') || request()->routeIs('Inventories.*') ? 'c-show' : '' }}">
-        <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
-            <i class="c-sidebar-nav-icon bi bi-graph-up" style="line-height: 1;"></i> Budget
-        </a>
-        <ul class="c-sidebar-nav-dropdown-items pl-2">
+@if (isFeatureEnabled('fin_cash_mgmt'))
+    @can('access_expenses')
+        <li
+            class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('budget.*') || request()->routeIs('budget-categories.*') || request()->routeIs('Inventories.*') ? 'c-show' : '' }}">
+            <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+                <i class="c-sidebar-nav-icon bi bi-graph-up" style="line-height: 1;"></i> Budget
+            </a>
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
 
-            @can('create_expenses')
+                @can('create_expenses')
+                    <li class="c-sidebar-nav-item ">
+                        <a class="c-sidebar-nav-link {{ request()->routeIs('budget.create') ? 'c-active' : '' }}"
+                            href="{{ route('budget.create') }}">
+                            <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Budget Cash
+                        </a>
+                    </li>
+                @endcan
                 <li class="c-sidebar-nav-item ">
-                    <a class="c-sidebar-nav-link {{ request()->routeIs('budget.create') ? 'c-active' : '' }}"
-                        href="{{ route('budget.create') }}">
-                        <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Budget Cash
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('budget.index') ? 'c-active' : '' }}"
+                        href="{{ route('budget.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Budget Cash
                     </a>
                 </li>
-            @endcan
-            <li class="c-sidebar-nav-item ">
-                <a class="c-sidebar-nav-link {{ request()->routeIs('budget.index') ? 'c-active' : '' }}"
-                    href="{{ route('budget.index') }}">
-                    <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Budget Cash
-                </a>
-            </li>
-            <li class="c-sidebar-nav-item ">
-                <a class="c-sidebar-nav-link {{ request()->routeIs('Inventories.create') ? 'c-active' : '' }}"
-                    href="{{ route('Inventories.create') }}">
-                    <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Inventory
-                </a>
-            </li>
-            <li class="c-sidebar-nav-item ">
-                <a class="c-sidebar-nav-link {{ request()->routeIs('inventories.index') ? 'c-active' : '' }}"
-                    href="{{ route('Inventories.index') }}">
-                    <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Inventory
-                </a>
-            </li>
-        </ul>
-    </li>
-@endcan
+                <li class="c-sidebar-nav-item ">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('Inventories.create') ? 'c-active' : '' }}"
+                        href="{{ route('Inventories.create') }}">
+                        <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Inventory
+                    </a>
+                </li>
+                <li class="c-sidebar-nav-item ">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('inventories.index') ? 'c-active' : '' }}"
+                        href="{{ route('Inventories.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Inventory
+                    </a>
+                </li>
+            </ul>
+        </li>
+    @endcan
+@endif
 
-@can('access_expenses')
-    <li
-        class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('expenses.*') || request()->routeIs('expense-categories.*') ? 'c-show' : '' }}">
-        <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
-            <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Expenses
-        </a>
-        <ul class="c-sidebar-nav-dropdown-items pl-2">
-            @can('access_expense_categories')
-                <li class="c-sidebar-nav-item  ">
-                    <a class="c-sidebar-nav-link {{ request()->routeIs('expense-categories.*') ? 'c-active' : '' }}"
-                        href="{{ route('expense-categories.index') }}">
-                        <i class="c-sidebar-nav-icon bi bi-collection" style="line-height: 1;"></i> Categories
+@if (isFeatureEnabled('fin_expense'))
+    @can('access_expenses')
+        <li
+            class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('expenses.*') || request()->routeIs('expense-categories.*') ? 'c-show' : '' }}">
+            <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+                <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Expenses
+            </a>
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                @can('access_expense_categories')
+                    <li class="c-sidebar-nav-item  ">
+                        <a class="c-sidebar-nav-link {{ request()->routeIs('expense-categories.*') ? 'c-active' : '' }}"
+                            href="{{ route('expense-categories.index') }}">
+                            <i class="c-sidebar-nav-icon bi bi-collection" style="line-height: 1;"></i> Categories
+                        </a>
+                    </li>
+                @endcan
+                @can('create_expenses')
+                    <li class="c-sidebar-nav-item  ">
+                        <a class="c-sidebar-nav-link {{ request()->routeIs('expenses.create') ? 'c-active' : '' }}"
+                            href="{{ route('expenses.create') }}">
+                            <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Expense
+                        </a>
+                    </li>
+                @endcan
+                <li class="c-sidebar-nav-item ">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('expenses.index') ? 'c-active' : '' }}"
+                        href="{{ route('expenses.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Expenses
                     </a>
                 </li>
-            @endcan
-            @can('create_expenses')
-                <li class="c-sidebar-nav-item  ">
-                    <a class="c-sidebar-nav-link {{ request()->routeIs('expenses.create') ? 'c-active' : '' }}"
-                        href="{{ route('expenses.create') }}">
-                        <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Expense
-                    </a>
-                </li>
-            @endcan
-            <li class="c-sidebar-nav-item ">
-                <a class="c-sidebar-nav-link {{ request()->routeIs('expenses.index') ? 'c-active' : '' }}"
-                    href="{{ route('expenses.index') }}">
-                    <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Expenses
-                </a>
-            </li>
-        </ul>
-    </li>
-@endcan
+            </ul>
+        </li>
+    @endcan
+@endif
 
 @can('access_customers')
     <li
@@ -398,10 +406,11 @@
 
 @can('access_settings')
     <li
-        class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('currencies*') || request()->routeIs('units*') ? 'c-show' : '' }}">
+        class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('currencies*') || request()->routeIs('units*') || request()->routeIs('service-charge*') || request()->routeIs('order-summary*') ? 'c-show' : '' }}">
         <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
             <i class="c-sidebar-nav-icon bi bi-gear" style="line-height: 1;"></i> Settings
         </a>
+
         @can('access_currencies')
             <ul class="c-sidebar-nav-dropdown-items pl-2">
                 <li class="c-sidebar-nav-item">
@@ -412,6 +421,31 @@
                 </li>
             </ul>
         @endcan
+
+        {{-- ✅ Menu Baru: Order Summary Settings --}}
+        @can('access_settings')
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                <li class="c-sidebar-nav-item">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('order-summary*') ? 'c-active' : '' }}"
+                        href="{{ route('order-summary.index') }}">
+                        {{-- Ganti icon ke bi-list-check agar pasti muncul --}}
+                        <i class="c-sidebar-nav-icon bi bi-list-check" style="line-height: 1;"></i> Order Summary
+                    </a>
+                </li>
+            </ul>
+        @endcan
+
+        @can('access_settings')
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                <li class="c-sidebar-nav-item">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('service-charge*') ? 'c-active' : '' }}"
+                        href="{{ route('service-charge.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-percent" style="line-height: 1;"></i> Service Charge
+                    </a>
+                </li>
+            </ul>
+        @endcan
+
         @can('access_currencies')
             <ul class="c-sidebar-nav-dropdown-items pl-2">
                 <li class="c-sidebar-nav-item">
@@ -422,6 +456,7 @@
                 </li>
             </ul>
         @endcan
+
         @can('access_currencies')
             <ul class="c-sidebar-nav-dropdown-items pl-2">
                 <li class="c-sidebar-nav-item">
@@ -432,16 +467,18 @@
                 </li>
             </ul>
         @endcan
+
         @can('access_currencies')
             <ul class="c-sidebar-nav-dropdown-items pl-2">
                 <li class="c-sidebar-nav-item">
                     <a class="c-sidebar-nav-link {{ request()->routeIs('payment*') ? 'c-active' : '' }}"
                         href="{{ route('payment.index') }}">
-                        <i class="c-sidebar-nav-icon bi bi-cash-stack" style="line-height: 1;"></i> Receive Methode
+                        <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Receive Methode
                     </a>
                 </li>
             </ul>
         @endcan
+
         @can('access_settings')
             <ul class="c-sidebar-nav-dropdown-items pl-2">
                 <li class="c-sidebar-nav-item">

@@ -100,8 +100,10 @@ class PosController extends Controller
                 'status' => 'Completed',
                 'payment_status' => $payment_status,
                 'note' => $request->note,
-                'tax_amount' => Cart::instance('sale')->tax() * 100,
-                'discount_amount' => Cart::instance('sale')->discount() * 100,
+                'tax_amount' => $request->tax_amount * 100,
+                'discount_amount' => $request->discount_amount * 100,
+                // 'tax_amount' => Cart::instance('sale')->tax() * 100,
+                // 'discount_amount' => Cart::instance('sale')->discount() * 100,
                 'selected_table_ids' => $selectedTableIdsArray,
             ]);
             foreach (Cart::instance('sale')->content() as $cart_item) {
@@ -301,8 +303,10 @@ class PosController extends Controller
                 'status' => 'Completed',
                 'payment_status' => $payment_status,
                 'note' => $request->note,
-                'tax_amount' => Cart::instance('sale')->tax() * 100,
-                'discount_amount' => Cart::instance('sale')->discount() * 100,
+                'tax_amount' => $request->tax_amount * 100,
+                'discount_amount' => $request->discount_amount * 100,
+                // 'tax_amount' => Cart::instance('sale')->tax() * 100,
+                // 'discount_amount' => Cart::instance('sale')->discount() * 100,
                 'selected_table_ids' => $selectedTableIdsArray,
             ]);
 

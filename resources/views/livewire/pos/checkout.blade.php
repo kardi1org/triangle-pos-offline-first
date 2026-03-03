@@ -333,171 +333,179 @@
                         Status Discount: {{ isFeatureEnabled('summary_disc') ? 'AKTIF' : 'MATI' }} <br>
                         Status Delivery: {{ isFeatureEnabled('summary_pkg') ? 'AKTIF' : 'MATI' }}
                     </div> --}}
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h5 class="mb-0">Order Summary</h5>
-                        </div>
-                        <div class="card-body p-3">
-                            {{-- Hitung Pure Subtotal (Harga Asli x Qty) --}}
+                    <div class="card-body p-3">
+                        @php
+                            // 1. Ambil setting dinamis label
+                            $summarySettings = \Modules\Setting\Entities\OrderSummarySetting::where(
+                                'is_active',
+                                true,
+                            )->get();
+
+                            // 2. Ambil Data Service Charge
+                            $serviceChargeData = \Modules\ServiceCharge\Entities\ServiceCharge::where(
+                                'is_active',
+                                1,
+                            )->first();
+                            $sc_percentage = $serviceChargeData->percentage ?? 0;
+
+                            // 3. Hitung Subtotal tampilan
+                            $display_subtotal = 0;
+                            foreach (Cart::instance($cart_instance)->content() as $cart_item) {
+                                $display_subtotal += $cart_item->price * $cart_item->qty;
+                            }
+
+                            $grand_total = $this->calculateTotal();
+
+                            // Ambil data diskon
+                            $disc_setting = $summarySettings->where('feature_key', 'discount_global')->first();
+                            $discount_val = (float) str_replace(',', '', Cart::instance($cart_instance)->discount());
+                        @endphp
+
+                        {{-- 1. Sub Total --}}
+                        @if (isFeatureEnabled('summary_mamin'))
+                            <div class="d-flex justify-content-between py-1 font-weight-bold text-dark">
+                                <span>Sub Total</span>
+                                <span>{{ format_currency($display_subtotal) }}</span>
+                            </div>
+                            <hr class="my-1">
+                        @endif
+
+                        {{-- 2. DISKON (Di atas Service Charge) --}}
+                        @if ($disc_setting && $discount_val > 0)
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-dark">{{ $disc_setting->feature_name }}
+                                    ({{ $global_discount }}%)</span>
+                                <span class="text-success">(-) {{ format_currency($discount_val) }}</span>
+                            </div>
+                        @endif
+
+                        {{-- 3. Komponen BEFORE TAX --}}
+                        @foreach ($summarySettings->where('tax_position', 'before')->where('feature_key', '!=', 'discount_global') as $set)
                             @php
-                                $pure_subtotal = 0;
-                                foreach (Cart::instance($cart_instance)->content() as $cart_item) {
-                                    $pure_subtotal += $cart_item->price * $cart_item->qty;
+                                $val = 0;
+                                $showItem = true;
+
+                                if ($set->feature_key == 'service_charge') {
+                                    // Tambah kondisi pengecekan fitur service charge
+                                    if (isFeatureEnabled('summary_service') && $order_type == 'dine_in') {
+                                        $val = $this->service_charge;
+                                    } else {
+                                        $showItem = false;
+                                    }
+                                } elseif ($set->feature_key == 'delivery_fee') {
+                                    $val = (float) $this->shipping;
+                                } elseif ($set->feature_key == 'lain_a') {
+                                    $val = (float) $this->lain_a;
+                                } elseif ($set->feature_key == 'lain_b') {
+                                    $val = (float) $this->lain_b;
                                 }
                             @endphp
 
-                            {{-- Sub Total (summary_mamin) --}}
-                            @if (isFeatureEnabled('summary_mamin'))
-                                <div class="d-flex justify-content-between py-1 font-weight-bold">
-                                    <span>Sub Total</span>
-                                    <span>{{ format_currency($pure_subtotal) }}</span>
-                                </div>
-                                <hr class="my-1">
-                            @endif
-
-                            {{-- Order Tax --}}
-                            <div class="d-flex justify-content-between py-1">
-                                <span>Order Tax ({{ $global_tax }}%)</span>
-                                <span>(+) {{ format_currency(Cart::instance($cart_instance)->tax()) }}</span>
-                            </div>
-
-                            {{-- Service Charge (summary_service) --}}
-                            @if (isFeatureEnabled('summary_service') && $order_type == 'dine_in')
-                                @php $service_amount = Cart::instance($cart_instance)->subtotal() * 0.05; @endphp
+                            @if ($showItem && $val > 0)
                                 <div class="d-flex justify-content-between py-1">
-                                    <span>Service Charge (5%)</span>
-                                    <span>(+) {{ format_currency($service_amount) }}</span>
+                                    <span>{{ $set->feature_name }}
+                                        {{ $set->feature_key == 'service_charge' ? "($sc_percentage%)" : '' }}
+                                    </span>
+                                    <span class="text-danger">(+) {{ format_currency($val) }}</span>
                                 </div>
                             @endif
+                        @endforeach
 
-                            {{-- Lain-lain A & B (summary_others) --}}
-                            @if (isFeatureEnabled('summary_others'))
-                                <div class="d-flex justify-content-between py-1">
-                                    <span>Lain-lain A</span>
-                                    <span>(+) {{ format_currency($lain_a ?? 0) }}</span>
-                                </div>
-                                <div class="d-flex justify-content-between py-1">
-                                    <span>Lain-lain B</span>
-                                    <span>(+) {{ format_currency($lain_b ?? 0) }}</span>
-                                </div>
-                            @endif
+                        {{-- 4. Order Tax --}}
+                        <div class="d-flex justify-content-between py-1">
+                            <span>Order Tax ({{ $global_tax }}%)</span>
+                            <span class="text-danger">(+) {{ format_currency($this->tax_amount) }}</span>
+                        </div>
 
-                            {{-- Discount (summary_disc) --}}
-                            @if (isFeatureEnabled('summary_disc'))
-                                <div class="d-flex justify-content-between py-1">
-                                    <span>Discount ({{ $global_discount }}%)</span>
-                                    <span>(-) {{ format_currency(Cart::instance($cart_instance)->discount()) }}</span>
-                                </div>
-                            @endif
-
-                            {{-- Delivery (summary_pkg) --}}
-                            @if (isFeatureEnabled('summary_pkg'))
-                                <div class="d-flex justify-content-between py-1">
-                                    <span>Delivery</span>
-                                    <span>(+) {{ format_currency($shipping) }}</span>
-                                </div>
-                            @endif
-
-                            <hr>
-
+                        {{-- 5. Komponen AFTER TAX --}}
+                        @foreach ($summarySettings->where('tax_position', 'after')->where('feature_key', '!=', 'discount_global') as $set)
                             @php
-                                // Logic Perhitungan Grand Total
-                                $s_charge = isFeatureEnabled('summary_service')
-                                    ? Cart::instance($cart_instance)->subtotal() * 0.05
-                                    : 0;
-                                $l_others = isFeatureEnabled('summary_others') ? (float) $lain_a + (float) $lain_b : 0;
-                                $applied_ship = isFeatureEnabled('summary_pkg') ? (float) $shipping : 0;
+                                $val_after = 0;
+                                $showItemAfter = true;
 
-                                $total_akhir =
-                                    Cart::instance($cart_instance)->total() + $s_charge + $l_others + $applied_ship;
+                                if ($set->feature_key == 'service_charge') {
+                                    // Tambah kondisi pengecekan fitur service charge
+                                    if (isFeatureEnabled('summary_service') && $order_type == 'dine_in') {
+                                        $val_after = $this->service_charge;
+                                    } else {
+                                        $showItemAfter = false;
+                                    }
+                                } elseif ($set->feature_key == 'delivery_fee') {
+                                    $val_after = (float) $this->shipping;
+                                } elseif ($set->feature_key == 'lain_a') {
+                                    $val_after = (float) $this->lain_a;
+                                } elseif ($set->feature_key == 'lain_b') {
+                                    $val_after = (float) $this->lain_b;
+                                }
                             @endphp
 
-                            @if (isFeatureEnabled('summary_grandtotal'))
-                                <div class="d-flex justify-content-between py-2 text-primary font-weight-bold"
-                                    style="font-size: 1.1rem;">
-                                    <span>Grand Total</span>
-                                    <span>(=) {{ format_currency($total_akhir) }}</span>
+                            @if ($showItemAfter && $val_after > 0)
+                                <div class="d-flex justify-content-between py-1">
+                                    <span>{{ $set->feature_name }}
+                                        {{ $set->feature_key == 'service_charge' ? "($sc_percentage%)" : '' }}
+                                    </span>
+                                    <span class="text-danger">(+) {{ format_currency($val_after) }}</span>
                                 </div>
                             @endif
-                        </div>
+                        @endforeach
+
+                        <hr class="my-2" style="border-top: 2px dashed #ddd;">
+
+                        {{-- Grand Total --}}
+                        @if (isFeatureEnabled('summary_grandtotal'))
+                            <div class="d-flex justify-content-between py-2 text-primary font-weight-bold"
+                                style="font-size: 1.2rem;">
+                                <span>Grand Total</span>
+                                <span>{{ format_currency($grand_total) }}</span>
+                            </div>
+                        @endif
                     </div>
 
                     <div class="form-row">
                         {{-- Input Tax --}}
                         <div class="col-lg-4">
                             <div class="form-group">
-                                <label for="tax_percentage">Order Tax (%)</label>
-                                <input wire:model.blur="global_tax" type="number" class="form-control"
-                                    min="0" max="100" value="{{ $global_tax }}" required>
+                                <label>Order Tax (%)</label>
+                                <input wire:model.live="global_tax" type="number" class="form-control"
+                                    min="0" max="100">
                             </div>
                         </div>
 
-                        {{-- Input Discount (summary_disc) --}}
+                        {{-- Input Discount --}}
                         <div class="col-lg-4">
                             <div class="form-group">
-                                <label for="discount_percentage">Discount (%)</label>
-                                @if (isFeatureEnabled('summary_disc'))
-                                    <input wire:model.blur="global_discount" type="number" class="form-control"
-                                        min="0" max="100" value="{{ $global_discount }}" required>
-                                @else
-                                    <input type="number" class="form-control" value="0" readonly
-                                        title="Upgrade package to use discount">
-                                @endif
+                                <label>Discount (%)</label>
+                                <input wire:model.live="global_discount" type="number" class="form-control"
+                                    {{ !isFeatureEnabled('summary_disc') ? 'readonly' : '' }}>
                             </div>
                         </div>
 
-                        {{-- Input Delivery (summary_pkg) --}}
+                        {{-- Input Delivery --}}
                         <div class="col-lg-4">
                             <div class="form-group">
-                                <label for="shipping_amount">Delivery</label>
-                                @if (isFeatureEnabled('summary_pkg'))
-                                    <input wire:model.blur="shipping" type="number" class="form-control"
-                                        min="0" value="0" required step="0.01">
-                                @else
-                                    <input type="number" class="form-control" value="0" readonly
-                                        title="Upgrade package to use delivery feature">
-                                @endif
+                                <label>Delivery</label>
+                                <input wire:model.live="shipping" type="number" class="form-control"
+                                    {{ !isFeatureEnabled('summary_pkg') ? 'readonly' : '' }}>
                             </div>
                         </div>
 
-                        {{-- Input Lain-lain A (summary_others) --}}
-                        <div class="col-lg-4">
+                        {{-- Input Lain-lain A --}}
+                        <div class="col-lg-6">
                             <div class="form-group">
-                                <label for="lain_a">Lain-lain A</label>
-                                @if (isFeatureEnabled('summary_others'))
-                                    <input wire:model.blur="lain_a" type="number" class="form-control"
-                                        min="0" value="0" step="0.01">
-                                @else
-                                    <input type="number" class="form-control" value="0" readonly
-                                        title="Upgrade package to use this feature">
-                                @endif
+                                <label>Lain-lain A</label>
+                                <input wire:model.live="lain_a" type="number" class="form-control"
+                                    {{ !isFeatureEnabled('summary_others') ? 'readonly' : '' }}>
                             </div>
                         </div>
 
-                        {{-- Input Lain-lain B (summary_others) --}}
-                        <div class="col-lg-4">
+                        {{-- Input Lain-lain B --}}
+                        <div class="col-lg-6">
                             <div class="form-group">
-                                <label for="lain_b">Lain-lain B</label>
-                                @if (isFeatureEnabled('summary_others'))
-                                    <input wire:model.blur="lain_b" type="number" class="form-control"
-                                        min="0" value="0" step="0.01">
-                                @else
-                                    <input type="number" class="form-control" value="0" readonly
-                                        title="Upgrade package to use this feature">
-                                @endif
+                                <label>Lain-lain B</label>
+                                <input wire:model.live="lain_b" type="number" class="form-control"
+                                    {{ !isFeatureEnabled('summary_others') ? 'readonly' : '' }}>
                             </div>
                         </div>
-
-                        {{-- Hidden Inputs untuk menjaga konsistensi data saat submit --}}
-                        <input type="hidden" value="{{ $global_tax }}" name="tax_percentage">
-                        <input type="hidden" value="{{ isFeatureEnabled('summary_disc') ? $global_discount : 0 }}"
-                            name="discount_percentage">
-                        <input type="hidden" value="{{ isFeatureEnabled('summary_pkg') ? $shipping : 0 }}"
-                            name="shipping_amount">
-                        <input type="hidden" value="{{ isFeatureEnabled('summary_others') ? $lain_a : 0 }}"
-                            name="lain_a">
-                        <input type="hidden" value="{{ isFeatureEnabled('summary_others') ? $lain_b : 0 }}"
-                            name="lain_b">
                     </div>
 
                     <div class="form-group d-flex justify-content-center flex-wrap mb-0">
@@ -1004,30 +1012,15 @@
                                         <span>Subtotal</span>
                                         <span>{{ format_currency($subtotal_items) }}</span>
                                     </div>
-                                    {{-- Order Tax --}}
-                                    <div class="d-flex justify-content-between py-1">
-                                        <span>Order Tax ({{ $selectedOrderSummary['tax_percentage'] ?? 0 }}%)</span>
-                                        <span>(+)
-                                            {{ format_currency($selectedOrderSummary['tax_amount'] ?? 0) }}</span>
-                                    </div>
-
                                     {{-- Discount --}}
-                                    <div class="d-flex justify-content-between py-1">
-                                        <span>Discount
-                                            ({{ $selectedOrderSummary['discount_percentage'] ?? 0 }}%)</span>
-                                        <span>(-)
-                                            {{ format_currency($selectedOrderSummary['discount_amount'] ?? 0) }}</span>
-                                    </div>
-
-                                    {{-- Rule Delivery: Muncul jika fitur Aktif & nilai > 0 --}}
-                                    @if (isFeatureEnabled('summary_pkg') && ($selectedOrderSummary['shipping_amount'] ?? 0) > 0)
+                                    @if (($selectedOrderSummary['discount_amount'] ?? 0) > 0)
                                         <div class="d-flex justify-content-between py-1">
-                                            <span>Delivery</span>
-                                            <span>(+)
-                                                {{ format_currency($selectedOrderSummary['shipping_amount'] ?? 0) }}</span>
+                                            <span>Discount
+                                                ({{ $selectedOrderSummary['discount_percentage'] ?? 0 }}%)</span>
+                                            <span>(-)
+                                                {{ format_currency($selectedOrderSummary['discount_amount'] ?? 0) }}</span>
                                         </div>
                                     @endif
-
                                     {{-- Rule Service Charge: Muncul jika fitur Aktif, Dine In, & nilai > 0 --}}
                                     @if (isFeatureEnabled('summary_service') &&
                                             ($selectedOrderSummary['order_type'] ?? '') == 'dine_in' &&
@@ -1036,6 +1029,24 @@
                                             <span>Service Charge (5%)</span>
                                             <span>(+)
                                                 {{ format_currency($selectedOrderSummary['service_charge'] ?? 0) }}</span>
+                                        </div>
+                                    @endif
+                                    {{-- Order Tax --}}
+                                    @if (($selectedOrderSummary['tax_amount'] ?? 0) > 0)
+                                        <div class="d-flex justify-content-between py-1">
+                                            <span>Order Tax
+                                                ({{ $selectedOrderSummary['tax_percentage'] ?? 0 }}%)</span>
+                                            <span>(+)
+                                                {{ format_currency($selectedOrderSummary['tax_amount'] ?? 0) }}</span>
+                                        </div>
+                                    @endif
+
+                                    {{-- Rule Delivery: Muncul jika fitur Aktif & nilai > 0 --}}
+                                    @if (isFeatureEnabled('summary_pkg') && ($selectedOrderSummary['shipping_amount'] ?? 0) > 0)
+                                        <div class="d-flex justify-content-between py-1">
+                                            <span>Delivery</span>
+                                            <span>(+)
+                                                {{ format_currency($selectedOrderSummary['shipping_amount'] ?? 0) }}</span>
                                         </div>
                                     @endif
 

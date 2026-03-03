@@ -10,11 +10,12 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
+
             <form id="checkout-form" method="POST"
                 action="{{ !empty($current_reference) ? route('app.pos.update') : route('app.pos.store') }}">
-
                 @csrf
                 <input type="hidden" name="current_reference" value="{{ $current_reference }}">
+
                 <div class="modal-body">
                     @if (session()->has('checkout_message'))
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -29,508 +30,285 @@
 
                     <script>
                         function updatekembalian() {
-
-                            // ===============================
-                            // HELPER
-                            // ===============================
                             const el = (id) => document.getElementById(id);
                             const num = (v) => isNaN(parseFloat(v)) ? 0 : parseFloat(v);
-
                             const rupiah = (number) => new Intl.NumberFormat("id-ID", {
                                 style: "currency",
                                 currency: "IDR"
                             }).format(number);
 
-                            // ===============================
-                            // ELEMENTS
-                            // ===============================
                             const totalAmount = num(el('total_amount').value);
-                            const paidInput = el('paid_amount');
-                            const changeInput = el('kembalian');
                             const actionButton = el('actionbutton');
-
-                            // ===============================
-                            // PAYMENT INPUTS (LIST)
-                            // ===============================
-                            const paymentIds = [
-                                'cash',
-                                'debitcard',
-                                'creditcard',
-                                'gopay',
-                                'ovo',
-                                'shopeepay',
-                                'kredivo',
-                                'dana',
-                                'grabpay',
-                                'qris'
+                            const paymentIds = ['cash', 'debitcard', 'creditcard', 'gopay', 'ovo', 'shopeepay', 'kredivo', 'dana',
+                                'grabpay', 'qris'
                             ];
 
-                            // ===============================
-                            // HITUNG TOTAL BAYAR
-                            // ===============================
                             let paidAmount = 0;
                             paymentIds.forEach(id => {
                                 const input = el(id);
-                                if (input) paidAmount += num(input.value);
+                                if (input && input.type !== 'hidden') paidAmount += num(input.value);
                             });
 
-                            paidInput.value = paidAmount;
+                            el('paid_amount').value = paidAmount;
                             el('lblreceipt').innerHTML = rupiah(paidAmount);
 
-                            // ===============================
-                            // HITUNG KEMBALIAN
-                            // ===============================
                             let change = paidAmount - totalAmount;
+                            if (change < 0) change = 0;
 
-                            if (change < 0) {
-                                change = 0;
-                                actionButton.disabled = true;
-                            } else {
-                                actionButton.disabled = false;
-                            }
-
-                            changeInput.value = change;
+                            el('kembalian').value = change;
                             el('lblkembalian').innerHTML = rupiah(change);
 
-                            const receiptLabel = document.getElementById('lblreceipt');
-                            const changeLabel = document.getElementById('lblkembalian');
-
+                            const receiptLabel = el('lblreceipt');
                             if (paidAmount < totalAmount) {
-                                receiptLabel.classList.add('text-danger', 'font-weight-bold');
-                                changeLabel.classList.add('text-danger', 'font-weight-bold');
+                                actionButton.disabled = true;
+                                receiptLabel.classList.add('text-danger');
+                                receiptLabel.classList.remove('text-primary');
                             } else {
-                                receiptLabel.classList.remove('text-danger', 'font-weight-bold');
-                                changeLabel.classList.remove('text-danger', 'font-weight-bold');
+                                actionButton.disabled = false;
+                                receiptLabel.classList.remove('text-danger');
+                                receiptLabel.classList.add('text-primary');
                             }
-
                         }
-                    </script>
-                    <script>
+
                         document.addEventListener('DOMContentLoaded', function() {
-
-                            const paymentIds = [
-                                'cash', 'debitcard', 'creditcard', 'gopay', 'ovo',
-                                'shopeepay', 'kredivo', 'dana', 'grabpay', 'qris'
-                            ];
-
-                            paymentIds.forEach(id => {
-                                const el = document.getElementById(id);
-                                if (el) {
-                                    el.addEventListener('keyup', updatekembalian);
-                                }
+                            const paymentInputs = document.querySelectorAll('.payment-input');
+                            paymentInputs.forEach(input => {
+                                input.addEventListener('input', updatekembalian);
                             });
-
                         });
                     </script>
 
                     @php
-                        /*
-    |--------------------------------------------------------------------------
-    | CENTRALIZED ORDER CALCULATION (SATU SUMBER KEBENARAN)
-    |--------------------------------------------------------------------------
-    */
+                        $summarySettings = \Modules\Setting\Entities\OrderSummarySetting::where('is_active', true)
+                            ->orderBy('id', 'asc')
+                            ->get();
 
-                        // 1️⃣ Subtotal ASLI (tanpa diskon)
                         $pure_subtotal = 0;
                         foreach (Cart::instance($cart_instance)->content() as $item) {
                             $pure_subtotal += $item->price * $item->qty;
                         }
 
-                        // 2️⃣ Discount
+                        $tax_base = $pure_subtotal;
+                        $after_tax_charges = 0;
                         $discount_val = (float) str_replace(',', '', Cart::instance($cart_instance)->discount());
+                        $service_charge_val = 0;
 
-                        // 3️⃣ Subtotal setelah diskon
-                        $subtotal_after_discount = max($pure_subtotal - $discount_val, 0);
-
-                        // 4️⃣ Tax
-                        $tax_val = (float) str_replace(',', '', Cart::instance($cart_instance)->tax());
-
-                        // 5️⃣ Service charge (SETELAH diskon)
-                        $service_charge =
-                            isFeatureEnabled('summary_service') && $order_type == 'dine_in'
-                                ? $subtotal_after_discount * 0.05
-                                : 0;
-
-                        // 6️⃣ Delivery
+                        // Sync values with main calculation logic
                         $shipping_val = isFeatureEnabled('summary_pkg') ? (float) ($shipping ?? 0) : 0;
-
-                        // 7️⃣ Others
                         $lain_a_val = isFeatureEnabled('summary_others') ? (float) ($lain_a ?? 0) : 0;
-
                         $lain_b_val = isFeatureEnabled('summary_others') ? (float) ($lain_b ?? 0) : 0;
 
-                        // 8️⃣ GRAND TOTAL FINAL
-                        $grand_total =
-                            $subtotal_after_discount +
-                            $tax_val +
-                            $service_charge +
-                            $shipping_val +
-                            $lain_a_val +
-                            $lain_b_val;
+                        foreach ($summarySettings as $setting) {
+                            $current_value = 0;
+                            switch ($setting->feature_key) {
+                                case 'service_charge':
+                                    if (isFeatureEnabled('summary_service') && $order_type == 'dine_in') {
+                                        $scConfig = \Modules\ServiceCharge\Entities\ServiceCharge::where(
+                                            'is_active',
+                                            true,
+                                        )->first();
+                                        $sc_percent = $scConfig->percentage ?? 0;
+                                        $sc_type = $scConfig->calculation_type ?? 1;
+
+                                        if ($sc_type == 2) {
+                                            // Netto
+                                            $current_value = ($pure_subtotal - $discount_val) * ($sc_percent / 100);
+                                        } else {
+                                            // Gross
+                                            $current_value = $pure_subtotal * ($sc_percent / 100);
+                                        }
+                                        $service_charge_val = $current_value;
+                                    }
+                                    break;
+                                case 'delivery_fee':
+                                    $current_value = $shipping_val;
+                                    break;
+                                case 'discount_global':
+                                    $current_value = $discount_val;
+                                    break;
+                                case 'lain_a':
+                                    $current_value = $lain_a_val;
+                                    break;
+                                case 'lain_b':
+                                    $current_value = $lain_b_val;
+                                    break;
+                            }
+
+                            if ($setting->tax_position == 'before') {
+                                $setting->feature_key == 'discount_global'
+                                    ? ($tax_base -= $current_value)
+                                    : ($tax_base += $current_value);
+                            } else {
+                                if ($setting->feature_key != 'order_tax') {
+                                    $setting->feature_key == 'discount_global'
+                                        ? ($after_tax_charges -= $current_value)
+                                        : ($after_tax_charges += $current_value);
+                                }
+                            }
+                        }
+                        $tax_val = max(0, $tax_base * (($global_tax ?? 0) / 100));
+                        $grand_total = $tax_base + $tax_val + $after_tax_charges;
                     @endphp
 
                     <div class="row">
-                        <div class="col-lg-7">
+                        <div class="col-lg-7 border-right">
+                            {{-- Form Hidden Fields --}}
+                            <input type="hidden" name="tax_percentage" value="{{ (int) $global_tax }}">
+                            <input type="hidden" name="discount_percentage" value="{{ (int) $global_discount }}">
                             <input type="hidden" value="{{ $customer_name }}" name="customer_name">
-                            <input type="hidden" value="{{ $global_tax }}" name="tax_percentage">
-                            <input type="hidden" value="{{ $global_discount }}" name="discount_percentage">
-                            <input type="hidden" value="{{ $shipping }}" name="shipping_amount">
+                            <input type="hidden" value="{{ $tax_val }}" name="tax_amount">
+                            <input type="hidden" value="{{ $discount_val }}" name="discount_amount">
+                            <input type="hidden" value="{{ $shipping_val }}" name="shipping_amount">
                             <input type="hidden" name="order_type" value="{{ $order_type }}">
                             <input type="hidden" name="table_id" value="{{ $table_id }}">
+                            <input type="hidden" name="service_charge" value="{{ $service_charge_val }}">
+                            <input type="hidden" name="lain_a" value="{{ $lain_a_val }}">
+                            <input type="hidden" name="lain_b" value="{{ $lain_b_val }}">
+                            <input type="hidden" name="total_amount" id="total_amount" value="{{ $grand_total }}">
+                            <input type="hidden" id="paid_amount" name="paid_amount" value="0">
+                            <input type="hidden" id="kembalian" name="kembalian" value="0">
+
                             @foreach (Cart::instance($cart_instance)->content() as $item)
                                 <input type="hidden" name="variants[{{ $item->id }}]"
                                     value="{{ json_encode($item->options->variants ?? []) }}">
                             @endforeach
                             <input type="hidden" name="selected_table_ids"
                                 value="{{ json_encode($table_ids_array ?? []) }}">
-                            <input type="hidden" name="service_charge" value="{{ $service_charge }}">
-                            <input type="hidden" name="lain_a"
-                                value="{{ isFeatureEnabled('summary_others') ? $lain_a_val : 0 }}">
-                            <input type="hidden" name="lain_b"
-                                value="{{ isFeatureEnabled('summary_others') ? $lain_b_val : 0 }}">
-                            <div class="card p-0 border-1 shadow-sm">
-                                <div class="card-body">
-                                    <div class="form-row">
-                                        <div class="col-lg-4">
-                                            <div class="form-group">
-                                                <label for="total_amount">Total Amount <span
-                                                        class="text-danger"></span></label>
-                                                <input type="hidden" name="total_amount" id="total_amount"
-                                                    class="form-control" value="{{ $grand_total }}" readonly required>
-                                                <div class="form-group">
-                                                    <td> {{ format_currency($grand_total) }}</td>
-                                                </div>
-                                            </div>
 
-                                        </div>
-                                        <div class="col-lg-4">
-                                            <div class="form-group">
-                                                <label for="paid_amount">Received Amount <span
-                                                        class="text-danger"></span></label>
-                                                <input type="hidden" id="paid_amount" name="paid_amount"
-                                                    class="form-control"placeholder="0"></input>
-                                                <div class="form-group" id="lblreceipt">
-                                                    Rp 0,00
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-4">
-                                            <div class="form-group">
-                                                <label for="Kembalian">Kembalian <span
-                                                        class="text-danger"></span></label>
-                                                <input type="hidden" id="kembalian" name="kembalian"
-                                                    class="form-control"placeholder="0"></input>
-                                                <div class="form-group" id="lblkembalian">
-                                                    Rp 0,00
-                                                </div>
-                                            </div>
-                                        </div>
+                            {{-- Display Panel --}}
+                            <div class="card p-3 shadow-sm mb-3 bg-light">
+                                <div class="row text-center">
+                                    <div class="col-4 border-right">
+                                        <label class="small text-muted mb-0">Tagihan</label>
+                                        <div class="font-weight-bold">{{ format_currency($grand_total) }}</div>
                                     </div>
-
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="payment_method">Payment Method <span class="text-danger">*</span></label>
-                                <div class="container">
-                                    <div class="row">
-                                        {{-- <div class="col"> --}}
-                                        {{-- {{ dd($payments) }} --}}
-                                        @if ($payments->Cash == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>Cash</td>
-                                                    <td>
-                                                        <input type="number" id="cash" name="cash"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="cash" name="cash" class="form-control"
-                                                value=0></input>
-                                        @endif
-
-                                        @if ($payments->DebitCard == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>Debit Card</td>
-                                                    <td>
-                                                        <input type="number" id="debitcard" name="debitcard"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="debitcard" name="debitcard" value=0></input>
-                                        @endif
-
-                                        @if ($payments->Gopay == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>Go Pay</td>
-                                                    <td>
-                                                        <input type="number" id="gopay" name="gopay"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="gopay" name="gopay" class="form-control"
-                                                value=0></input>
-                                        @endif
-
-                                        @if ($payments->CreditCard == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>Credit Card</td>
-                                                    <td>
-                                                        <input type="number" id="creditcard" name="creditcard"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="creditcard" name="creditcard" value=0></input>
-                                        @endif
-
-                                        @if ($payments->OVO == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>OVO</td>
-                                                    <td>
-                                                        <input type="number" id="ovo" name="ovo"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="ovo" name="ovo" class="form-control"
-                                                value=0></input>
-                                        @endif
-                                        {{-- </div> --}}
-                                        {{-- <div class="col"> --}}
-                                        @if ($payments->ShopeePay == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>Shopee Pay</td>
-                                                    <td>
-                                                        <input type="number" id="shopeepay" name="shopeepay"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="shopeepay" name="shopeepay" value=0></input>
-                                        @endif
-
-                                        @if ($payments->Kredivo == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>Kredivo</td>
-                                                    <td>
-                                                        <input type="number" id="kredivo" name="kredivo"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="kredivo" name="kredivo" class="form-control"
-                                                value=0></input>
-                                        @endif
-
-                                        @if ($payments->Dana == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>Dana</td>
-                                                    <td>
-                                                        <input type="number" id="dana" name="dana"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="dana" name="dana" class="form-control"
-                                                value=0></input>
-                                        @endif
-
-                                        @if ($payments->GrabPay == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>Grab Pay</td>
-                                                    <td>
-                                                        <input type="number" id="grabpay" name="grabpay"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="grabpay" name="grabpay" class="form-control"
-                                                value=0></input>
-                                        @endif
-
-                                        @if ($payments->QRIS == 'Y')
-                                            <div class="form-group col-6">
-                                                <tr>
-                                                    <td>QRIS</td>
-                                                    <td>
-                                                        <input type="number" id="qris" name="qris"
-                                                            onchange="updatekembalian()" height="30px"
-                                                            width="100px" class="form-control"
-                                                            onblur="if (this.value == '') {this.value = 0;}"
-                                                            onfocus="if (this.value == 0) {this.value = '';}"
-                                                            value=0></input>
-                                                    </td>
-                                                </tr>
-                                            </div>
-                                        @else
-                                            <input type="hidden" id="qris" name="qris" class="form-control"
-                                                value=0></input>
-                                        @endif
-                                        {{-- </div> --}}
+                                    <div class="col-4 border-right">
+                                        <label class="small text-muted mb-0">Bayar</label>
+                                        <div class="font-weight-bold text-primary" id="lblreceipt">Rp 0</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="small text-muted mb-0">Kembali</label>
+                                        <div class="font-weight-bold text-success" id="lblkembalian">Rp 0</div>
                                     </div>
                                 </div>
-
                             </div>
 
-                        </div>
-                        <div class="col-lg-5">
-                            <div class="table-responsive">
+                            <label class="font-weight-bold small text-dark">METODE PEMBAYARAN <span
+                                    class="text-danger">*</span></label>
+                            <div class="row">
                                 @php
-                                    // Subtotal asli (tanpa diskon)
-                                    $pure_subtotal = 0;
-                                    foreach (Cart::instance($cart_instance)->content() as $item) {
-                                        $pure_subtotal += $item->price * $item->qty;
-                                    }
-
-                                    // Discount value
-                                    $discount_val = (float) str_replace(
-                                        ',',
-                                        '',
-                                        Cart::instance($cart_instance)->discount(),
-                                    );
-
-                                    // Subtotal setelah diskon
-                                    $subtotal_after_discount = max($pure_subtotal - $discount_val, 0);
-
-                                    // Service charge dihitung SETELAH diskon
-                                    $service_charge =
-                                        isFeatureEnabled('summary_service') && $order_type == 'dine_in'
-                                            ? $subtotal_after_discount * 0.05
-                                            : 0;
+                                    $available_payments = [
+                                        'Cash' => 'cash',
+                                        'DebitCard' => 'debitcard',
+                                        'CreditCard' => 'creditcard',
+                                        'Gopay' => 'gopay',
+                                        'OVO' => 'ovo',
+                                        'ShopeePay' => 'shopeepay',
+                                        'Dana' => 'dana',
+                                        'GrabPay' => 'grabpay',
+                                        'QRIS' => 'qris',
+                                        'Kredivo' => 'kredivo',
+                                    ];
+                                    $multipay_enabled = isFeatureEnabled('pos_multipay');
                                 @endphp
 
-                                <table class="table table-striped">
-                                    <tr>
-                                        <th>Total Products</th>
-                                        <td>
-                                            <span class="badge badge-success">
-                                                {{ Cart::instance($cart_instance)->count() }}
-                                            </span>
+                                @foreach ($available_payments as $key => $input_id)
+                                    @php
+                                        $is_allowed = $multipay_enabled || $key === 'Cash';
+                                        $is_active = isset($payments->$key) && $payments->$key == 'Y';
+                                    @endphp
+                                    @if ($is_active && $is_allowed)
+                                        <div class="col-6 mb-2">
+                                            <div class="input-group input-group-sm">
+                                                <div class="input-group-prepend">
+                                                    <span class="input-group-text text-dark"
+                                                        style="width: 85px; font-size: 10px; font-weight: bold;">{{ $key }}</span>
+                                                </div>
+                                                <input type="number" id="{{ $input_id }}"
+                                                    name="{{ $input_id }}" class="form-control payment-input"
+                                                    value="0" onclick="this.select()">
+                                            </div>
+                                        </div>
+                                    @else
+                                        <input type="hidden" id="{{ $input_id }}" name="{{ $input_id }}"
+                                            value="0">
+                                    @endif
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div class="col-lg-5">
+                            <div class="table-responsive">
+                                <table class="table table-sm small">
+                                    <tr class="bg-light text-dark">
+                                        <th>Item</th>
+                                        <td class="text-right"><span
+                                                class="badge badge-secondary">{{ Cart::instance($cart_instance)->count() }}</span>
                                         </td>
                                     </tr>
-                                    {{-- Subtotal (Sebelum Pajak & Biaya Lain) --}}
                                     <tr>
-                                        <th>Subtotal</th>
-                                        <td>{{ format_currency($pure_subtotal) }}</td>
+                                        <td>Subtotal</td>
+                                        <td class="text-right">{{ format_currency($pure_subtotal) }}</td>
                                     </tr>
 
-                                    {{-- Order Tax --}}
-                                    <tr>
-                                        <th>Order Tax ({{ $global_tax }}%)</th>
-                                        <td>(+) {{ format_currency(Cart::instance($cart_instance)->tax()) }}</td>
-                                    </tr>
-
-                                    {{-- Discount --}}
-                                    <tr>
-                                        <th>Discount ({{ $global_discount }}%)</th>
-                                        <td>(-) {{ format_currency(Cart::instance($cart_instance)->discount()) }}</td>
-                                    </tr>
-
-                                    {{-- Delivery (Rule: summary_pkg) --}}
-                                    @if (isFeatureEnabled('summary_pkg'))
-                                        <tr>
-                                            <th>Delivery</th>
-                                            <td>(+) {{ format_currency($shipping) }}</td>
+                                    {{-- Global Discount (Posisi di atas Service Charge sesuai request) --}}
+                                    @if ($discount_val > 0)
+                                        <tr class="text-success">
+                                            <td>Diskon ({{ $global_discount }}%)</td>
+                                            <td class="text-right">-{{ format_currency($discount_val) }}</td>
                                         </tr>
                                     @endif
 
-                                    {{-- Service Charge (Rule: summary_service DAN Dine In) --}}
-                                    @if (isFeatureEnabled('summary_service') && $order_type == 'dine_in')
+                                    {{-- Komponen Lainnya --}}
+                                    @foreach ($summarySettings->where('feature_key', '!=', 'discount_global') as $set)
+                                        @php
+                                            $val = 0;
+                                            if (
+                                                $set->feature_key == 'service_charge' &&
+                                                isFeatureEnabled('summary_service') &&
+                                                $order_type == 'dine_in'
+                                            ) {
+                                                $val = $service_charge_val;
+                                            } elseif (
+                                                $set->feature_key == 'delivery_fee' &&
+                                                isFeatureEnabled('summary_pkg')
+                                            ) {
+                                                $val = $shipping_val;
+                                            } elseif (
+                                                ($set->feature_key == 'lain_a' || $set->feature_key == 'lain_b') &&
+                                                isFeatureEnabled('summary_others')
+                                            ) {
+                                                $val = $set->feature_key == 'lain_a' ? $lain_a_val : $lain_b_val;
+                                            }
+                                        @endphp
+                                        @if ($val > 0)
+                                            <tr>
+                                                <td>{{ $set->feature_name }}</td>
+                                                <td class="text-right text-danger">+{{ format_currency($val) }}</td>
+                                            </tr>
+                                        @endif
+                                    @endforeach
+
+                                    @if ($tax_val > 0)
                                         <tr>
-                                            <th>Service Charge (5%)</th>
-                                            <td>(+) {{ format_currency($service_charge) }}</td>
+                                            <td>Pajak ({{ $global_tax }}%)</td>
+                                            <td class="text-right text-danger">+{{ format_currency($tax_val) }}</td>
                                         </tr>
                                     @endif
 
-
-                                    {{-- Lain-lain A (Rule: summary_others) --}}
-                                    @if (isFeatureEnabled('summary_others') && $lain_a > 0)
-                                        <tr>
-                                            <th>Lain-lain A</th>
-                                            <td>(+) {{ format_currency($lain_a) }}</td>
-                                        </tr>
-                                    @endif
-
-                                    {{-- Lain-lain B (Rule: summary_others) --}}
-                                    @if (isFeatureEnabled('summary_others') && $lain_b > 0)
-                                        <tr>
-                                            <th>Lain-lain B</th>
-                                            <td>(+) {{ format_currency($lain_b) }}</td>
-                                        </tr>
-                                    @endif
-
-                                    <tr class="text-primary">
-                                        <th>Grand Total</th>
-
-                                        <th>
-                                            (=) {{ format_currency($grand_total) }}
-                                        </th>
+                                    <tr class="table-primary">
+                                        <th class="h6">GRAND TOTAL</th>
+                                        <th class="h6 text-right">{{ format_currency($grand_total) }}</th>
                                     </tr>
                                 </table>
                             </div>
                         </div>
                     </div>
-
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary" id="actionbutton" disabled>Submit</button>
+                    <button type="submit" class="btn btn-primary" id="actionbutton" disabled>Submit Sale</button>
                 </div>
             </form>
         </div>

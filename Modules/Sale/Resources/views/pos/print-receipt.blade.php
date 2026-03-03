@@ -107,8 +107,12 @@
                 <td class="col-value">: {{ $sale->reference }}</td>
             </tr>
             <tr>
-                <td>Tanggal</td>
-                <td>: {{ \Carbon\Carbon::parse($sale->date)->format('d-m-Y H:i') }}</td>
+                <td>Close</td>
+                <td>: {{ \Carbon\Carbon::parse($sale->updated_at)->format('d-m-Y H:i') }}</td>
+            </tr>
+            <tr>
+                <td>Time In</td>
+                <td>: {{ \Carbon\Carbon::parse($sale->created_at)->format('d-m-Y H:i') }}</td>
             </tr>
             <tr>
                 <td>Kasir</td>
@@ -168,24 +172,10 @@
                 <td class="col-value text-right">{{ number_format($subtotal_murni, 0, ',', '.') }}</td>
             </tr>
 
-            @if ($sale->tax_amount > 0)
-                <tr>
-                    <td>PPN ({{ $sale->tax_percentage }}%)</td>
-                    <td class="text-right">(+) {{ number_format($sale->tax_amount, 0, ',', '.') }}</td>
-                </tr>
-            @endif
-
             @if ($sale->discount_amount > 0)
                 <tr>
                     <td>DISKON ({{ $sale->discount_percentage }}%)</td>
                     <td class="text-right">(-) {{ number_format($sale->discount_amount, 0, ',', '.') }}</td>
-                </tr>
-            @endif
-
-            @if ($sale->shipping_amount > 0)
-                <tr>
-                    <td>DELIVERY</td>
-                    <td class="text-right">(+) {{ number_format($sale->shipping_amount, 0, ',', '.') }}</td>
                 </tr>
             @endif
 
@@ -194,6 +184,20 @@
                 <tr>
                     <td>SERVICE CHARGE (5%)</td>
                     <td class="text-right">(+) {{ number_format($sale->service_charge, 0, ',', '.') }}</td>
+                </tr>
+            @endif
+
+            @if ($sale->tax_amount > 0)
+                <tr>
+                    <td>PPN ({{ $sale->tax_percentage }}%)</td>
+                    <td class="text-right">(+) {{ number_format($sale->tax_amount, 0, ',', '.') }}</td>
+                </tr>
+            @endif
+
+            @if ($sale->shipping_amount > 0)
+                <tr>
+                    <td>DELIVERY</td>
+                    <td class="text-right">(+) {{ number_format($sale->shipping_amount, 0, ',', '.') }}</td>
                 </tr>
             @endif
 
