@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Create Unit')
+@section('title', 'Receive Method Setting')
 
 @section('breadcrumb')
     <ol class="breadcrumb border-0 m-0">
         <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-        <li class="breadcrumb-item active">Receive Methode</li>
+        <li class="breadcrumb-item active">Receive Method</li>
     </ol>
 @endsection
 
@@ -15,16 +15,20 @@
             @csrf
             @method('patch')
             <div class="row">
-                <!-- Products Permission -->
                 <div class="col-lg-4 col-md-6 mb-3">
                     <div class="card h-100 border-0 shadow">
                         <div class="card-header">
-                            Receive Methode Setting
+                            Receive Method Setting
                         </div>
-                        {{-- @dd($payments->Cash) --}}
 
                         <div class="card-body">
+                            @php
+                                // Cek apakah fitur receive method kustom diaktifkan
+                                $isReceiveEnabled = isFeatureEnabled('set_receive');
+                            @endphp
+
                             <div class="row">
+                                {{-- 1. CASH: Selalu aktif/bisa diubah --}}
                                 <div class="col-6 mb-1">
                                     <div class="custom-control custom-switch">
                                         <input type="checkbox" class="custom-control-input" id="cash" name="cash"
@@ -33,90 +37,50 @@
                                     </div>
                                 </div>
 
-                                <div class="col-6">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="debitcard" name="debitcard"
-                                            value="Y" {{ $payments->DebitCard == 'Y' ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="debitcard">Debit Card</label>
+                                {{-- Group Metode Pembayaran Lainnya --}}
+                                @php
+                                    $otherPayments = [
+                                        'debitcard' => ['label' => 'Debit Card', 'db' => 'DebitCard'],
+                                        'creditcard' => ['label' => 'Credit Card', 'db' => 'CreditCard'],
+                                        'gopay' => ['label' => 'Gopay', 'db' => 'Gopay'],
+                                        'ovo' => ['label' => 'OVO', 'db' => 'OVO'],
+                                        'shopeepay' => ['label' => 'Shopee Pay', 'db' => 'ShopeePay'],
+                                        'kredivo' => ['label' => 'Kredivo', 'db' => 'Kredivo'],
+                                        'dana' => ['label' => 'Dana', 'db' => 'Dana'],
+                                        'grabpay' => ['label' => 'Grab Pay', 'db' => 'GrabPay'],
+                                        'qris' => ['label' => 'QRIS', 'db' => 'QRIS'],
+                                    ];
+                                @endphp
+
+                                @foreach ($otherPayments as $id => $data)
+                                    <div class="col-6 mb-1">
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox" class="custom-control-input" id="{{ $id }}"
+                                                name="{{ $id }}" value="Y" {{-- Jika fitur OFF, paksa uncheck dan disable. Jika ON, ambil dari DB --}}
+                                                {{ $isReceiveEnabled && $payments->{$data['db']} == 'Y' ? 'checked' : '' }}
+                                                {{ !$isReceiveEnabled ? 'disabled' : '' }}>
+                                            <label class="custom-control-label {{ !$isReceiveEnabled ? 'text-muted' : '' }}"
+                                                for="{{ $id }}">
+                                                {{ $data['label'] }}
+                                            </label>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-6 mb-1">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="gopay" name="gopay"
-                                            value="Y" {{ $payments->Gopay == 'Y' ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="gopay">Gopay</label>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="creditcard"
-                                            name="creditcard" value="Y"
-                                            {{ $payments->CreditCard == 'Y' ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="creditcard">Credit Card</label>
-                                    </div>
-                                </div>
-                                <div class="col-6 mb-1">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="ovo" name="ovo"
-                                            value="Y" {{ $payments->OVO == 'Y' ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="ovo">OVO</label>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="shopeepay" name="shopeepay"
-                                            value="Y" {{ $payments->ShopeePay == 'Y' ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="shopeepay">Shopee
-                                            Pay</label>
-                                    </div>
-                                </div>
-                                <div class="col-6 mb-1">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="kredivo" name="kredivo"
-                                            value="Y" {{ $payments->Kredivo == 'Y' ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="kredivo">Kredivo</label>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="dana" name="dana"
-                                            value="Y" {{ $payments->Dana == 'Y' ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="dana">Dana</label>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="grabpay" name="grabpay"
-                                            value="Y" {{ $payments->GrabPay == 'Y' ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="grabpay">Grab
-                                            Pay</label>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="qris" name="qris"
-                                            value="Y" {{ $payments->QRIS == 'Y' ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="qris">QRIS</label>
-                                    </div>
-                                </div>
-                                {{-- <div class="col-12">
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="print_barcodes"
-                                            name="permissions[]" value="print_barcodes">
-                                        <label class="custom-control-label" for="print_barcodes">Kredivo</label>
-                                    </div>
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input" id="print_barcodes"
-                                            name="permissions[]" value="print_barcodes">
-                                        <label class="custom-control-label" for="print_barcodes">Kredivo</label>
-                                    </div>
-                                </div> --}}
+                                @endforeach
                             </div>
+
+                            @if (!$isReceiveEnabled)
+                                <div class="alert alert-warning mt-3 mb-0" style="font-size: 0.8rem;">
+                                    <i class="bi bi-info-circle"></i> Fitur pembayaran non-tunai dinonaktifkan dari
+                                    sistem.<br>
+                                    Upgrade Paket agar fitur aktif.
+                                </div>
+                            @endif
                         </div>
+
                         <div class="card-footer d-flex justify-content-end">
-                            {{-- <div class="form-group"> --}}
-                            <button class="btn btn-primary">Update Setting <i class="bi bi-check"></i></button>
-                            {{-- </div> --}}
+                            <button type="submit" class="btn btn-primary">
+                                Update Setting <i class="bi bi-check"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
