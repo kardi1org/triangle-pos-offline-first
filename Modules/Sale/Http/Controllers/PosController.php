@@ -57,6 +57,208 @@ class PosController extends Controller
         return view('sale::pos.index', compact('product_categories', 'customers', 'payments'));
     }
 
+    // public function store(StorePosSaleRequest $request)
+    // {
+    //     DB::transaction(function () use ($request) {
+    //         $due_amount = $request->total_amount - $request->paid_amount;
+    //         $customer_id = '.';
+
+    //         if ($due_amount == $request->total_amount) {
+    //             $payment_status = 'Unpaid';
+    //         } elseif ($due_amount > 0) {
+    //             $payment_status = 'Partial';
+    //         } else {
+    //             $payment_status = 'Paid';
+    //         }
+
+    //         /* $customer = Customer::firstOrCreate(
+    //             ['customer_name' => $request->customer_name]
+    //         ); */
+
+    //         // Ambil ID meja (dalam format JSON string)
+    //         $selectedTableIdsJson = $request->input('selected_table_ids');
+
+    //         // Ubah JSON string kembali menjadi PHP array
+    //         $selectedTableIdsArray = json_decode($selectedTableIdsJson, true);
+
+    //         $sale = Sale::create([
+    //             'date' => now()->format('Y-m-d'),
+    //             'reference' => $this->generateSalesNumber(),
+    //             'user_id' => auth()->id(),
+    //             'customer_id' => $request->$customer_id,
+    //             'customer_name' => $request->input('customer_name'),
+    //             'order_type' => $request->input('order_type'), // ✅ tambahkan
+    //             'table_id' => $request->input('table_id'),     // ✅ tambahkan
+    //             'tax_percentage' => $request->tax_percentage,
+    //             'discount_percentage' => $request->discount_percentage,
+    //             'shipping_amount' => $request->shipping_amount * 100,
+    //             'service_charge' => $request->input('service_charge') * 100,
+    //             'lain_a' => $request->input('lain_a') * 100,
+    //             'lain_b' => $request->input('lain_b') * 100,
+    //             'paid_amount' => $request->paid_amount * 100,
+    //             'total_amount' => $request->total_amount * 100,
+    //             'status' => 'Completed',
+    //             'payment_status' => $payment_status,
+    //             'note' => $request->note,
+    //             'tax_amount' => $request->tax_amount * 100,
+    //             'discount_amount' => $request->discount_amount * 100,
+    //             // 'tax_amount' => Cart::instance('sale')->tax() * 100,
+    //             // 'discount_amount' => Cart::instance('sale')->discount() * 100,
+    //             'selected_table_ids' => $selectedTableIdsArray,
+    //         ]);
+    //         foreach (Cart::instance('sale')->content() as $cart_item) {
+    //             $variants = json_decode($request->variants[$cart_item->id] ?? '[]', true);
+    //             SaleDetails::create([
+    //                 'sale_id' => $sale->id,
+    //                 'reference' => $sale->reference,
+    //                 'product_id' => $cart_item->id,
+    //                 'product_name' => $cart_item->name,
+    //                 'product_code' => $cart_item->options->code,
+    //                 'quantity' => $cart_item->qty,
+    //                 'price' => $cart_item->price * 100, //* 100,
+    //                 'unit_price' => $cart_item->options->unit_price * 100, // * 100,
+    //                 'sub_total' => $cart_item->options->sub_total * 100, //* 100,
+    //                 'product_discount_amount' => $cart_item->options->product_discount * 100, //* 100,
+    //                 'product_discount_type' => $cart_item->options->product_discount_type,
+    //                 'product_tax_amount' => $cart_item->options->product_tax,  //* 100,
+    //                 'variant_detail' => json_encode($variants),
+    //             ]);
+
+    //             /*  $product = Product::findOrFail($cart_item->id);
+    //             $product->update([
+    //                 'product_quantity' => $product->product_quantity - $cart_item->qty
+    //             ]); */
+    //         }
+
+    //         //  Cart::instance('sale')->destroy();
+
+    //         if ($sale->paid_amount > 0) {
+    //             SalePayment::create([
+    //                 'date' => now()->format('Y-m-d'),
+    //                 'reference' => 'INV/' . $sale->reference,
+    //                 'amount' => $sale->paid_amount,
+    //                 'sale_id' => $sale->id,
+    //                 //  'payment_method' => $request->payment_method
+    //                 'cashpay' => $request->cash,
+    //                 'debitcard' => $request->debitcard,
+    //                 'creditcard' => $request->creditcard,
+    //                 'gopay' => $request->gopay,
+    //                 'grabpay' => $request->grabpay,
+    //                 'ovopay' => $request->ovo,
+    //                 'shopeepay' => $request->shopeepay,
+    //                 'danapay' => $request->dana,
+    //                 'kredivopay' => $request->kredivo,
+    //                 'qrispay' => $request->qris,
+    //                 'change' => $request->paid_amount - $request->total_amount,
+    //             ]);
+    //         }
+    //     });
+    //     // //------------------------------------------------------------------------------//
+    //     // try {
+    //     //     // Buat koneksi ke printer
+    //     //     $settings = Setting::first();
+    //     //     $connector = new WindowsPrintConnector($settings->name_printer);
+    //     //     //  $connector = new NetworkPrintConnector($printerIp, $port);
+    //     //     //  $connector = new WindowsPrintConnector("\\SVR-01\POS-58");
+    //     //     //  $connector = new WindowsPrintConnector("//10.10.10.150/POS-58");
+    //     //     $printer = new Printer($connector);
+    //     //     $lineWidth = 32;
+    //     //     // Fungsi untuk merapikan teks
+    //     //     function alignRight($name, $qty, $price, $lineWidth)
+    //     //     {
+    //     //         $nameWidth = 16; // Alokasi 16 karakter untuk nama produk
+    //     //         $qtyWidth = 8;   // Alokasi 8 karakter untuk Qty
+    //     //         $priceWidth = 8; // Alokasi 8 karakter untuk Harga
+
+    //     //         // Bungkus nama produk jika panjangnya melebihi alokasi
+    //     //         $nameLines = str_split($name, $nameWidth);
+    //     //         // Siapkan variabel untuk hasil format
+    //     //         $output = '';
+    //     //         // Tambahkan semua baris nama produk kecuali yang terakhir
+    //     //         for ($i = 0; $i < count($nameLines) - 1; $i++) {
+    //     //             $output .= str_pad($nameLines[$i], $lineWidth) . "\n"; // Baris dengan nama saja
+    //     //         }
+    //     //         // Baris terakhir dengan Qty dan Harga
+    //     //         $lastLine = $nameLines[count($nameLines) - 1]; // Baris terakhir dari nama
+    //     //         $lastLine = str_pad($lastLine, $nameWidth);   // Tambahkan padding untuk nama
+    //     //         $qty = str_pad($qty, $qtyWidth, " ", STR_PAD_BOTH); // Qty di tengah
+    //     //         $price = str_pad($price, $priceWidth, " ", STR_PAD_LEFT); // Harga di kanan
+    //     //         // Gabungkan semua
+    //     //         $output .= $lastLine . $qty . $price;
+    //     //         return $output;
+    //     //     }
+    //     //     /* Mulai mencetak */
+    //     //     $number = Sale::max('reference');
+    //     //     $totpay = DB::table('sales')->where('reference', $number)->first();
+    //     //     $printer->setJustification(Printer::JUSTIFY_CENTER);
+    //     //     $printer->text($settings->company_name . "\n");
+    //     //     $printer->text($settings->company_address . "\n");
+    //     //     $printer->text("Tlp : " . $settings->company_phone . "\n");
+    //     //     $printer->text("--------------------------------\n");
+    //     //     $printer->setJustification(Printer::JUSTIFY_LEFT);
+    //     //     $printer->text("No. Sales : " . $number . "\n");
+    //     //     $pembeli = $request->input('customer_name');
+    //     //     $tgl = now()->format('d-m-Y H:i:s');  //date("Y-m-d H:i:s")
+    //     //     $printer->text("Tgl : ");
+    //     //     $printer->text($tgl . "\n");
+    //     //     $printer->text("Nama Customer : ");
+    //     //     $printer->text($pembeli . "\n");
+    //     //     $printer->text("--------------------------------\n");
+    //     //     $printer->text(alignRight("Nama Produk", "Qty", "Harga", $lineWidth) . "\n");
+    //     //     $printer->text("--------------------------------\n");
+    //     //     $total = 0;
+    //     //     foreach (Cart::instance('sale')->content() as $cart_item) {
+    //     //         SaleDetails::create([
+    //     //             $nama = $cart_item->name,
+    //     //             $qty = number_format($cart_item->qty),
+    //     //             $sub_total =  ($cart_item->qty * $cart_item->price),
+    //     //         ]);
+    //     //         $printer->text(alignRight($nama, $qty, number_format($sub_total), $lineWidth) . "\n");
+    //     //         $total += ($cart_item->qty * $cart_item->price);
+    //     //     }
+
+    //     //     $printer->text("--------------------------------\n");
+    //     //     $printer->setEmphasis(true); // Tebal
+    //     //     $printer->text(alignRight("SUB TOTAL", "", number_format($total), $lineWidth) . "\n");
+    //     //     $printer->text(alignRight("TOTAL BAYAR", "", number_format($totpay->paid_amount), $lineWidth) . "\n");
+    //     //     $printer->text(alignRight("KEMBALIAN", "", number_format($totpay->paid_amount - $total), $lineWidth) . "\n");
+    //     //     $printer->setEmphasis(false); // Tebal
+    //     //     $printer->text("--------------------------------\n");
+    //     //     $printer->setJustification(Printer::JUSTIFY_CENTER);
+    //     //     //  $printer->text("Terima Kasih Atas Kunjungan Anda!\n");
+    //     //     $printer->text("--------------------------------\n");
+    //     //     // Potong kertas
+    //     //     $printer->cut();
+    //     //     // Tutup koneksi
+    //     //     $printer->close();
+    //     //     //  return "Struk berhasil dicetak!";
+    //     // } catch (Exception $err) {
+    //     //     return "Gagal mencetak: " . $err->getMessage() . "\n";
+    //     // }
+    //     // //------------------------------------------------------------------------------//
+    //     Cart::instance('sale')->destroy();
+
+    //     toast('POS Sale Created!', 'success');
+
+    //     //  return redirect()->route('sales.cetakstruk');
+    //     /* foreach (Cart::instance('sale')->content() as $cart_item) {
+    //      $data = [
+    //       'product_name' => $cart_item->name,
+    //       'product_code' => $cart_item->options->code,
+    //       'created_at' => date("Y-m-d H:i:s"),
+    //       'updated_at' => date("Y-m-d H:i:s"),
+    //       'message' => 'Sale Created!'
+    //      ];
+    //      return response()->json($data);
+    //     } */
+    //     //return response()->json( [$data] );
+    //     //return response()->json($data);
+    //     //return redirect()->route('sales.cetakstruk');
+    //     //   return redirect()->route('sales.index')->with('message', 'Data Sales Successfully Saved to Database!');
+    //     session()->flash('showPrintModal', Sale::max('reference'));
+    //     return redirect()->route('app.pos.index')->with('message', 'Data Sales Successfully Saved to Database!'); //==>ini kembali kelayar inputan POS
+    // }
+
     public function store(StorePosSaleRequest $request)
     {
         DB::transaction(function () use ($request) {
@@ -71,41 +273,151 @@ class PosController extends Controller
                 $payment_status = 'Paid';
             }
 
-            /* $customer = Customer::firstOrCreate(
-                ['customer_name' => $request->customer_name]
-            ); */
-
-            // Ambil ID meja (dalam format JSON string)
             $selectedTableIdsJson = $request->input('selected_table_ids');
-
-            // Ubah JSON string kembali menjadi PHP array
             $selectedTableIdsArray = json_decode($selectedTableIdsJson, true);
 
-            $sale = Sale::create([
-                'date' => now()->format('Y-m-d'),
-                'reference' => $this->generateSalesNumber(),
-                'user_id' => auth()->id(),
-                'customer_id' => $request->$customer_id,
-                'customer_name' => $request->input('customer_name'),
-                'order_type' => $request->input('order_type'), // ✅ tambahkan
-                'table_id' => $request->input('table_id'),     // ✅ tambahkan
-                'tax_percentage' => $request->tax_percentage,
-                'discount_percentage' => $request->discount_percentage,
-                'shipping_amount' => $request->shipping_amount * 100,
-                'service_charge' => $request->input('service_charge') * 100,
-                'lain_a' => $request->input('lain_a') * 100,
-                'lain_b' => $request->input('lain_b') * 100,
-                'paid_amount' => $request->paid_amount * 100,
-                'total_amount' => $request->total_amount * 100,
-                'status' => 'Completed',
-                'payment_status' => $payment_status,
-                'note' => $request->note,
-                'tax_amount' => $request->tax_amount * 100,
-                'discount_amount' => $request->discount_amount * 100,
-                // 'tax_amount' => Cart::instance('sale')->tax() * 100,
-                // 'discount_amount' => Cart::instance('sale')->discount() * 100,
-                'selected_table_ids' => $selectedTableIdsArray,
-            ]);
+            // --- AWAL TAMBAHAN LOG KITCHEN ---
+            $current_ref = $request->input('current_reference');
+            $approvedBy = $request->input('approved_by');
+            $adminNote = $request->input('approval_note') ? " | Note: " . $request->input('approval_note') : "";
+
+            if (!empty($current_ref)) {
+                $existingSale = Sale::where('reference', $current_ref)->first();
+                if ($existingSale) {
+                    // Ambil detail lama dari database
+                    $oldDetails = SaleDetails::where('sale_id', $existingSale->id)->get();
+                    // Ambil konten keranjang saat ini
+                    $currentCart = Cart::instance('sale')->content();
+
+                    // 1. Cek VOID (Barang dihapus atau dikurangi qty-nya)
+                    foreach ($oldDetails as $oldItem) {
+                        // Cari di keranjang yang ID-nya cocok dengan product_id di DB
+                        $matchInCart = $currentCart->first(function ($cartItem) use ($oldItem) {
+                            return $cartItem->id == $oldItem->product_id; // Menggunakan == agar string '1' cocok dengan int 1
+                        });
+
+                        $voidQty = 0;
+                        $reason = "";
+
+                        if (!$matchInCart) {
+                            $voidQty = $oldItem->quantity;
+                            $reason = "Dihapus";
+                        } elseif ($matchInCart->qty < $oldItem->quantity) {
+                            $voidQty = $oldItem->quantity - $matchInCart->qty;
+                            $reason = "Dikurangi";
+                        }
+
+                        if ($voidQty > 0) {
+                            \App\Models\OrderKitchenLog::create([
+                                'sale_id'      => $existingSale->id,
+                                'reference'    => $existingSale->reference,
+                                'product_name' => $oldItem->product_name,
+                                'qty'          => $voidQty,
+                                'type'         => 'void',
+                                'note'         => $reason . $adminNote,
+                                'user_id'      => auth()->id(),
+                                'approved_by'  => $approvedBy,
+                            ]);
+                        }
+                    }
+
+                    // 2. Cek NEW (Barang baru atau qty bertambah)
+                    foreach ($currentCart as $newItem) {
+                        $matchInOld = $oldDetails->first(function ($oldItem) use ($newItem) {
+                            return $oldItem->product_id == $newItem->id;
+                        });
+
+                        $newQty = 0;
+                        $reason = "";
+
+                        if (!$matchInOld) {
+                            $newQty = $newItem->qty;
+                            $reason = "Menu Baru";
+                        } elseif ($newItem->qty > $matchInOld->quantity) {
+                            $newQty = $newItem->qty - $matchInOld->quantity;
+                            $reason = "Tambah Qty";
+                        }
+
+                        if ($newQty > 0) {
+                            \App\Models\OrderKitchenLog::create([
+                                'sale_id'      => $existingSale->id,
+                                'reference'    => $existingSale->reference,
+                                'product_name' => $newItem->name,
+                                'qty'          => $newQty,
+                                'type'         => 'new',
+                                'note'         => $reason . $adminNote,
+                                'user_id'      => auth()->id(),
+                                'approved_by'  => $approvedBy,
+                            ]);
+                        }
+                    }
+                    // Hapus detail lama agar tidak duplikat saat loop create di bawah
+                    SaleDetails::where('sale_id', $existingSale->id)->delete();
+                    // Gunakan sale yang sudah ada untuk update
+                    $sale = $existingSale;
+                    $sale->update([
+                        'customer_name' => $request->input('customer_name'),
+                        'order_type' => $request->input('order_type'),
+                        'table_id' => $request->input('table_id'),
+                        'tax_percentage' => $request->tax_percentage,
+                        'discount_percentage' => $request->discount_percentage,
+                        'shipping_amount' => $request->shipping_amount * 100,
+                        'service_charge' => $request->input('service_charge') * 100,
+                        'lain_a' => $request->input('lain_a') * 100,
+                        'lain_b' => $request->input('lain_b') * 100,
+                        'paid_amount' => $request->paid_amount * 100,
+                        'total_amount' => $request->total_amount * 100,
+                        'status' => 'Completed',
+                        'payment_status' => $payment_status,
+                        'note' => $request->note,
+                        'tax_amount' => $request->tax_amount * 100,
+                        'discount_amount' => $request->discount_amount * 100,
+                        'selected_table_ids' => $selectedTableIdsArray,
+                    ]);
+                }
+            }
+            // --- AKHIR TAMBAHAN LOG KITCHEN ---
+
+            // Logika Create Sale (Hanya jika bukan update/reference kosong)
+            if (!isset($sale)) {
+                $sale = Sale::create([
+                    'date' => now()->format('Y-m-d'),
+                    'reference' => $this->generateSalesNumber(),
+                    'user_id' => auth()->id(),
+                    'customer_id' => $request->$customer_id,
+                    'customer_name' => $request->input('customer_name'),
+                    'order_type' => $request->input('order_type'),
+                    'table_id' => $request->input('table_id'),
+                    'tax_percentage' => $request->tax_percentage,
+                    'discount_percentage' => $request->discount_percentage,
+                    'shipping_amount' => $request->shipping_amount * 100,
+                    'service_charge' => $request->input('service_charge') * 100,
+                    'lain_a' => $request->input('lain_a') * 100,
+                    'lain_b' => $request->input('lain_b') * 100,
+                    'paid_amount' => $request->paid_amount * 100,
+                    'total_amount' => $request->total_amount * 100,
+                    'status' => 'Completed',
+                    'payment_status' => $payment_status,
+                    'note' => $request->note,
+                    'tax_amount' => $request->tax_amount * 100,
+                    'discount_amount' => $request->discount_amount * 100,
+                    'selected_table_ids' => $selectedTableIdsArray,
+                ]);
+
+                // Jika benar-benar baru, catat semua sebagai 'new'
+                foreach (Cart::instance('sale')->content() as $cart_item) {
+                    \App\Models\OrderKitchenLog::create([
+                        'sale_id' => $sale->id,
+                        'reference' => $sale->reference,
+                        'product_name' => $cart_item->name,
+                        'qty' => $cart_item->qty,
+                        'type' => 'new',
+                        'note' => 'Order Baru',
+                        'user_id' => auth()->id(),
+                    ]);
+                }
+            }
+
             foreach (Cart::instance('sale')->content() as $cart_item) {
                 $variants = json_decode($request->variants[$cart_item->id] ?? '[]', true);
                 SaleDetails::create([
@@ -115,22 +427,15 @@ class PosController extends Controller
                     'product_name' => $cart_item->name,
                     'product_code' => $cart_item->options->code,
                     'quantity' => $cart_item->qty,
-                    'price' => $cart_item->price * 100, //* 100,
-                    'unit_price' => $cart_item->options->unit_price * 100, // * 100,
-                    'sub_total' => $cart_item->options->sub_total * 100, //* 100,
-                    'product_discount_amount' => $cart_item->options->product_discount * 100, //* 100,
+                    'price' => $cart_item->price * 100,
+                    'unit_price' => $cart_item->options->unit_price * 100,
+                    'sub_total' => $cart_item->options->sub_total * 100,
+                    'product_discount_amount' => $cart_item->options->product_discount * 100,
                     'product_discount_type' => $cart_item->options->product_discount_type,
-                    'product_tax_amount' => $cart_item->options->product_tax,  //* 100,
+                    'product_tax_amount' => $cart_item->options->product_tax,
                     'variant_detail' => json_encode($variants),
                 ]);
-
-                /*  $product = Product::findOrFail($cart_item->id);
-                $product->update([
-                    'product_quantity' => $product->product_quantity - $cart_item->qty
-                ]); */
             }
-
-            //  Cart::instance('sale')->destroy();
 
             if ($sale->paid_amount > 0) {
                 SalePayment::create([
@@ -138,7 +443,6 @@ class PosController extends Controller
                     'reference' => 'INV/' . $sale->reference,
                     'amount' => $sale->paid_amount,
                     'sale_id' => $sale->id,
-                    //  'payment_method' => $request->payment_method
                     'cashpay' => $request->cash,
                     'debitcard' => $request->debitcard,
                     'creditcard' => $request->creditcard,
@@ -153,110 +457,11 @@ class PosController extends Controller
                 ]);
             }
         });
-        // //------------------------------------------------------------------------------//
-        // try {
-        //     // Buat koneksi ke printer
-        //     $settings = Setting::first();
-        //     $connector = new WindowsPrintConnector($settings->name_printer);
-        //     //  $connector = new NetworkPrintConnector($printerIp, $port);
-        //     //  $connector = new WindowsPrintConnector("\\SVR-01\POS-58");
-        //     //  $connector = new WindowsPrintConnector("//10.10.10.150/POS-58");
-        //     $printer = new Printer($connector);
-        //     $lineWidth = 32;
-        //     // Fungsi untuk merapikan teks
-        //     function alignRight($name, $qty, $price, $lineWidth)
-        //     {
-        //         $nameWidth = 16; // Alokasi 16 karakter untuk nama produk
-        //         $qtyWidth = 8;   // Alokasi 8 karakter untuk Qty
-        //         $priceWidth = 8; // Alokasi 8 karakter untuk Harga
 
-        //         // Bungkus nama produk jika panjangnya melebihi alokasi
-        //         $nameLines = str_split($name, $nameWidth);
-        //         // Siapkan variabel untuk hasil format
-        //         $output = '';
-        //         // Tambahkan semua baris nama produk kecuali yang terakhir
-        //         for ($i = 0; $i < count($nameLines) - 1; $i++) {
-        //             $output .= str_pad($nameLines[$i], $lineWidth) . "\n"; // Baris dengan nama saja
-        //         }
-        //         // Baris terakhir dengan Qty dan Harga
-        //         $lastLine = $nameLines[count($nameLines) - 1]; // Baris terakhir dari nama
-        //         $lastLine = str_pad($lastLine, $nameWidth);   // Tambahkan padding untuk nama
-        //         $qty = str_pad($qty, $qtyWidth, " ", STR_PAD_BOTH); // Qty di tengah
-        //         $price = str_pad($price, $priceWidth, " ", STR_PAD_LEFT); // Harga di kanan
-        //         // Gabungkan semua
-        //         $output .= $lastLine . $qty . $price;
-        //         return $output;
-        //     }
-        //     /* Mulai mencetak */
-        //     $number = Sale::max('reference');
-        //     $totpay = DB::table('sales')->where('reference', $number)->first();
-        //     $printer->setJustification(Printer::JUSTIFY_CENTER);
-        //     $printer->text($settings->company_name . "\n");
-        //     $printer->text($settings->company_address . "\n");
-        //     $printer->text("Tlp : " . $settings->company_phone . "\n");
-        //     $printer->text("--------------------------------\n");
-        //     $printer->setJustification(Printer::JUSTIFY_LEFT);
-        //     $printer->text("No. Sales : " . $number . "\n");
-        //     $pembeli = $request->input('customer_name');
-        //     $tgl = now()->format('d-m-Y H:i:s');  //date("Y-m-d H:i:s")
-        //     $printer->text("Tgl : ");
-        //     $printer->text($tgl . "\n");
-        //     $printer->text("Nama Customer : ");
-        //     $printer->text($pembeli . "\n");
-        //     $printer->text("--------------------------------\n");
-        //     $printer->text(alignRight("Nama Produk", "Qty", "Harga", $lineWidth) . "\n");
-        //     $printer->text("--------------------------------\n");
-        //     $total = 0;
-        //     foreach (Cart::instance('sale')->content() as $cart_item) {
-        //         SaleDetails::create([
-        //             $nama = $cart_item->name,
-        //             $qty = number_format($cart_item->qty),
-        //             $sub_total =  ($cart_item->qty * $cart_item->price),
-        //         ]);
-        //         $printer->text(alignRight($nama, $qty, number_format($sub_total), $lineWidth) . "\n");
-        //         $total += ($cart_item->qty * $cart_item->price);
-        //     }
-
-        //     $printer->text("--------------------------------\n");
-        //     $printer->setEmphasis(true); // Tebal
-        //     $printer->text(alignRight("SUB TOTAL", "", number_format($total), $lineWidth) . "\n");
-        //     $printer->text(alignRight("TOTAL BAYAR", "", number_format($totpay->paid_amount), $lineWidth) . "\n");
-        //     $printer->text(alignRight("KEMBALIAN", "", number_format($totpay->paid_amount - $total), $lineWidth) . "\n");
-        //     $printer->setEmphasis(false); // Tebal
-        //     $printer->text("--------------------------------\n");
-        //     $printer->setJustification(Printer::JUSTIFY_CENTER);
-        //     //  $printer->text("Terima Kasih Atas Kunjungan Anda!\n");
-        //     $printer->text("--------------------------------\n");
-        //     // Potong kertas
-        //     $printer->cut();
-        //     // Tutup koneksi
-        //     $printer->close();
-        //     //  return "Struk berhasil dicetak!";
-        // } catch (Exception $err) {
-        //     return "Gagal mencetak: " . $err->getMessage() . "\n";
-        // }
-        // //------------------------------------------------------------------------------//
         Cart::instance('sale')->destroy();
-
         toast('POS Sale Created!', 'success');
-
-        //  return redirect()->route('sales.cetakstruk');
-        /* foreach (Cart::instance('sale')->content() as $cart_item) {
-         $data = [
-          'product_name' => $cart_item->name,
-          'product_code' => $cart_item->options->code,
-          'created_at' => date("Y-m-d H:i:s"),
-          'updated_at' => date("Y-m-d H:i:s"),
-          'message' => 'Sale Created!'
-         ];
-         return response()->json($data);
-        } */
-        //return response()->json( [$data] );
-        //return response()->json($data);
-        //return redirect()->route('sales.cetakstruk');
-        //   return redirect()->route('sales.index')->with('message', 'Data Sales Successfully Saved to Database!');
         session()->flash('showPrintModal', Sale::max('reference'));
-        return redirect()->route('app.pos.index')->with('message', 'Data Sales Successfully Saved to Database!'); //==>ini kembali kelayar inputan POS
+        return redirect()->route('app.pos.index')->with('message', 'Data Sales Successfully Saved!');
     }
 
     public function update(Request $request)
@@ -279,11 +484,111 @@ class PosController extends Controller
 
             // Ambil ID meja (dalam format JSON string)
             $selectedTableIdsJson = $request->input('selected_table_ids');
-
-            // Ubah JSON string kembali menjadi PHP array
             $selectedTableIdsArray = json_decode($selectedTableIdsJson, true);
 
-            // 1️⃣ Hapus detail lama berdasarkan reference
+            // --- AWAL LOGIKA LOG KITCHEN ---
+            $approvedBy = $request->input('approved_by');
+            $adminNote = $request->input('approval_note') ? " | Note: " . $request->input('approval_note') : "";
+
+            // Ambil data lama SEBELUM dihapus untuk dibandingkan
+            $oldDetails = SaleDetails::where('sale_id', $sale->id)->get();
+            $currentCart = Cart::instance('sale')->content();
+
+            // Pastikan variabel ini ada untuk menggabungkan catatan admin
+            $finalNote = $adminNote ? " - " . $adminNote : "";
+
+            if ($sale->is_printed == 1) {
+                // === JIKA SUDAH PERNAH DIPRINT: CATAT SELISIH (VOID & NEW) ===
+
+                // 1. Cek VOID (Barang dihapus atau qty dikurangi)
+                foreach ($oldDetails as $oldItem) {
+                    $matchInCart = $currentCart->first(function ($cartItem) use ($oldItem) {
+                        return $cartItem->id == $oldItem->product_id;
+                    });
+
+                    $voidQty = 0;
+                    $reason = "";
+
+                    if (!$matchInCart) {
+                        $voidQty = $oldItem->quantity;
+                        $reason = "Dihapus";
+                    } elseif ($matchInCart->qty < $oldItem->quantity) {
+                        $voidQty = $oldItem->quantity - $matchInCart->qty;
+                        $reason = "Qty Dikurangi";
+                    }
+
+                    if ($voidQty > 0) {
+                        \App\Models\OrderKitchenLog::create([
+                            'sale_id'      => $sale->id,
+                            'reference'    => $sale->reference,
+                            'product_name' => $oldItem->product_name,
+                            'qty'          => $voidQty,
+                            'type'         => 'void',
+                            'note'         => $reason . $finalNote,
+                            'user_id'      => auth()->id(),
+                            'approved_by'  => $approvedBy,
+                            'is_printed'   => 0 // Siap diprint sebagai update
+                        ]);
+                    }
+                }
+
+                // 2. Cek NEW (Barang baru atau qty bertambah)
+                foreach ($currentCart as $newItem) {
+                    $matchInOld = $oldDetails->first(function ($oldItem) use ($newItem) {
+                        return $oldItem->product_id == $newItem->id;
+                    });
+
+                    $newQty = 0;
+                    $reason = "";
+
+                    if (!$matchInOld) {
+                        $newQty = $newItem->qty;
+                        $reason = "Menu Baru";
+                    } elseif ($newItem->qty > $matchInOld->quantity) {
+                        $newQty = $newItem->qty - $matchInOld->quantity;
+                        $reason = "Qty Ditambah";
+                    }
+
+                    if ($newQty > 0) {
+                        \App\Models\OrderKitchenLog::create([
+                            'sale_id'      => $sale->id,
+                            'reference'    => $sale->reference,
+                            'product_name' => $newItem->name,
+                            'qty'          => $newQty,
+                            'type'         => 'new',
+                            'note'         => $reason . $finalNote,
+                            'user_id'      => auth()->id(),
+                            'approved_by'  => $approvedBy,
+                            'is_printed'   => 0 // Siap diprint sebagai update
+                        ]);
+                    }
+                }
+            } else {
+                // === JIKA BELUM PERNAH DIPRINT: RESET & RE-POST SEMUA ITEM ===
+
+                // Hapus log lama yang belum diprint untuk referensi ini
+                \App\Models\OrderKitchenLog::where('sale_id', $sale->id)
+                    ->where('is_printed', 0)
+                    ->delete();
+
+                // Masukkan kembali semua item dari keranjang sebagai status 'new'
+                foreach ($currentCart as $item) {
+                    \App\Models\OrderKitchenLog::create([
+                        'sale_id'      => $sale->id,
+                        'reference'    => $sale->reference,
+                        'product_name' => $item->name,
+                        'qty'          => $item->qty,
+                        'type'         => 'new',
+                        'note'         => "Update sebelum print",
+                        'user_id'      => auth()->id(),
+                        'approved_by'  => null,
+                        'is_printed'   => 0
+                    ]);
+                }
+            }
+            // --- AKHIR LOGIKA LOG KITCHEN ---
+
+            // 1️⃣ Hapus detail lama berdasarkan reference (Dilakukan SETELAH log dicatat)
             SaleDetails::where('reference', $reference)->delete();
 
             // 2️⃣ Update data sale utama
@@ -305,8 +610,6 @@ class PosController extends Controller
                 'note' => $request->note,
                 'tax_amount' => $request->tax_amount * 100,
                 'discount_amount' => $request->discount_amount * 100,
-                // 'tax_amount' => Cart::instance('sale')->tax() * 100,
-                // 'discount_amount' => Cart::instance('sale')->discount() * 100,
                 'selected_table_ids' => $selectedTableIdsArray,
             ]);
 
@@ -355,17 +658,29 @@ class PosController extends Controller
 
         // Kosongkan cart
         Cart::instance('sale')->destroy();
-
         toast('POS Sale Updated Successfully!', 'success');
-
         session()->flash('showPrintModal', $reference);
 
         return redirect()->route('app.pos.index')->with('message', 'Sale successfully updated!');
     }
 
-    // Modules\Sale\Http\Controllers\PosController.php
+    public function updatePrintStatus($reference)
+    {
+        try {
+            $sale = Sale::where('reference', $reference)->firstOrFail();
 
-    // Modules\Sale\Http\Controllers\PosController.php
+            // Tandai Sale sudah pernah diprint
+            $sale->update(['is_printed' => 1]);
+
+            // Tandai SEMUA log (Void & New) milik sale ini menjadi sudah diprint
+            \App\Models\OrderKitchenLog::where('sale_id', $sale->id)
+                ->update(['is_printed' => 1]);
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 
     public function printReceipt(Request $request, $reference)
     {

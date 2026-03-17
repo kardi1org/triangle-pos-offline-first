@@ -87,6 +87,18 @@ class Sale extends Model
         return $this->belongsTo(\Modules\Meja\Entities\Meja::class, 'table_id', 'id');
     }
 
+    // Modules/Sale/Entities/Sale.php
+
+    public function kitchenLogs()
+    {
+        // Pastikan namespace model log kitchen Anda benar.
+        // Jika berada di App\Models gunakan:
+        return $this->hasMany(\App\Models\OrderKitchenLog::class, 'sale_id', 'id');
+
+        // Atau jika OrderKitchenLog juga berada di dalam Module Sale, sesuaikan namespacenya:
+        // return $this->hasMany(\Modules\Sale\Entities\OrderKitchenLog::class, 'sale_id', 'id');
+    }
+
     protected $casts = [
         // ... casting untuk kolom lain ...
         'selected_table_ids' => 'array', // 🎯 SOLUSI UTAMA: Menginstruksikan Laravel untuk mengkonversi array ke JSON saat menyimpan dan sebaliknya.

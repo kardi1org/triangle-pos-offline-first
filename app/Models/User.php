@@ -32,7 +32,8 @@ class User extends Authenticatable implements HasMedia
         'tenant_port',
         'tenant_username',
         'tenant_password',
-        'codepaket'
+        'codepaket',
+        'level'
     ];
 
     /**

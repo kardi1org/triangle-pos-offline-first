@@ -9,39 +9,52 @@ use Illuminate\Support\Facades\Gate;
 class ReportsController extends Controller
 {
 
-    public function profitLossReport() {
+    public function profitLossReport()
+    {
         abort_if(Gate::denies('access_reports'), 403);
 
         return view('reports::profit-loss.index');
     }
 
-    public function paymentsReport() {
+    public function paymentsReport()
+    {
         abort_if(Gate::denies('access_reports'), 403);
 
         return view('reports::payments.index');
     }
 
-    public function salesReport() {
+    public function salesReport()
+    {
         abort_if(Gate::denies('access_reports'), 403);
 
         return view('reports::sales.index');
     }
 
-    public function purchasesReport() {
+    public function purchasesReport()
+    {
         abort_if(Gate::denies('access_reports'), 403);
 
         return view('reports::purchases.index');
     }
 
-    public function salesReturnReport() {
+    public function salesReturnReport()
+    {
         abort_if(Gate::denies('access_reports'), 403);
 
         return view('reports::sales-return.index');
     }
 
-    public function purchasesReturnReport() {
+    public function purchasesReturnReport()
+    {
         abort_if(Gate::denies('access_reports'), 403);
 
         return view('reports::purchases-return.index');
+    }
+
+    public function kitchenLogReport()
+    {
+        abort_if(Gate::denies('access_reports'), 403);
+
+        return view('reports::kitchen-log.index');
     }
 }

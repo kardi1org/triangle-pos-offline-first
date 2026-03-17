@@ -1,0 +1,29 @@
+ALTER TABLE users 
+ADD COLUMN LEVEL VARCHAR(50) AFTER is_active;
+
+ALTER TABLE sales 
+ADD COLUMN is_printed TINYINT(1) DEFAULT 0 AFTER note;
+
+
+CREATE TABLE `order_kitchen_logs` (
+  `id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `sale_id` BIGINT(20) UNSIGNED NOT NULL,
+  `reference` VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `product_name` VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `qty` INT(11) NOT NULL,
+  `type` ENUM('new','void') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `note` VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_id` BIGINT(20) UNSIGNED NOT NULL,
+  `is_printed` TINYINT(1) NOT NULL DEFAULT 0,
+  `approved_by` VARCHAR(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` TIMESTAMP NULL DEFAULT NULL,
+  `updated_at` TIMESTAMP NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `order_kitchen_logs_sale_id_foreign` (`sale_id`),
+  KEY `order_kitchen_logs_user_id_foreign` (`user_id`),
+  CONSTRAINT `order_kitchen_logs_sale_id_foreign` FOREIGN KEY (`sale_id`) REFERENCES `sales` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_kitchen_logs_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=INNODB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+
+

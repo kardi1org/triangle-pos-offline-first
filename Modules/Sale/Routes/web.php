@@ -37,6 +37,9 @@ Route::group(['middleware' => ['auth', 'check.shift']], function () {
     Route::get('/app/pos/sales/print-kitchen/{reference}', 'PosController@printKitchen')
         ->name('pos.sales.print-kitchen');
 
+    Route::post('/pos/update-print-status/{reference}', 'PosController@updatePrintStatus')
+        ->name('app.pos.update-print-status');
+
 
     //Print Struk '/print/receipt/{salesId}'
     // Route::get('/cetakstruk/{sale_id}', 'PosController@cetakstruk')->name('order.cetakstruk'); // Add by Chris

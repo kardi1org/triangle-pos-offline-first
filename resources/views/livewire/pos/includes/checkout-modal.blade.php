@@ -15,7 +15,8 @@
                 action="{{ !empty($current_reference) ? route('app.pos.update') : route('app.pos.store') }}">
                 @csrf
                 <input type="hidden" name="current_reference" value="{{ $current_reference }}">
-
+                <input type="hidden" name="approved_by" value="{{ $approved_by_id ?? '' }}">
+                <input type="hidden" name="approval_note" value="{{ $approval_note ?? '' }}">
                 <div class="modal-body">
                     @if (session()->has('checkout_message'))
                         <div class="alert alert-success alert-dismissible fade show" role="alert">

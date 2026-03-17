@@ -384,6 +384,13 @@
                     </a>
                 </li>
             @endif
+            <li class="c-sidebar-nav-item">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('kitchen-log-report.index') ? 'c-active' : '' }}"
+                    href="{{ route('kitchen-log-report.index') }}">
+                    <i class="c-sidebar-nav-icon bi bi-file-earmark-bar-graph" style="line-height: 1;"></i> Kitchen Log
+                    Report
+                </a>
+            </li>
         </ul>
     </li>
 @endcan

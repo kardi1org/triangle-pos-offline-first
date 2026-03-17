@@ -80,6 +80,15 @@ class Checkout extends Component
     public $tax_amount = 0; // Tambahkan ini
     public $service_charge = 0; // Pastikan ini juga ada
     public $service_charge_percentage = 0;
+
+    // Properti untuk Modal Approval
+    public $showApprovalModal = false;
+    public $approver_username;
+    public $approver_password;
+    public $approval_note;
+    public $items_to_approve = []; // Untuk menampilkan list apa yang berubah di modal
+    public $approval_trigger;
+    public $approved_by_id;
     // ✅ event listener untuk clear alert
     #[On('clear-alert')]
     public function clearAlert()
@@ -111,6 +120,9 @@ class Checkout extends Component
 
         $this->tables = Meja::orderBy('no_meja')->get();
         $this->order_type = 'dine_in';
+
+        $this->approved_by_id = '';
+        $this->approval_note = '';
 
         foreach (Cart::instance('sale')->content() as $item) {
             $this->cartItems[$item->rowId] = [
@@ -220,7 +232,13 @@ class Checkout extends Component
     public function getPendingOrdersProperty()
     {
         // 1. Ambil orders yang pending
-        $orders = Sale::where('status', 'pending')->get();
+        //$orders = Sale::where('status', 'pending')->get();
+        // Di Class Livewire Anda
+
+        $orders = Sale::with('kitchenLogs') // WAJIB ada ini
+            ->where('status', 'Pending')
+            ->get();
+
 
         // 2. Ambil semua ID meja unik dari SEMUA orders, DECODE dulu.
 
@@ -396,11 +414,83 @@ class Checkout extends Component
 
     public function proceed()
     {
-        //if ($this->customer_name != null) {
+        if (Cart::instance('sale')->count() == 0) {
+            $this->alertMessage = 'Keranjang masih kosong!';
+            return;
+        }
+
+        // 1. Cek apakah ini update dari order yang sudah ada
+        if (!empty($this->current_reference)) {
+            $sale = Sale::where('reference', $this->current_reference)->first();
+
+            // TAMBAHKAN PENGECEKAN: Hanya butuh approval jika struk SUDAH DIPRINT
+            if ($sale && $sale->is_printed == 1) {
+                $currentCart = Cart::instance('sale')->content();
+                $oldDetails = SaleDetails::where('sale_id', $sale->id)->get();
+                $changes = [];
+
+                // --- Logika Cek VOID ---
+                foreach ($oldDetails as $old) {
+                    $match = $currentCart->where('id', $old->product_id)->first();
+                    $qtyVoid = 0;
+                    $reason = '';
+
+                    if (!$match) {
+                        $qtyVoid = $old->quantity;
+                        $reason = 'Dihapus dari list';
+                    } elseif ($match->qty < $old->quantity) {
+                        $qtyVoid = $old->quantity - $match->qty;
+                        $reason = 'Pengurangan Qty';
+                    }
+
+                    if ($qtyVoid > 0) {
+                        $changes[] = [
+                            'name' => $old->product_name,
+                            'qty' => $qtyVoid,
+                            'type' => 'VOID',
+                            'class' => 'badge-danger',
+                            'reason' => $reason
+                        ];
+                    }
+                }
+
+                // --- Logika Cek NEW ---
+                foreach ($currentCart as $new) {
+                    $match = $oldDetails->where('product_id', $new->id)->first();
+                    $qtyNew = 0;
+                    $reason = '';
+
+                    if (!$match) {
+                        $qtyNew = $new->qty;
+                        $reason = 'Menu Baru';
+                    } elseif ($new->qty > $match->quantity) {
+                        $qtyNew = $new->qty - $match->quantity;
+                        $reason = 'Penambahan Qty';
+                    }
+
+                    if ($qtyNew > 0) {
+                        $changes[] = [
+                            'name' => $new->name,
+                            'qty' => $qtyNew,
+                            'type' => 'NEW',
+                            'class' => 'badge-success',
+                            'reason' => $reason
+                        ];
+                    }
+                }
+
+                // 2. Jika terdeteksi perubahan pada order yang sudah terprint, munculkan Modal Approval
+                if (count($changes) > 0) {
+                    $this->items_to_approve = $changes;
+                    $this->approval_trigger = 'proceed';
+                    $this->showApprovalModal = true;
+                    return; // Berhenti (menunggu password admin)
+                }
+            }
+        }
+
+        // 3. Jika Order Baru, Belum Print, atau Tidak Ada Perubahan, buka checkout
         $this->dispatch('showCheckoutModal');
-        //} else {
-        //session()->flash('message', 'Please Customer Name !');
-        //}
     }
 
     public function saveOrder()
@@ -596,23 +686,90 @@ class Checkout extends Component
             return;
         }
 
-        // 1. Jalankan kalkulasi total
-        // Ini akan mengupdate $this->tax_amount dan $this->service_charge secara dinamis
-        // sesuai dengan urutan Before/After Tax di database.
-        $grand_total_float = $this->calculateTotal();
+        $currentCart = Cart::instance('sale')->content();
 
-        // 2. Persiapkan variabel numerik
+        // CEK: Jika ini Update Order (Ada Reference)
+        if (!empty($this->current_reference)) {
+            $sale = Sale::where('reference', $this->current_reference)->first();
+
+            // Tambahkan pengecekan: Hanya proses approval jika sale SUDAH DIPRINT
+            if ($sale && $sale->is_printed == 1) {
+                $oldDetails = SaleDetails::where('sale_id', $sale->id)->get();
+                $changes = [];
+
+                // --- CEK VOID ---
+                foreach ($oldDetails as $old) {
+                    $match = $currentCart->where('id', $old->product_id)->first();
+
+                    $qtyVoid = 0;
+                    if (!$match) {
+                        $qtyVoid = $old->quantity;
+                    } elseif ($match->qty < $old->quantity) {
+                        $qtyVoid = $old->quantity - $match->qty;
+                    }
+
+                    if ($qtyVoid > 0) {
+                        $changes[] = [
+                            'name' => $old->product_name,
+                            'qty'  => $qtyVoid,
+                            'type' => 'VOID',
+                            'class' => 'badge-danger',
+                            'reason' => !$match ? 'Dihapus dari daftar' : 'Pengurangan jumlah'
+                        ];
+                    }
+                }
+
+                // --- CEK NEW ---
+                foreach ($currentCart as $new) {
+                    $match = $oldDetails->where('product_id', $new->id)->first();
+
+                    $qtyNew = 0;
+                    if (!$match) {
+                        $qtyNew = $new->qty;
+                    } elseif ($new->qty > $match->quantity) {
+                        $qtyNew = $new->qty - $match->quantity;
+                    }
+
+                    if ($qtyNew > 0) {
+                        $changes[] = [
+                            'name' => $new->name,
+                            'qty'  => $qtyNew,
+                            'type' => 'NEW',
+                            'class' => 'badge-success',
+                            'reason' => !$match ? 'Menu tambahan baru' : 'Penambahan jumlah'
+                        ];
+                    }
+                }
+
+                // Jika ada perubahan dan status sudah terprint, minta approval
+                if (count($changes) > 0) {
+                    $this->items_to_approve = $changes;
+                    $this->showApprovalModal = true;
+                    $this->approval_trigger = 'saveorder';
+                    return;
+                }
+            }
+        }
+
+        // Jika Order Baru, atau Order Pending yang BELUM diprint (is_printed = 0),
+        // langsung eksekusi tanpa modal approval.
+        $this->executeSaveOrder();
+    }
+
+    private function executeSaveOrder($approvedBy = null)
+    {
+        // 1. Kalkulasi Total & Persiapan Data
+        $grand_total_float = $this->calculateTotal();
         $shipping = (float) ($this->shipping ?? 0);
         $discount = (float) str_replace(',', '', Cart::instance('sale')->discount());
-
-        // Pastikan fitur aktif (Sesuai dengan logika calculateTotal)
         $lain_a = isFeatureEnabled('summary_others') ? (float)$this->lain_a : 0;
         $lain_b = isFeatureEnabled('summary_others') ? (float)$this->lain_b : 0;
-
         $encoded_table_ids = json_encode($this->table_ids_array);
         $sale = null;
 
-        // 3. Siapkan data untuk tabel sales
+        // Ambil alasan admin sekali di awal untuk digunakan di dalam closure transaction
+        $adminNote = $this->approval_note ? " | Admin Note: " . $this->approval_note : "";
+
         $saleData = [
             'customer_name'       => $this->customer_name ?? 'Guest',
             'order_type'          => $this->order_type,
@@ -620,43 +777,132 @@ class Checkout extends Component
             'tax_percentage'      => (float) ($this->global_tax ?? 0),
             'discount_percentage' => (float) ($this->global_discount ?? 0),
             'shipping_amount'     => $shipping * 100,
-
-            // PENTING: Gunakan $this->tax_amount hasil kalkulasi dinamis (Before/After)
             'tax_amount'          => $this->tax_amount * 100,
-
             'discount_amount'     => $discount * 100,
             'total_amount'        => $grand_total_float * 100,
             'status'              => 'Pending',
             'payment_status'      => 'Unpaid',
             'selected_table_ids'  => $encoded_table_ids,
-
-            // Kolom biaya tambahan dinamis hasil calculateTotal()
             'service_charge'      => $this->service_charge * 100,
             'lain_a'              => $lain_a * 100,
             'lain_b'              => $lain_b * 100,
         ];
 
-        // Gunakan Transaction agar data konsisten
-        \DB::transaction(function () use ($saleData, &$sale) {
+        \DB::transaction(function () use ($saleData, &$sale, $adminNote, $approvedBy) {
+            $currentCart = Cart::instance('sale')->content();
+
+            // 2. Logika Update Jika Memiliki Reference (Edit Mode)
             if (!empty($this->current_reference)) {
                 $sale = Sale::where('reference', $this->current_reference)->first();
+
                 if ($sale) {
-                    // Bersihkan detail lama jika ini adalah update dari pending
+                    $oldDetails = SaleDetails::where('sale_id', $sale->id)->get();
+
+                    // --- LOGIKA LOG DAPUR ---
+                    if ($sale->is_printed == 1) {
+                        // JIKA SUDAH DIPRINT: Catat selisihnya (Void & New) agar dapur tahu apa yang berubah
+
+                        // --- CEK VOID ---
+                        foreach ($oldDetails as $oldItem) {
+                            $matchInCart = $currentCart->where('id', $oldItem->product_id)->first();
+                            $voidQty = 0;
+                            if (!$matchInCart) {
+                                $voidQty = $oldItem->quantity;
+                                $systemReason = 'Dihapus dari list';
+                            } elseif ($matchInCart->qty < $oldItem->quantity) {
+                                $voidQty = $oldItem->quantity - $matchInCart->qty;
+                                $systemReason = 'Pengurangan Qty';
+                            }
+
+                            if ($voidQty > 0) {
+                                \App\Models\OrderKitchenLog::create([
+                                    'sale_id'      => $sale->id,
+                                    'reference'    => $sale->reference,
+                                    'product_name' => $oldItem->product_name,
+                                    'qty'          => $voidQty,
+                                    'type'         => 'void',
+                                    'note'         => $systemReason . ($adminNote ? ' - ' . $adminNote : ''),
+                                    'user_id'      => auth()->id(),
+                                    'approved_by'  => $approvedBy,
+                                    'is_printed'   => 0
+                                ]);
+                            }
+                        }
+
+                        // --- CEK NEW ---
+                        foreach ($currentCart as $newItem) {
+                            $matchInOld = $oldDetails->where('product_id', $newItem->id)->first();
+                            $newQty = 0;
+                            if (!$matchInOld) {
+                                $newQty = $newItem->qty;
+                                $systemReason = 'Menu Baru';
+                            } elseif ($newItem->qty > $matchInOld->quantity) {
+                                $newQty = $newItem->qty - $matchInOld->quantity;
+                                $systemReason = 'Penambahan Qty';
+                            }
+
+                            if ($newQty > 0) {
+                                \App\Models\OrderKitchenLog::create([
+                                    'sale_id'      => $sale->id,
+                                    'reference'    => $sale->reference,
+                                    'product_name' => $newItem->name,
+                                    'qty'          => $newQty,
+                                    'type'         => 'new',
+                                    'note'         => $systemReason . ($adminNote ? ' - ' . $adminNote : ''),
+                                    'user_id'      => auth()->id(),
+                                    'approved_by'  => $approvedBy,
+                                    'is_printed'   => 0
+                                ]);
+                            }
+                        }
+                    } else {
+                        // JIKA BELUM DIPRINT: Update totalan log saja (Fresh Start)
+                        // Kita hapus log lama yang belum diprint, lalu masukkan data keranjang terbaru sebagai 'new'
+                        \App\Models\OrderKitchenLog::where('sale_id', $sale->id)->where('is_printed', 0)->delete();
+
+                        foreach ($currentCart as $item) {
+                            \App\Models\OrderKitchenLog::create([
+                                'sale_id'      => $sale->id,
+                                'reference'    => $sale->reference,
+                                'product_name' => $item->name,
+                                'qty'          => $item->qty,
+                                'type'         => 'new',
+                                'note'         => 'Update sebelum print',
+                                'user_id'      => auth()->id(),
+                                'is_printed'   => 0
+                            ]);
+                        }
+                    }
+
+                    // --- UPDATE DATA TRANSAKSI ---
                     SaleDetails::where('sale_id', $sale->id)->delete();
-                    $sale->update($saleData);
+                    $sale->update($saleData); // $saleData berisi total_amount, dll
                 }
             }
 
+            // 3. Logika Jika Order Baru
             if (!$sale) {
                 $reference = $this->generateSalesNumber();
                 $saleData['date'] = now()->format('Y-m-d');
                 $saleData['reference'] = $reference;
                 $sale = Sale::create($saleData);
                 $this->current_reference = $reference;
+
+                foreach ($currentCart as $item) {
+                    \App\Models\OrderKitchenLog::create([
+                        'sale_id'      => $sale->id,
+                        'reference'    => $sale->reference,
+                        'product_name' => $item->name,
+                        'qty'          => $item->qty,
+                        'type'         => 'new',
+                        'note'         => 'Order Baru', // Order baru murni tidak butuh admin note tambahan
+                        'user_id'      => auth()->id(),
+                    ]);
+                }
             }
 
-            // 4. Simpan Detail Produk
-            foreach (Cart::instance('sale')->content() as $cart_item) {
+            // 4. Simpan Detail Produk Final
+            foreach ($currentCart as $cart_item) {
                 SaleDetails::create([
                     'sale_id'                 => $sale->id,
                     'reference'               => $sale->reference,
@@ -675,24 +921,85 @@ class Checkout extends Component
             }
         });
 
-        // 5. Bersihkan state dan reset semua input
+        // 5. Bersihkan State & Modal
         Cart::instance('sale')->destroy();
         $this->reset([
-            'customer_name',
-            'order_type',
-            'current_reference',
-            'table_ids_array',
-            'selectedTableNames',
-            'lain_a',
-            'lain_b',
-            'service_charge',
-            'tax_amount' // Reset pajak manual juga
+            'customer_name', 'order_type', 'current_reference', 'table_ids_array',
+            'selectedTableNames', 'lain_a', 'lain_b', 'service_charge', 'tax_amount',
+            'approver_username', 'approver_password', 'approval_note', 'approval_trigger'
         ]);
 
+        $this->showApprovalModal = false;
         $this->resetCart();
+        session()->flash('message', 'Order berhasil diproses!');
+    }
 
-        // Beri notifikasi sukses
-        session()->flash('message', 'Order pending berhasil disimpan!');
+    public function confirmApproval()
+    {
+        $this->validate([
+            'approver_username' => 'required',
+            'approver_password' => 'required',
+        ]);
+
+        // Cari user dengan level Admin dan tenant_database yang sama
+        $admin = \App\Models\User::where('email', $this->approver_username)
+            ->where('level', 'Admin')
+            ->where('tenant_database', auth()->user()->tenant_database)
+            ->first();
+
+        if ($admin && \Hash::check($this->approver_password, $admin->password)) {
+            $this->approved_by_id = $admin->id;
+            $this->showApprovalModal = false;
+            $this->reset(['approver_username', 'approver_password']);
+
+            // CEK TRIGGER:
+            if ($this->approval_trigger == 'proceed') {
+                // Jika tadi klik proceed, sekarang buka modal checkoutnya
+                $this->dispatch('showCheckoutModal');
+            } else {
+                // Jika tadi klik save order pending, langsung jalankan simpan
+                $this->executeSaveOrder($admin->id);
+            }
+        } else {
+            $this->addError('approver_password', 'Otorisasi Admin Gagal! Username atau Password salah.');
+        }
+    }
+
+    public function previewVoidOrder($id)
+    {
+        $order = Sale::findOrFail($id);
+
+        // Ambil SEMUA log (void & new) yang belum diprint untuk sale ini
+        $allLogs = \App\Models\OrderKitchenLog::where('sale_id', $id)
+            ->where('is_printed', 0)
+            ->where('approved_by', 1)
+            ->orderBy('type', 'desc') // Void biasanya di atas, New di bawah
+            ->get();
+
+        if ($allLogs->isEmpty()) {
+            $this->dispatch('alert', type: 'warning', message: 'Tidak ada data pesanan baru atau void!');
+            return;
+        }
+
+        $this->previewOrderData = [
+            'reference'     => $order->reference,
+            'customer_name' => $order->customer_name,
+            'typeOrder'     => $order->order_type,
+            'meja_name'     => $order->table_id,
+            'date'          => now()->format('d/m/Y H:i'),
+            'details'       => $allLogs->map(function ($item) {
+                return [
+                    'product_name'   => $item->product_name,
+                    'quantity'       => $item->qty,
+                    'type'           => $item->type, // Kita kirim tipe 'void' atau 'new'
+                    'variant_detail' => null,
+                    'note'           => $item->note
+                ];
+            }),
+            'is_combined'   => true // Flag penanda ini adalah print gabungan
+        ];
+
+        $this->dispatch('openKitchenPreviewModal');
     }
 
     public function updatedLainA()
