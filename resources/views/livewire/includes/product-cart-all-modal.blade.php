@@ -142,7 +142,7 @@
                                                         <button wire:click="previewVoidOrder({{ $order->id }})"
                                                             wire:loading.attr="disabled"
                                                             wire:target="previewVoidOrder({{ $order->id }})"
-                                                            class="btn btn-sm btn-danger mr-1">
+                                                            class="btn btn-sm btn-danger mr-1" style="width: 100px;">
 
                                                             <span wire:loading
                                                                 wire:target="previewVoidOrder({{ $order->id }})">...</span>
@@ -156,7 +156,8 @@
                                                         <button wire:click="previewOrder({{ $order->id }})"
                                                             wire:loading.attr="disabled"
                                                             wire:target="previewOrder({{ $order->id }})"
-                                                            class="btn btn-sm {{ $order->is_printed ? 'btn-secondary' : 'btn-primary' }} mr-1">
+                                                            class="btn btn-sm {{ $order->is_printed ? 'btn-secondary' : 'btn-primary' }} mr-1"
+                                                            style="width: 100px;">
 
                                                             <span wire:loading
                                                                 wire:target="previewOrder({{ $order->id }})">...</span>
@@ -375,11 +376,68 @@
                                 <strong>*** VOID (BATAL) ***</strong>
                             </div>
                             @foreach ($voidItems as $item)
+                                @php
+                                    // --- LOGIKA AGREGASI VARIANT UNTUK VOID ---
+                                    $variantDetail = $item['variant_detail'] ?? null;
+                                    $variants = [];
+                                    $aggregatedVariants = [];
+
+                                    if (isset($variantDetail)) {
+                                        if (
+                                            is_array($variantDetail) &&
+                                            !empty($variantDetail) &&
+                                            $variantDetail !== [[]]
+                                        ) {
+                                            $variants = $variantDetail;
+                                        } elseif (is_string($variantDetail)) {
+                                            $decoded = json_decode($variantDetail, true);
+                                            if (is_array($decoded)) {
+                                                $variants = $decoded;
+                                            }
+                                        }
+                                    }
+
+                                    foreach ($variants as $variant) {
+                                        $vText = trim($variant['variant'] ?? '');
+                                        $vType = trim($variant['typeOrder'] ?? $previewOrderData['typeOrder']);
+                                        $key = $vText . '-' . $vType;
+                                        $label =
+                                            $vText === ''
+                                                ? 'TYPE ' . strtoupper($vType)
+                                                : strtoupper($vText) . ' (' . $vType . ')';
+
+                                        if (!isset($aggregatedVariants[$key])) {
+                                            $aggregatedVariants[$key] = ['label' => $label, 'qty' => 0];
+                                        }
+                                        $aggregatedVariants[$key]['qty']++;
+                                    }
+                                @endphp
+
                                 <div style="margin-top:6px;">
                                     <strong
                                         style="text-decoration: line-through;">{{ strtoupper($item['product_name']) }}</strong>
                                     <span style="float:right;">x{{ $item['quantity'] }}</span>
                                 </div>
+
+                                {{-- Render Variant untuk Void --}}
+                                @if (!empty($aggregatedVariants))
+                                    @foreach ($aggregatedVariants as $v)
+                                        <div style="padding-left:8px; font-size:11px; text-decoration: line-through;">
+                                            - {{ $v['label'] }} x{{ $v['qty'] }}
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div style="padding-left:8px; font-size:11px; text-decoration: line-through;">
+                                        - TYPE {{ strtoupper($previewOrderData['typeOrder']) }}
+                                    </div>
+                                @endif
+
+                                @if (isset($item['note']) && $item['note'])
+                                    <div
+                                        style="padding-left:8px; font-size:10px; font-style: italic; text-decoration: line-through;">
+                                        Note: {{ $item['note'] }}
+                                    </div>
+                                @endif
                                 <div>-----------------------------</div>
                             @endforeach
                         @endif

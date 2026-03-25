@@ -141,7 +141,7 @@
                                                 )">
                                                 {{-- onclick="openVariantModal('{{ $cart_item->rowId }}', '{{ $cart_item->qty }}', '{{ $order_type }}', '{{ $cart_item->name }}', @json($cart_item->options->variant_detail ?? []))"> --}}
 
-                                                Variant
+                                                Instruction
                                             </span>
                                         </div>
 
