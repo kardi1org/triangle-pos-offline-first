@@ -4,6 +4,7 @@ namespace Modules\Sale\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder; // Tambahkan/Pastikan baris ini ada
 
 class Sale extends Model
 {
@@ -103,4 +104,21 @@ class Sale extends Model
         // ... casting untuk kolom lain ...
         'selected_table_ids' => 'array', // 🎯 SOLUSI UTAMA: Menginstruksikan Laravel untuk mengkonversi array ke JSON saat menyimpan dan sebaliknya.
     ];
+
+    protected static function booted()
+    {
+        static::addGlobalScope('outlet', function (Builder $builder) {
+            // Cek apakah session outlet_id ada (agar tidak error saat di jalankan via Artisan/Console)
+            if (session()->has('selected_outlet_id')) {
+                $builder->where('outlet_id', session('selected_outlet_id'));
+            }
+        });
+
+        // Event saat membuat data: Otomatis isi outlet_id dari session
+        static::creating(function ($sale) {
+            if (session()->has('selected_outlet_id')) {
+                $sale->outlet_id = session('selected_outlet_id');
+            }
+        });
+    }
 }

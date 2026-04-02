@@ -1,7 +1,7 @@
-ALTER TABLE users 
+ALTER TABLE users
 ADD COLUMN LEVEL VARCHAR(50) AFTER is_active;
 
-ALTER TABLE sales 
+ALTER TABLE sales
 ADD COLUMN is_printed TINYINT(1) DEFAULT 0 AFTER note;
 
 
@@ -24,6 +24,43 @@ CREATE TABLE `order_kitchen_logs` (
   CONSTRAINT `order_kitchen_logs_sale_id_foreign` FOREIGN KEY (`sale_id`) REFERENCES `sales` (`id`) ON DELETE CASCADE,
   CONSTRAINT `order_kitchen_logs_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=INNODB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+
+ALTER TABLE `order_kitchen_logs`
+DROP FOREIGN KEY `order_kitchen_logs_sale_id_foreign`,
+DROP FOREIGN KEY `order_kitchen_logs_user_id_foreign`;
+
+
+ALTER TABLE sales
+ADD COLUMN outlet_id bigint(20) unsigned NULL AFTER id;
+
+CREATE TABLE `outlets` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+
+Create Table
+
+CREATE TABLE `outlet_user` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint(20) unsigned NOT NULL,
+  `outlet_id` bigint(20) unsigned NOT NULL,
+  `is_primary` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `outlet_user_user_id_foreign` (`user_id`),
+  KEY `outlet_user_outlet_id_foreign` (`outlet_id`),
+  CONSTRAINT `outlet_user_outlet_id_foreign` FOREIGN KEY (`outlet_id`) REFERENCES `outlets` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `outlet_user_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
 
 
 

@@ -5,6 +5,9 @@
 @section('third_party_stylesheets')
     <link href="https://unpkg.com/filepond/dist/filepond.css" rel="stylesheet" />
     <link href="https://unpkg.com/filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@x.x.x/dist/select2-bootstrap4.min.css">
 @endsection
 
 @section('breadcrumb')
@@ -81,6 +84,40 @@
                             </div>
 
                             <div class="form-group">
+                                <label for="outlets">Akses Outlet <span class="text-danger">*</span></label>
+                                <div class="card border-light shadow-sm">
+                                    <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                                        <div class="row">
+                                            @forelse($outlets as $outlet)
+                                                <div class="col-md-6">
+                                                    <div class="custom-control custom-checkbox mb-2">
+                                                        <input type="checkbox" name="outlets[]" value="{{ $outlet->id }}"
+                                                            class="custom-control-input" id="outlet_{{ $outlet->id }}"
+                                                            @if (isset($user) && $user->outlets->contains($outlet->id)) checked @endif>
+                                                        <label class="custom-control-label" for="outlet_{{ $outlet->id }}"
+                                                            style="cursor: pointer;">
+                                                            <strong>{{ $outlet->name }}</strong>
+                                                            <br><small class="text-muted">{{ $outlet->address }}</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            @empty
+                                                <div class="col-12 text-center">
+                                                    <span class="text-danger">Tidak ada outlet yang terdaftar untuk email
+                                                        Anda.</span>
+                                                </div>
+                                            @endforelse
+                                        </div>
+                                    </div>
+                                </div>
+                                @error('outlets')
+                                    <span class="text-danger small">{{ $message }}</span>
+                                @enderror
+                                <small class="text-muted mt-2 d-block">Centang outlet mana saja yang boleh diakses oleh user
+                                    ini.</small>
+                            </div>
+
+                            <div class="form-group">
                                 <label for="is_active">Status <span class="text-danger">*</span></label>
                                 <select class="form-control" name="is_active" id="is_active" required>
                                     <option value="" selected disabled>Select Status</option>
@@ -111,10 +148,18 @@
     <script src="https://unpkg.com/filepond-plugin-file-validate-size/dist/filepond-plugin-file-validate-size.js"></script>
     <script src="https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js"></script>
     <script src="https://unpkg.com/filepond/dist/filepond.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 @endsection
 
 @push('page_scripts')
     <script>
+        $(document).ready(function() {
+            $('.select2').select2({
+                theme: 'bootstrap4',
+                placeholder: "Pilih Outlet...",
+                allowClear: true
+            });
+        });
         FilePond.registerPlugin(
             FilePondPluginImagePreview,
             FilePondPluginFileValidateSize,

@@ -2,55 +2,31 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\File;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements HasMedia
 {
     use HasFactory, Notifiable, HasRoles, InteractsWithMedia;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
+    // PAKSA ke koneksi pusat (db_pos utama)
+    protected $connection = 'mysql';
+
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'is_active',
-        'valid_date',
-        'tenant_database',
-        'tenant_host',
-        'tenant_port',
-        'tenant_username',
-        'tenant_password',
-        'codepaket',
-        'level'
+        'name', 'email', 'password', 'is_active', 'valid_date',
+        'tenant_database', 'tenant_host', 'tenant_port',
+        'tenant_username', 'tenant_password', 'codepaket', 'level'
     ];
 
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
     protected $hidden = [
-        'password',
-        'remember_token',
+        'password', 'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast to native types.
-     *
-     * @var array
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
@@ -60,11 +36,33 @@ class User extends Authenticatable implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('avatars')
-            ->useFallbackUrl('https://www.gravatar.com/avatar/' . md5("test@mail.com"));
+            ->useFallbackUrl('https://www.gravatar.com/avatar/' . md5($this->email));
     }
 
     public function scopeIsActive(Builder $builder)
     {
         return $builder->where('is_active', 1);
+    }
+
+    /**
+     * Relasi ke Outlets
+     * Menggunakan mysql.outlet_user agar tidak mencari di DB tenant
+     */
+    public function outlets()
+    {
+        return $this->belongsToMany(
+            \Modules\User\Entities\Outlet::class,
+            'outlet_user',
+            'user_id',
+            'outlet_id'
+        );
+    }
+
+    /**
+     * Helper untuk cek akses outlet
+     */
+    public function hasAccessToOutlet($outletId)
+    {
+        return $this->outlets()->where('mysql.outlets.id', $outletId)->exists();
     }
 }

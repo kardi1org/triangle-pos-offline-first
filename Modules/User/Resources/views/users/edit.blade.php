@@ -5,6 +5,9 @@
 @section('third_party_stylesheets')
     <link href="https://unpkg.com/filepond/dist/filepond.css" rel="stylesheet" />
     <link href="https://unpkg.com/filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@x.x.x/dist/select2-bootstrap4.min.css">
 @endsection
 
 @section('breadcrumb')
@@ -31,23 +34,23 @@
                     <div class="card">
                         <div class="card-body">
                             <div class="form-row">
-                                <div class="col-lg-6">
+                                <div class="col-lg-12">
                                     <div class="form-group">
                                         <label for="name">Name <span class="text-danger">*</span></label>
                                         <input class="form-control" type="text" name="name" required
                                             value="{{ $user->name }}">
                                     </div>
                                 </div>
-                                <div class="col-lg-6">
+                                <div class="col-lg-12">
                                     <div class="form-group">
                                         <label for="email">Email <span class="text-danger">*</span></label>
-                                        <input class="form-control" type="email" name="email" required
+                                        <input class="form-control" type="email" name="email" required readonly
                                             value="{{ $user->email }}">
                                     </div>
                                 </div>
                             </div>
                             <div class="form-row">
-                                <div class="col-lg-6">
+                                <div class="col-lg-12">
                                     <div class="form-group">
                                         <label for="role">Role <span class="text-danger">*</span></label>
                                         <select class="form-control" name="role" id="role" required>
@@ -61,14 +64,47 @@
 
                                 <div class="col-lg-6">
                                     <div class="form-group">
-                                        <label for="date">Valid Date <span class="text-danger">*</span></label>
-                                        <input type="date" class="form-control" name="valid_date" required
+                                        {{-- <label for="date">Valid Date <span class="text-danger">*</span></label> --}}
+                                        <input type="hidden" class="form-control" name="valid_date" required
                                             value="{{ $user->getAttributes()['valid_date'] }}">
                                     </div>
                                 </div>
-
                             </div>
 
+                            {{-- Ganti bagian Select Outlet dengan kode ini --}}
+                            <div class="form-group">
+                                <label for="outlets">Akses Outlet <span class="text-danger">*</span></label>
+                                <div class="card border-light shadow-sm">
+                                    <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                                        <div class="row">
+                                            @forelse($outlets as $outlet)
+                                                <div class="col-md-6">
+                                                    <div class="custom-control custom-checkbox mb-2">
+                                                        <input type="checkbox" name="outlets[]" value="{{ $outlet->id }}"
+                                                            class="custom-control-input" id="outlet_{{ $outlet->id }}"
+                                                            @if (isset($user) && $user->outlets->contains($outlet->id)) checked @endif>
+                                                        <label class="custom-control-label"
+                                                            for="outlet_{{ $outlet->id }}">
+                                                            <strong>{{ $outlet->name }}</strong>
+                                                            <br><small class="text-muted">{{ $outlet->address }}</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            @empty
+                                                <div class="col-12 text-center">
+                                                    <span class="text-danger">Tidak ada outlet yang terdaftar untuk email
+                                                        Anda.</span>
+                                                </div>
+                                            @endforelse
+                                        </div>
+                                    </div>
+                                </div>
+                                @error('outlets')
+                                    <span class="text-danger small">{{ $message }}</span>
+                                @enderror
+                                <small class="text-muted mt-2 d-block">Centang outlet mana saja yang boleh diakses oleh user
+                                    ini.</small>
+                            </div>
 
                             <div class="form-group">
                                 <label for="is_active">Status <span class="text-danger">*</span></label>
@@ -103,26 +139,37 @@
     <script src="https://unpkg.com/filepond-plugin-file-validate-size/dist/filepond-plugin-file-validate-size.js"></script>
     <script src="https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js"></script>
     <script src="https://unpkg.com/filepond/dist/filepond.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 @endsection
 
 @push('page_scripts')
     <script>
-        FilePond.registerPlugin(
-            FilePondPluginImagePreview,
-            FilePondPluginFileValidateSize,
-            FilePondPluginFileValidateType
-        );
-        const fileElement = document.querySelector('input[id="image"]');
-        const pond = FilePond.create(fileElement, {
-            acceptedFileTypes: ['image/png', 'image/jpg', 'image/jpeg'],
-        });
-        FilePond.setOptions({
-            server: {
-                url: "{{ route('filepond.upload') }}",
-                headers: {
-                    "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        $(document).ready(function() {
+            // Inisialisasi Select2
+            $('.select2').select2({
+                theme: 'bootstrap4',
+                placeholder: "Pilih Outlet...",
+                allowClear: true
+            });
+
+            // Inisialisasi FilePond
+            FilePond.registerPlugin(
+                FilePondPluginImagePreview,
+                FilePondPluginFileValidateSize,
+                FilePondPluginFileValidateType
+            );
+            const fileElement = document.querySelector('input[id="image"]');
+            const pond = FilePond.create(fileElement, {
+                acceptedFileTypes: ['image/png', 'image/jpg', 'image/jpeg'],
+            });
+            FilePond.setOptions({
+                server: {
+                    url: "{{ route('filepond.upload') }}",
+                    headers: {
+                        "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                    }
                 }
-            }
+            });
         });
     </script>
 @endpush

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\SliderController;
 use App\Modules\Order\Http\Controllers\PosOrderController;
+use App\Http\Controllers\Auth\SelectOutletController;
 
 
 /*
@@ -44,6 +45,10 @@ Route::group(['middleware' => 'auth'], function () {
 
     Route::get('/payment-flow/chart-data', 'HomeController@paymentChart')
         ->name('payment-flow.chart');
+
+    Route::get('/select-outlet', [SelectOutletController::class, 'index'])->name('auth.select-outlet');
+    Route::post('/select-outlet', [SelectOutletController::class, 'select'])->name('auth.select-outlet.post');
+    Route::post('/select-outlet/cancel', [SelectOutletController::class, 'cancel'])->name('auth.select-outlet.cancel');
 
     // Route::get('/sliders', [SliderController::class, 'index']);
     //Route::get('/budget', [BudgetController::class, 'index']);

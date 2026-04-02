@@ -6,12 +6,22 @@
 <button class="c-header-toggler c-class-toggler mfs-3 d-md-down-none" type="button" data-target="#sidebar"
     data-class="c-sidebar-lg-show" responsive="true">
     <i class="bi bi-list" style="font-size: 2rem;"></i>
-
 </button>
 
-<ul class="c-header-nav ml-auto">
-
+<ul class="c-header-nav d-md-down-none">
+    <li class="c-header-nav-item px-3">
+        @if (session()->has('selected_outlet_name'))
+            <div class="d-flex align-items-center">
+                <i class="bi bi-shop text-primary mr-2" style="font-size: 1.2rem;"></i>
+                <div>
+                    <small class="text-muted d-block" style="line-height: 1;">Active Outlet:</small>
+                    <span class="font-weight-bold text-dark">{{ session('selected_outlet_name') }}</span>
+                </div>
+            </div>
+        @endif
+    </li>
 </ul>
+
 <ul class="c-header-nav ml-auto mr-4">
     @can('create_pos_sales')
         <li class="c-header-nav-item mr-3">
@@ -75,13 +85,21 @@
             </div>
         </a>
         <div class="dropdown-menu dropdown-menu-right pt-0">
-            <div class="dropdown-header bg-light py-2"><strong>Account</strong></div>
+            <div class="dropdown-header bg-light py-2"><strong>Settings</strong></div>
+
             <a class="dropdown-item" href="{{ route('profile.edit') }}">
-                <i class="mfe-2  bi bi-person" style="font-size: 1.2rem;"></i> Profile
+                <i class="mfe-2 bi bi-person" style="font-size: 1.2rem;"></i> Profile
             </a>
+
+            <a class="dropdown-item" href="{{ route('auth.select-outlet') }}">
+                <i class="mfe-2 bi bi-arrow-left-right" style="font-size: 1.2rem;"></i> Switch Outlet
+            </a>
+
+            <div class="dropdown-divider"></div>
+
             <a class="dropdown-item" href="#"
                 onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                <i class="mfe-2  bi bi-box-arrow-left" style="font-size: 1.2rem;"></i> Logout
+                <i class="mfe-2 bi bi-box-arrow-left" style="font-size: 1.2rem;"></i> Logout
             </a>
             <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
                 @csrf

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Modules\Upload\Entities\Upload;
+use Modules\User\Entities\Outlet;
 
 class UsersController extends Controller
 {
@@ -26,7 +27,13 @@ class UsersController extends Controller
     {
         abort_if(Gate::denies('access_user_management'), 403);
 
-        return view('user::users.create');
+        if (auth()->user()->hasRole('Super Admin')) {
+            $outlets = Outlet::orderBy('id', 'asc')->get();
+        } else {
+            $outlets = Outlet::where('email', auth()->user()->email)->get();
+        }
+
+        return view('user::users.create', compact('outlets'));
     }
 
 
@@ -37,7 +44,8 @@ class UsersController extends Controller
         $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|max:255|unique:users,email',
-            'password' => 'required|string|min:8|max:255|confirmed'
+            'password' => 'required|string|min:8|max:255|confirmed',
+            'outlets' => 'required|array|min:1',
         ]);
 
         $user = User::create([
@@ -49,6 +57,10 @@ class UsersController extends Controller
         ]);
 
         $user->assignRole($request->role);
+
+        if ($request->has('outlets')) {
+            $user->outlets()->sync($request->input('outlets', []));
+        }
 
         if ($request->has('image')) {
             $tempFile = Upload::where('folder', $request->image)->first();
@@ -71,7 +83,13 @@ class UsersController extends Controller
     {
         abort_if(Gate::denies('access_user_management'), 403);
 
-        return view('user::users.edit', compact('user'));
+        if (auth()->user()->hasRole('Super Admin')) {
+            $outlets = Outlet::orderBy('id', 'asc')->get();
+        } else {
+            $outlets = Outlet::where('email', auth()->user()->email)->get();
+        }
+
+        return view('user::users.edit', compact('user', 'outlets'));
     }
 
 
@@ -82,6 +100,7 @@ class UsersController extends Controller
         $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|max:255|unique:users,email,' . $user->id,
+            'outlets' => 'required|array|min:1',
         ]);
 
         $user->update([
@@ -92,6 +111,11 @@ class UsersController extends Controller
         ]);
 
         $user->syncRoles($request->role);
+
+        // UPDATE RELASI OUTLET
+        if ($request->has('outlets')) {
+            $user->outlets()->sync($request->input('outlets', []));
+        }
 
         if ($request->has('image')) {
             $tempFile = Upload::where('folder', $request->image)->first();
