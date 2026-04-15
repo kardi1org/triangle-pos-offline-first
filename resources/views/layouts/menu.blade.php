@@ -253,6 +253,33 @@
             </ul>
         </li>
     @endcan
+
+    @can('access_expenses')
+        <li
+            class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('expenses.*') || request()->routeIs('expense-categories.*') ? 'c-show' : '' }}">
+            <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+                <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Cash Transfer
+            </a>
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                {{-- -----------------Add By Chris------------------ --}}
+                @can('create_expenses')
+                    <li class="c-sidebar-nav-item">
+                        <a class="c-sidebar-nav-link {{ request()->routeIs('cashtransfer.create') ? 'c-active' : '' }}"
+                            href="{{ route('cashtransfer.create') }}">
+                            <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Cash Transfer
+                        </a>
+                    </li>
+                @endcan
+                <li class="c-sidebar-nav-item">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('cashtransfer.index') ? 'c-active' : '' }}"
+                        href="{{ route('cashtransfer.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Cash Transfer
+                    </a>
+                </li>
+                {{-- -----------------Add By Chris------------------ --}}
+            </ul>
+        </li>
+    @endcan
 @endif
 
 @if (isFeatureEnabled('fin_expense'))
@@ -389,6 +416,12 @@
                     href="{{ route('kitchen-log-report.index') }}">
                     <i class="c-sidebar-nav-icon bi bi-file-earmark-bar-graph" style="line-height: 1;"></i> Kitchen Log
                     Report
+                </a>
+            </li>
+            <li class="c-sidebar-nav-item">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('mutation-cash-report.index') ? 'c-active' : '' }}"
+                    href="{{ route('mutation-cash-report.index') }}">
+                    <i class="c-sidebar-nav-icon bi bi-clipboard-data" style="line-height: 1;"></i> Mutation Report
                 </a>
             </li>
         </ul>

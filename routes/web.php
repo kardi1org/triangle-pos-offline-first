@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\SliderController;
 use App\Modules\Order\Http\Controllers\PosOrderController;
 use App\Http\Controllers\Auth\SelectOutletController;
-
+use App\Http\Controllers\HomeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,7 +22,8 @@ Auth::routes(['register' => false]);
 Route::group(['middleware' => 'auth'], function () {
     Route::get('/home', 'HomeController@index')
         ->name('home');
-
+    //Route::get('/home', [HomeController::class, 'index'])->name('home');
+    Route::get('/api/chart-sales', [HomeController::class, 'getChartData'])->name('home.chart-data');
     //   Route::get('/app/pos', 'PosOrderController@saveorder')->name('app.pos.saveorder');   //Add by Chris
 
     // Route::prefix('app/pos')->group(function () {

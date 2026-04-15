@@ -65,4 +65,10 @@ class User extends Authenticatable implements HasMedia
     {
         return $this->outlets()->where('mysql.outlets.id', $outletId)->exists();
     }
+
+    public function sales()
+    {
+        // Mengarahkan ke namespace module yang benar
+        return $this->hasMany(\Modules\Sale\Entities\Sale::class, 'user_id');
+    }
 }

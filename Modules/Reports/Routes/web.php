@@ -33,4 +33,9 @@ Route::group(['middleware' => 'auth'], function () {
     // Kitchen Log Report
     Route::get('/kitchen-log-report', 'ReportsController@kitchenLogReport')
         ->name('kitchen-log-report.index');
+
+    Route::get('/mutation-cash-report', 'ReportsController@mutationCashReport')->name('mutation-cash-report.index');
+    Route::get('/mutation-cash/filter', 'ReportsController@filtercashtransfer')->name('cashtransfer.filter');
+    // Route::get('/mutation-cash/export', 'ReportsController@exporttoxl')->name('cashtransfer.export');
+    Route::get('/mutation-cash/export', 'ReportsController@exportExcel')->name('cashtransfer.export');
 });
