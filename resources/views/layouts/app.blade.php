@@ -49,6 +49,9 @@
     </div>
 
     @include('includes.main-js')
+
+    {{-- TAMBAHKAN INI DI SINI --}}
+    @stack('scripts')
 </body>
 
 </html>

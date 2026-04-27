@@ -1,5 +1,6 @@
 <?php
 
+use Modules\Setting\Http\Controllers\WarehouseController;
 use Modules\Setting\Http\Controllers\OrderSummaryController;
 
 /*
@@ -28,4 +29,6 @@ Route::group(['middleware' => 'auth'], function () {
 
     Route::get('/order-summary-settings', [OrderSummaryController::class, 'index'])->name('order-summary.index');
     Route::put('/order-summary-settings/{id}', [OrderSummaryController::class, 'update'])->name('order-summary.update');
+
+    Route::resource('warehouses', WarehouseController::class)->except(['create', 'show', 'edit']);
 });

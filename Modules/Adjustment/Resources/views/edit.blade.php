@@ -18,7 +18,7 @@
     <div class="container-fluid mb-4">
         <div class="row">
             <div class="col-12">
-                <livewire:search-product/>
+                <livewire:search-product />
             </div>
         </div>
 
@@ -31,22 +31,37 @@
                             @csrf
                             @method('patch')
                             <div class="form-row">
-                                <div class="col-lg-6">
+                                <div class="col-lg-4">
                                     <div class="form-group">
                                         <label for="reference">Reference <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="reference" required value="{{ $adjustment->getAttributes()['reference'] }}" readonly>
+                                        <input type="text" class="form-control" name="reference" required
+                                            value="{{ $adjustment->getAttributes()['reference'] }}" readonly>
                                     </div>
                                 </div>
-                                <div class="col-lg-6">
+                                <div class="col-lg-4">
+                                    <div class="form-group">
+                                        <label for="warehouse_id">Warehouse <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="warehouse_id" id="warehouse_id" required>
+                                            @foreach ($warehouses as $warehouse)
+                                                <option value="{{ $warehouse->id }}"
+                                                    {{ $adjustment->warehouse_id == $warehouse->id ? 'selected' : '' }}>
+                                                    {{ $warehouse->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
                                     <div class="from-group">
                                         <div class="form-group">
                                             <label for="date">Date <span class="text-danger">*</span></label>
-                                            <input type="date" class="form-control" name="date" required value="{{ $adjustment->getAttributes()['date'] }}">
+                                            <input type="date" class="form-control" name="date" required
+                                                value="{{ $adjustment->getAttributes()['date'] }}">
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <livewire:adjustment.product-table :adjustedProducts="$adjustment->adjustedProducts->toArray()"/>
+                            <livewire:adjustment.product-table :adjustedProducts="$adjustment->adjustedProducts->toArray()" />
                             <div class="form-group">
                                 <label for="note">Note (If Needed)</label>
                                 <textarea name="note" id="note" rows="5" class="form-control">

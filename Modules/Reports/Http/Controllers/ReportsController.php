@@ -97,4 +97,83 @@ class ReportsController extends Controller
         $cashs = CashReport::all();
         return view('livewire.reports.mutation-cash-report', ['cashs' => $cashs, 'data' => $data]);
     }
+
+    public function stockCardReport(Request $request)
+    {
+        $warehouses = \Modules\Setting\Entities\Warehouse::all();
+        $products = \Modules\Product\Entities\Product::all();
+
+        $movements = collect();
+        $stock_awal = 0;
+
+        if ($request->filled(['start_date', 'end_date', 'warehouse_id', 'product_id'])) {
+            $warehouse_id = $request->warehouse_id;
+            $product_id = $request->product_id;
+            $start_date = $request->start_date;
+            $end_date = $request->end_date;
+
+            // 1. Hitung Stock Awal (Sebelum start_date)
+            $prev_purchase = \Modules\Purchase\Entities\PurchaseDetail::whereHas('purchase', function ($q) use ($warehouse_id, $start_date) {
+                $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date)->where('status', 'Completed');
+            })->where('product_id', $product_id)->sum('quantity');
+
+            $prev_purchase_return = \Modules\PurchasesReturn\Entities\PurchaseReturnDetail::whereHas('purchaseReturn', function ($q) use ($warehouse_id, $start_date) {
+                $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date)->where('status', 'Completed');
+            })->where('product_id', $product_id)->sum('quantity');
+
+            $prev_adjustment = \Modules\Adjustment\Entities\AdjustedProduct::whereHas('adjustment', function ($q) use ($warehouse_id, $start_date) {
+                $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date);
+            })->where('product_id', $product_id)
+                ->selectRaw("SUM(CASE WHEN type = 'add' THEN quantity ELSE -quantity END) as total")
+                ->value('total');
+
+            $stock_awal = $prev_purchase - $prev_purchase_return + ($prev_adjustment ?? 0);
+
+            // 2. Ambil Transaksi (Purchase)
+            \Modules\Purchase\Entities\PurchaseDetail::with('purchase')
+                ->whereHas('purchase', function ($q) use ($warehouse_id, $start_date, $end_date) {
+                    $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
+                })->where('product_id', $product_id)->get()->each(function ($item) use ($movements) {
+                    $movements->push([
+                        'date' => $item->purchase->date,
+                        'ref'  => $item->purchase->reference,
+                        'type' => 'Purchase',
+                        'in'   => $item->quantity,
+                        'out'  => 0
+                    ]);
+                });
+
+            // 3. Ambil Transaksi (Purchase Return)
+            \Modules\PurchasesReturn\Entities\PurchaseReturnDetail::with('purchaseReturn')
+                ->whereHas('purchaseReturn', function ($q) use ($warehouse_id, $start_date, $end_date) {
+                    $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
+                })->where('product_id', $product_id)->get()->each(function ($item) use ($movements) {
+                    $movements->push([
+                        'date' => $item->purchaseReturn->date,
+                        'ref'  => $item->purchaseReturn->reference,
+                        'type' => 'Purchase Return',
+                        'in'   => 0,
+                        'out'  => $item->quantity
+                    ]);
+                });
+
+            // 4. Ambil Transaksi (Adjustment)
+            \Modules\Adjustment\Entities\AdjustedProduct::with('adjustment')
+                ->whereHas('adjustment', function ($q) use ($warehouse_id, $start_date, $end_date) {
+                    $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date]);
+                })->where('product_id', $product_id)->get()->each(function ($item) use ($movements) {
+                    $movements->push([
+                        'date' => $item->adjustment->date,
+                        'ref'  => $item->adjustment->reference,
+                        'type' => 'Adjustment (' . ucfirst($item->type) . ')',
+                        'in'   => $item->type == 'add' ? $item->quantity : 0,
+                        'out'  => $item->type == 'sub' ? $item->quantity : 0
+                    ]);
+                });
+
+            $movements = $movements->sortBy('date');
+        }
+
+        return view('reports::stock-card.index', compact('warehouses', 'products', 'movements', 'stock_awal'));
+    }
 }

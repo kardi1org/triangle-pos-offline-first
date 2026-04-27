@@ -317,6 +317,32 @@
     @endcan
 @endif
 
+@can('access_expenses')
+    <li
+        class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('inventory-movements.*') || request()->routeIs('expense-categories.*') ? 'c-show' : '' }}">
+        <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+            <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Inventory Movement
+        </a>
+        <ul class="c-sidebar-nav-dropdown-items pl-2">
+            @can('create_expenses')
+                <li class="c-sidebar-nav-item  ">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('inventory-movements.create') ? 'c-active' : '' }}"
+                        href="{{ route('inventory-movements.create') }}">
+                        <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Inventory
+                        Movements
+                    </a>
+                </li>
+            @endcan
+            <li class="c-sidebar-nav-item ">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('inventory-movements.index') ? 'c-active' : '' }}"
+                    href="{{ route('inventory-movements.index') }}">
+                    <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Inventory Movements
+                </a>
+            </li>
+        </ul>
+    </li>
+@endcan
+
 @can('access_customers')
     <li
         class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('customers.*') || request()->routeIs('suppliers.*') ? 'c-show' : '' }}">
@@ -424,6 +450,12 @@
                     <i class="c-sidebar-nav-icon bi bi-clipboard-data" style="line-height: 1;"></i> Mutation Report
                 </a>
             </li>
+            <li class="c-sidebar-nav-item">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('stock-card-report.index') ? 'c-active' : '' }}"
+                    href="{{ route('stock-card-report.index') }}">
+                    <i class="c-sidebar-nav-icon bi bi-clipboard-data" style="line-height: 1;"></i> Stock Card Report
+                </a>
+            </li>
         </ul>
     </li>
 @endcan
@@ -467,7 +499,7 @@
 
 @can('access_settings')
     <li
-        class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('currencies*') || request()->routeIs('units*') || request()->routeIs('service-charge*') || request()->routeIs('order-summary*') ? 'c-show' : '' }}">
+        class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('currencies*') || request()->routeIs('units*') || request()->routeIs('service-charge*') || request()->routeIs('order-summary*') || request()->routeIs('warehouses*') ? 'c-show' : '' }}">
         <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
             <i class="c-sidebar-nav-icon bi bi-gear" style="line-height: 1;"></i> Settings
         </a>
@@ -535,6 +567,17 @@
                     <a class="c-sidebar-nav-link {{ request()->routeIs('payment*') ? 'c-active' : '' }}"
                         href="{{ route('payment.index') }}">
                         <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Receive Methode
+                    </a>
+                </li>
+            </ul>
+        @endcan
+
+        @can('access_settings')
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                <li class="c-sidebar-nav-item">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('warehouses*') ? 'c-active' : '' }}"
+                        href="{{ route('warehouses.index') }}">
+                        <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Warehouses
                     </a>
                 </li>
             </ul>

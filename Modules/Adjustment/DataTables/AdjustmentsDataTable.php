@@ -5,26 +5,32 @@ namespace Modules\Adjustment\DataTables;
 use Modules\Adjustment\Entities\Adjustment;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
-use Yajra\DataTables\Html\Editor\Editor;
-use Yajra\DataTables\Html\Editor\Fields;
 use Yajra\DataTables\Services\DataTable;
 
 class AdjustmentsDataTable extends DataTable
 {
 
-    public function dataTable($query) {
+    public function dataTable($query)
+    {
         return datatables()
             ->eloquent($query)
+            // Tambahkan kolom warehouse name
+            ->addColumn('warehouse_name', function ($data) {
+                return $data->warehouse->name ?? '-';
+            })
             ->addColumn('action', function ($data) {
                 return view('adjustment::partials.actions', compact('data'));
             });
     }
 
-    public function query(Adjustment $model) {
-        return $model->newQuery()->withCount('adjustedProducts');
+    public function query(Adjustment $model)
+    {
+        // Tambahkan .with('warehouse') untuk menghindari N+1 query
+        return $model->newQuery()->with(['warehouse'])->withCount('adjustedProducts');
     }
 
-    public function html() {
+    public function html()
+    {
         return $this->builder()
             ->setTableId('adjustments-table')
             ->columns($this->getColumns())
@@ -32,7 +38,7 @@ class AdjustmentsDataTable extends DataTable
             ->dom("<'row'<'col-md-3'l><'col-md-5 mb-2'B><'col-md-4'f>> .
                                         'tr' .
                                         <'row'<'col-md-5'i><'col-md-7 mt-2'p>>")
-            ->orderBy(4)
+            ->orderBy(5) // Diubah ke 5 karena posisi created_at bergeser
             ->buttons(
                 Button::make('excel')
                     ->text('<i class="bi bi-file-earmark-excel-fill"></i> Excel'),
@@ -45,12 +51,18 @@ class AdjustmentsDataTable extends DataTable
             );
     }
 
-    protected function getColumns() {
+    protected function getColumns()
+    {
         return [
             Column::make('date')
                 ->className('text-center align-middle'),
 
             Column::make('reference')
+                ->className('text-center align-middle'),
+
+            // Tambahkan kolom Warehouse di sini
+            Column::computed('warehouse_name')
+                ->title('Warehouse')
                 ->className('text-center align-middle'),
 
             Column::make('adjusted_products_count')
@@ -67,7 +79,8 @@ class AdjustmentsDataTable extends DataTable
         ];
     }
 
-    protected function filename(): string {
+    protected function filename(): string
+    {
         return 'Adjustments_' . date('YmdHis');
     }
 }

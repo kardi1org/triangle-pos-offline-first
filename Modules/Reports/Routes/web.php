@@ -38,4 +38,8 @@ Route::group(['middleware' => 'auth'], function () {
     Route::get('/mutation-cash/filter', 'ReportsController@filtercashtransfer')->name('cashtransfer.filter');
     // Route::get('/mutation-cash/export', 'ReportsController@exporttoxl')->name('cashtransfer.export');
     Route::get('/mutation-cash/export', 'ReportsController@exportExcel')->name('cashtransfer.export');
+
+    // Stock Card Report
+    Route::get('/stock-card-report', 'ReportsController@stockCardReport')
+        ->name('stock-card-report.index');
 });

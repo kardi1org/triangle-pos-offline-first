@@ -14,72 +14,94 @@
     <div class="container-fluid mb-4">
         <div class="row">
             <div class="col-12">
-                <livewire:search-product/>
+                <livewire:search-product />
             </div>
         </div>
 
         <div class="row mt-4">
             <div class="col-md-12">
-                <div class="card">
+                <div class="card border-0 shadow-sm">
                     <div class="card-body">
                         @include('utils.alerts')
                         <form id="purchase-form" action="{{ route('purchases.update', $purchase) }}" method="POST">
                             @csrf
                             @method('patch')
                             <div class="form-row">
-                                <div class="col-lg-4">
+                                <div class="col-lg-3">
                                     <div class="form-group">
                                         <label for="reference">Reference <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="reference" required value="{{ $purchase->reference }}" readonly>
+                                        <input type="text" class="form-control" name="reference" required
+                                            value="{{ $purchase->reference }}" readonly>
                                     </div>
                                 </div>
-                                <div class="col-lg-4">
-                                    <div class="from-group">
-                                        <div class="form-group">
-                                            <label for="supplier_id">Supplier <span class="text-danger">*</span></label>
-                                            <select class="form-control" name="supplier_id" id="supplier_id" required>
-                                                @foreach(\Modules\People\Entities\Supplier::all() as $supplier)
-                                                    <option {{ $purchase->supplier_id == $supplier->id ? 'selected' : '' }} value="{{ $supplier->id }}">{{ $supplier->supplier_name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
+
+                                {{-- Tambahkan Dropdown Warehouse --}}
+                                <div class="col-lg-3">
+                                    <div class="form-group">
+                                        <label for="warehouse_id">Warehouse <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="warehouse_id" id="warehouse_id" required>
+                                            @foreach (\Modules\Setting\Entities\Warehouse::where('is_active', true)->get() as $warehouse)
+                                                <option {{ $purchase->warehouse_id == $warehouse->id ? 'selected' : '' }}
+                                                    value="{{ $warehouse->id }}">
+                                                    {{ $warehouse->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
-                                <div class="col-lg-4">
-                                    <div class="from-group">
-                                        <div class="form-group">
-                                            <label for="date">Date <span class="text-danger">*</span></label>
-                                            <input type="date" class="form-control" name="date" required value="{{ $purchase->date }}">
-                                        </div>
+
+                                <div class="col-lg-3">
+                                    <div class="form-group">
+                                        <label for="supplier_id">Supplier <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="supplier_id" id="supplier_id" required>
+                                            @foreach (\Modules\People\Entities\Supplier::all() as $supplier)
+                                                <option {{ $purchase->supplier_id == $supplier->id ? 'selected' : '' }}
+                                                    value="{{ $supplier->id }}">
+                                                    {{ $supplier->supplier_name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-3">
+                                    <div class="form-group">
+                                        <label for="date">Date <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control" name="date" required
+                                            value="{{ $purchase->date }}">
                                     </div>
                                 </div>
                             </div>
 
-                            <livewire:product-cart :cartInstance="'purchase'" :data="$purchase"/>
+                            <livewire:product-cart :cartInstance="'purchase'" :data="$purchase" />
 
                             <div class="form-row">
                                 <div class="col-lg-4">
                                     <div class="form-group">
                                         <label for="status">Status <span class="text-danger">*</span></label>
                                         <select class="form-control" name="status" id="status" required>
-                                            <option {{ $purchase->status == 'Pending' ? 'selected' : '' }} value="Pending">Pending</option>
-                                            <option {{ $purchase->status == 'Ordered' ? 'selected' : '' }} value="Ordered">Ordered</option>
-                                            <option {{ $purchase->status == 'Completed' ? 'selected' : '' }} value="Completed">Completed</option>
+                                            <option {{ $purchase->status == 'Pending' ? 'selected' : '' }} value="Pending">
+                                                Pending</option>
+                                            <option {{ $purchase->status == 'Ordered' ? 'selected' : '' }} value="Ordered">
+                                                Ordered</option>
+                                            <option {{ $purchase->status == 'Completed' ? 'selected' : '' }}
+                                                value="Completed">Completed</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-4">
-                                    <div class="from-group">
-                                        <div class="form-group">
-                                            <label for="payment_method">Payment Method <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" name="payment_method" required value="{{ $purchase->payment_method }}" readonly>
-                                        </div>
+                                    <div class="form-group">
+                                        <label for="payment_method">Payment Method <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="payment_method" required
+                                            value="{{ $purchase->payment_method }}" readonly>
                                     </div>
                                 </div>
                                 <div class="col-lg-4">
                                     <div class="form-group">
                                         <label for="paid_amount">Amount Received <span class="text-danger">*</span></label>
-                                        <input id="paid_amount" type="text" class="form-control" name="paid_amount" required value="{{ $purchase->paid_amount }}" readonly>
+                                        <input id="paid_amount" type="text" class="form-control" name="paid_amount"
+                                            required value="{{ $purchase->paid_amount }}" readonly>
                                     </div>
                                 </div>
                             </div>
@@ -105,17 +127,17 @@
 @push('page_scripts')
     <script src="{{ asset('js/jquery-mask-money.js') }}"></script>
     <script>
-        $(document).ready(function () {
+        $(document).ready(function() {
             $('#paid_amount').maskMoney({
-                prefix:'{{ settings()->currency->symbol }}',
-                thousands:'{{ settings()->currency->thousand_separator }}',
-                decimal:'{{ settings()->currency->decimal_separator }}',
+                prefix: '{{ settings()->currency->symbol }}',
+                thousands: '{{ settings()->currency->thousand_separator }}',
+                decimal: '{{ settings()->currency->decimal_separator }}',
                 allowZero: true,
             });
 
             $('#paid_amount').maskMoney('mask');
 
-            $('#purchase-form').submit(function () {
+            $('#purchase-form').submit(function() {
                 var paid_amount = $('#paid_amount').maskMoney('unmasked')[0];
                 $('#paid_amount').val(paid_amount);
             });

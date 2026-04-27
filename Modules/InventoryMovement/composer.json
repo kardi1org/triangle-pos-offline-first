@@ -1,0 +1,31 @@
+{
+    "name": "nwidart/inventorymovement",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\InventoryMovement\\": "",
+            "Modules\\InventoryMovement\\App\\": "app/",
+            "Modules\\InventoryMovement\\Database\\Factories\\": "database/factories/",
+            "Modules\\InventoryMovement\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\InventoryMovement\\Tests\\": "tests/"
+        }
+    }
+}

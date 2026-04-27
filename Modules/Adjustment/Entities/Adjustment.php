@@ -12,15 +12,18 @@ class Adjustment extends Model
 
     protected $guarded = [];
 
-    public function getDateAttribute($value) {
+    public function getDateAttribute($value)
+    {
         return Carbon::parse($value)->format('d M, Y');
     }
 
-    public function adjustedProducts() {
+    public function adjustedProducts()
+    {
         return $this->hasMany(AdjustedProduct::class, 'adjustment_id', 'id');
     }
 
-    public static function boot() {
+    public static function boot()
+    {
         parent::boot();
 
         static::creating(function ($model) {
@@ -29,4 +32,8 @@ class Adjustment extends Model
         });
     }
 
+    public function warehouse()
+    {
+        return $this->belongsTo(\Modules\Setting\Entities\Warehouse::class);
+    }
 }

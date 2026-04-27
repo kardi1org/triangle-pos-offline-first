@@ -1,0 +1,11 @@
+{
+    "name": "InventoryMovement",
+    "alias": "inventorymovement",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\InventoryMovement\\Providers\\InventoryMovementServiceProvider"
+    ],
+    "files": []
+}
