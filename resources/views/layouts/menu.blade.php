@@ -317,31 +317,73 @@
     @endcan
 @endif
 
-@can('access_expenses')
-    <li
-        class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('inventory-movements.*') || request()->routeIs('expense-categories.*') ? 'c-show' : '' }}">
-        <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
-            <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Inventory Movement
-        </a>
-        <ul class="c-sidebar-nav-dropdown-items pl-2">
-            @can('create_expenses')
-                <li class="c-sidebar-nav-item  ">
-                    <a class="c-sidebar-nav-link {{ request()->routeIs('inventory-movements.create') ? 'c-active' : '' }}"
-                        href="{{ route('inventory-movements.create') }}">
-                        <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Inventory
-                        Movements
-                    </a>
-                </li>
-            @endcan
-            <li class="c-sidebar-nav-item ">
-                <a class="c-sidebar-nav-link {{ request()->routeIs('inventory-movements.index') ? 'c-active' : '' }}"
-                    href="{{ route('inventory-movements.index') }}">
-                    <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Inventory Movements
+{{-- @can('access_expenses') --}}
+<li
+    class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('inventory-movements.*') || request()->routeIs('expense-categories.*') ? 'c-show' : '' }}">
+    <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+        <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Inventory Movement
+    </a>
+    <ul class="c-sidebar-nav-dropdown-items pl-2">
+        @can('create_expenses')
+            <li class="c-sidebar-nav-item  ">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('inventory-movements.create') ? 'c-active' : '' }}"
+                    href="{{ route('inventory-movements.create') }}">
+                    <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Inventory
+                    Movements
                 </a>
             </li>
-        </ul>
-    </li>
-@endcan
+        @endcan
+        <li class="c-sidebar-nav-item ">
+            <a class="c-sidebar-nav-link {{ request()->routeIs('inventory-movements.index') ? 'c-active' : '' }}"
+                href="{{ route('inventory-movements.index') }}">
+                <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Inventory Movements
+            </a>
+        </li>
+    </ul>
+</li>
+{{-- @endcan --}}
+<li
+    class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('recipes.*') || request()->routeIs('expense-categories.*') ? 'c-show' : '' }}">
+    <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+        <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Recipes
+    </a>
+    <ul class="c-sidebar-nav-dropdown-items pl-2">
+        <li class="c-sidebar-nav-item  ">
+            <a class="c-sidebar-nav-link {{ request()->routeIs('recipes.create') ? 'c-active' : '' }}"
+                href="{{ route('recipes.create') }}">
+                <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Recipes
+            </a>
+        </li>
+        <li class="c-sidebar-nav-item ">
+            <a class="c-sidebar-nav-link {{ request()->routeIs('recipes.index') ? 'c-active' : '' }}"
+                href="{{ route('recipes.index') }}">
+                <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Recipes
+            </a>
+        </li>
+    </ul>
+</li>
+
+<li
+    class="c-sidebar-nav-item c-sidebar-nav-dropdown {{ request()->routeIs('work-orders.*') || request()->routeIs('expense-categories.*') ? 'c-show' : '' }}">
+    <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
+        <i class="c-sidebar-nav-icon bi bi-wallet2" style="line-height: 1;"></i> Work Order
+    </a>
+    <ul class="c-sidebar-nav-dropdown-items pl-2">
+        <li class="c-sidebar-nav-item  ">
+            <a class="c-sidebar-nav-link {{ request()->routeIs('work-orders.create') ? 'c-active' : '' }}"
+                href="{{ route('work-orders.create') }}">
+                <i class="c-sidebar-nav-icon bi bi-journal-plus" style="line-height: 1;"></i> Create Work Order
+
+            </a>
+        </li>
+        <li class="c-sidebar-nav-item ">
+            <a class="c-sidebar-nav-link {{ request()->routeIs('work-orders.index') ? 'c-active' : '' }}"
+                href="{{ route('work-orders.index') }}">
+                <i class="c-sidebar-nav-icon bi bi-journals" style="line-height: 1;"></i> All Work Order
+            </a>
+        </li>
+    </ul>
+</li>
 
 @can('access_customers')
     <li
@@ -445,8 +487,8 @@
                 </a>
             </li>
             <li class="c-sidebar-nav-item">
-                <a class="c-sidebar-nav-link {{ request()->routeIs('mutation-cash-report.index') ? 'c-active' : '' }}"
-                    href="{{ route('mutation-cash-report.index') }}">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('report.mutation.index') ? 'c-active' : '' }}"
+                    href="{{ route('report.mutation.index') }}">
                     <i class="c-sidebar-nav-icon bi bi-clipboard-data" style="line-height: 1;"></i> Mutation Report
                 </a>
             </li>

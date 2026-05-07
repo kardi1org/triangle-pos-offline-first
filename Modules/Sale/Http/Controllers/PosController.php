@@ -261,7 +261,13 @@ class PosController extends Controller
 
     public function store(StorePosSaleRequest $request)
     {
-        DB::transaction(function () use ($request) {
+        $userOutletId = session('selected_outlet_id') ?? auth()->user()->outlets()->first()?->id;
+        $warehouse = \Modules\Setting\Entities\Warehouse::where('outlet_id', $userOutletId)
+            ->where('is_active', 1)
+            ->first();
+        $warehouse_id = $warehouse->id;
+
+        DB::transaction(function () use ($request, $warehouse_id) {
             $due_amount = $request->total_amount - $request->paid_amount;
             $customer_id = '.';
 
@@ -276,7 +282,6 @@ class PosController extends Controller
             $selectedTableIdsJson = $request->input('selected_table_ids');
             $selectedTableIdsArray = json_decode($selectedTableIdsJson, true);
 
-            // --- AWAL TAMBAHAN LOG KITCHEN ---
             $current_ref = $request->input('current_reference');
             $approvedBy = $request->input('approved_by');
             $adminNote = $request->input('approval_note') ? " | Note: " . $request->input('approval_note') : "";
@@ -284,21 +289,35 @@ class PosController extends Controller
             if (!empty($current_ref)) {
                 $existingSale = Sale::where('reference', $current_ref)->first();
                 if ($existingSale) {
-                    // Ambil detail lama dari database
                     $oldDetails = SaleDetails::where('sale_id', $existingSale->id)->get();
-                    // Ambil konten keranjang saat ini
                     $currentCart = Cart::instance('sale')->content();
 
-                    // 1. Cek VOID (Barang dihapus atau dikurangi qty-nya)
+                    // --- AWAL KEMBALIKAN STOK LAMA (VOIDING/UPDATING) ---
                     foreach ($oldDetails as $oldItem) {
-                        // Cari di keranjang yang ID-nya cocok dengan product_id di DB
-                        $matchInCart = $currentCart->first(function ($cartItem) use ($oldItem) {
-                            return $cartItem->id == $oldItem->product_id; // Menggunakan == agar string '1' cocok dengan int 1
-                        });
+                        $oldProduct = \Modules\Product\Entities\Product::find($oldItem->product_id);
+                        // Kemablikan stcok diremark tidak perlu dikembalikan krn saat save order belum potong stock
+                        // if ($oldProduct) {
+                        //     if ($oldProduct->is_recipe == 'Y') {
+                        //         $recipeHeader = \Modules\Setting\Entities\Recipe::where('product_id', $oldProduct->id)->first();
+                        //         if ($recipeHeader) {
+                        //             foreach ($recipeHeader->details as $detail) {
+                        //                 $qty_to_restore = (float)$detail->quantity * $oldItem->quantity;
+                        //                 $pw = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $detail->product_id)
+                        //                     ->where('warehouse_id', $warehouse_id)->first();
+                        //                 if ($pw) $pw->increment('qty', $qty_to_restore);
+                        //             }
+                        //         }
+                        //     } else {
+                        //         $pw = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $oldProduct->id)
+                        //             ->where('warehouse_id', $warehouse_id)->first();
+                        //         if ($pw) $pw->increment('qty', $oldItem->quantity);
+                        //     }
+                        // }
 
+                        // Logika Kitchen Log (Void)
+                        $matchInCart = $currentCart->first(fn ($cartItem) => $cartItem->id == $oldItem->product_id);
                         $voidQty = 0;
                         $reason = "";
-
                         if (!$matchInCart) {
                             $voidQty = $oldItem->quantity;
                             $reason = "Dihapus";
@@ -320,16 +339,13 @@ class PosController extends Controller
                             ]);
                         }
                     }
+                    // --- AKHIR KEMBALIKAN STOK ---
 
-                    // 2. Cek NEW (Barang baru atau qty bertambah)
+                    // Cek NEW Kitchen Log
                     foreach ($currentCart as $newItem) {
-                        $matchInOld = $oldDetails->first(function ($oldItem) use ($newItem) {
-                            return $oldItem->product_id == $newItem->id;
-                        });
-
+                        $matchInOld = $oldDetails->first(fn ($oldItem) => $oldItem->product_id == $newItem->id);
                         $newQty = 0;
                         $reason = "";
-
                         if (!$matchInOld) {
                             $newQty = $newItem->qty;
                             $reason = "Menu Baru";
@@ -351,9 +367,8 @@ class PosController extends Controller
                             ]);
                         }
                     }
-                    // Hapus detail lama agar tidak duplikat saat loop create di bawah
+
                     SaleDetails::where('sale_id', $existingSale->id)->delete();
-                    // Gunakan sale yang sudah ada untuk update
                     $sale = $existingSale;
                     $sale->update([
                         'customer_name' => $request->input('customer_name'),
@@ -373,12 +388,11 @@ class PosController extends Controller
                         'tax_amount' => $request->tax_amount * 100,
                         'discount_amount' => $request->discount_amount * 100,
                         'selected_table_ids' => $selectedTableIdsArray,
+                        'warehouse_id'        => $warehouse_id,
                     ]);
                 }
             }
-            // --- AKHIR TAMBAHAN LOG KITCHEN ---
 
-            // Logika Create Sale (Hanya jika bukan update/reference kosong)
             if (!isset($sale)) {
                 $sale = Sale::create([
                     'date' => now()->format('Y-m-d'),
@@ -402,9 +416,9 @@ class PosController extends Controller
                     'tax_amount' => $request->tax_amount * 100,
                     'discount_amount' => $request->discount_amount * 100,
                     'selected_table_ids' => $selectedTableIdsArray,
+                    'warehouse_id'        => $warehouse_id,
                 ]);
 
-                // Jika benar-benar baru, catat semua sebagai 'new'
                 foreach (Cart::instance('sale')->content() as $cart_item) {
                     \App\Models\OrderKitchenLog::create([
                         'sale_id' => $sale->id,
@@ -418,6 +432,7 @@ class PosController extends Controller
                 }
             }
 
+            // --- SIMPAN DETAIL BARU & POTONG STOK ---
             foreach (Cart::instance('sale')->content() as $cart_item) {
                 $variants = json_decode($request->variants[$cart_item->id] ?? '[]', true);
                 SaleDetails::create([
@@ -435,6 +450,26 @@ class PosController extends Controller
                     'product_tax_amount' => $cart_item->options->product_tax,
                     'variant_detail' => json_encode($variants),
                 ]);
+
+                // LOGIKA POTONG STOK
+                $product = \Modules\Product\Entities\Product::find($cart_item->id);
+                if ($product) {
+                    if ($product->is_recipe == 'Y') {
+                        $recipeHeader = \Modules\Setting\Entities\Recipe::where('product_id', $product->id)->first();
+                        if ($recipeHeader) {
+                            foreach ($recipeHeader->details as $detail) {
+                                $qty_to_reduce = (float)$detail->quantity * $cart_item->qty;
+                                $pw = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $detail->product_id)
+                                    ->where('warehouse_id', $warehouse_id)->first();
+                                if ($pw) $pw->decrement('qty', $qty_to_reduce);
+                            }
+                        }
+                    } else {
+                        $pw = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $product->id)
+                            ->where('warehouse_id', $warehouse_id)->first();
+                        if ($pw) $pw->decrement('qty', $cart_item->qty);
+                    }
+                }
             }
 
             if ($sale->paid_amount > 0) {

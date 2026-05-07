@@ -770,10 +770,25 @@ class Checkout extends Component
         // Ambil alasan admin sekali di awal untuk digunakan di dalam closure transaction
         $adminNote = $this->approval_note ? " | Admin Note: " . $this->approval_note : "";
 
+        $userOutletId = session('selected_outlet_id') ?? auth()->user()->outlets()->first()?->id;
+        $warehouse = \Modules\Setting\Entities\Warehouse::where('outlet_id', $userOutletId)
+            ->where('is_active', 1)
+            ->first();
+
+        if (!$warehouse) {
+            $this->alertType = 'danger';
+            $this->alertMessage = 'Gudang/Warehouse untuk outlet Anda tidak ditemukan atau tidak aktif! ID Outlet: ' . ($userOutletId ?? 'Tidak terdeteksi');
+            $this->dispatch('auto-hide-alert');
+            return;
+        }
+
+        $warehouse_id = $warehouse->id;
+
         $saleData = [
             'customer_name'       => $this->customer_name ?? 'Guest',
             'order_type'          => $this->order_type,
             'user_id'             => auth()->id(),
+            'warehouse_id'        => $warehouse_id,
             'tax_percentage'      => (float) ($this->global_tax ?? 0),
             'discount_percentage' => (float) ($this->global_discount ?? 0),
             'shipping_amount'     => $shipping * 100,
@@ -788,7 +803,7 @@ class Checkout extends Component
             'lain_b'              => $lain_b * 100,
         ];
 
-        \DB::transaction(function () use ($saleData, &$sale, $adminNote, $approvedBy) {
+        \DB::transaction(function () use ($saleData, &$sale, $adminNote, $approvedBy, $warehouse_id) {
             $currentCart = Cart::instance('sale')->content();
 
             // 2. Logika Update Jika Memiliki Reference (Edit Mode)
@@ -901,8 +916,14 @@ class Checkout extends Component
                 }
             }
 
-            // 4. Simpan Detail Produk Final
+            // 4. Simpan Detail Produk Final & Potong Stok
             foreach ($currentCart as $cart_item) {
+                $product = Product::find($cart_item->id);
+
+                // Ambil Warehouse ID (Sesuaikan dengan cara Anda menyimpan ID Warehouse/Outlet)
+                // Contoh: auth()->user()->warehouse_id atau session('warehouse_id')
+                //$warehouse_id = auth()->user()->warehouse_id;
+
                 SaleDetails::create([
                     'sale_id'                 => $sale->id,
                     'reference'               => $sale->reference,
@@ -918,6 +939,41 @@ class Checkout extends Component
                     'product_tax_amount'      => (float) ($cart_item->options->product_tax ?? 0) * 100,
                     'variant_detail'          => json_encode($cart_item->options->variants ?? []),
                 ]);
+
+                // --- LOGIKA POTONG STOK ---
+                // if ($product) {
+                //     if ($product->is_recipe == 'Y') {
+                //         // 1. Cari Header Recipe untuk produk menu ini
+                //         $recipeHeader = \Modules\Setting\Entities\Recipe::where('product_id', $product->id)->first();
+
+                //         if ($recipeHeader) {
+                //             // 2. Ambil detail bahan baku dari relasi details()
+                //             // Sesuai tabel Anda: menggunakan 'product_id' sebagai ID bahan baku
+                //             foreach ($recipeHeader->details as $detail) {
+                //                 // Total yang harus dikurangi: (jumlah bahan per porsi * qty jual)
+                //                 $qty_to_reduce = (float)$detail->quantity * $cart_item->qty;
+
+                //                 // 3. Cari stok bahan tersebut di tabel product_warehouse
+                //                 $productWarehouse = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $detail->product_id)
+                //                     ->where('warehouse_id', $warehouse_id)
+                //                     ->first();
+
+                //                 if ($productWarehouse) {
+                //                     $productWarehouse->decrement('qty', $qty_to_reduce);
+                //                 }
+                //             }
+                //         }
+                //     } else {
+                //         // JIKA BUKAN RECIPE (STANDARD): Potong stok produk itu sendiri
+                //         $productWarehouse = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $product->id)
+                //             ->where('warehouse_id', $warehouse_id)
+                //             ->first();
+
+                //         if ($productWarehouse) {
+                //             $productWarehouse->decrement('qty', $cart_item->qty);
+                //         }
+                //     }
+                // }
             }
         });
 

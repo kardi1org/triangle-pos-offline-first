@@ -160,6 +160,19 @@
                                 <label for="product_note">Note</label>
                                 <textarea name="product_note" id="product_note" rows="4 " class="form-control"></textarea>
                             </div>
+                            <div class="form-row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="is_recipe">Flag Recipe <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="is_recipe" id="is_recipe" required>
+                                            <option value="N" {{ old('is_recipe') == 'N' ? 'selected' : '' }}>No (N)
+                                            </option>
+                                            <option value="Y" {{ old('is_recipe') == 'Y' ? 'selected' : '' }}>Yes (Y)
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

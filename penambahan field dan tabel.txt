@@ -90,6 +90,9 @@ ADD COLUMN warehouse_id bigint(20) unsigned NULL AFTER reference;
 ALTER TABLE purchases
 ADD COLUMN warehouse_id BIGINT(20) UNSIGNED NULL AFTER payment_method;
 
+ALTER TABLE purchase_returns
+ADD COLUMN warehouse_id BIGINT(20) UNSIGNED NULL AFTER payment_method;
+
 
 CREATE TABLE `warehouses` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -104,6 +107,77 @@ CREATE TABLE `warehouses` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `warehouses_code_unique` (`code`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+
+CREATE TABLE `recipes` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `product_id` bigint(20) unsigned NOT NULL,
+  `quantity` double(15,2) NOT NULL,
+  `unit` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+CREATE TABLE `recipe_details` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `recipe_id` bigint(20) unsigned NOT NULL,
+  `product_id` bigint(20) unsigned NOT NULL,
+  `quantity` double(15,2) NOT NULL,
+  `unit` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `cost` decimal(15,2) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `recipe_details_recipe_id_foreign` (`recipe_id`),
+  CONSTRAINT `recipe_details_recipe_id_foreign` FOREIGN KEY (`recipe_id`) REFERENCES `recipes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+CREATE TABLE `product_warehouse` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `product_id` BIGINT UNSIGNED NOT NULL,
+    `warehouse_id` BIGINT UNSIGNED NOT NULL,
+    `qty` DOUBLE NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NULL,
+    `updated_at` TIMESTAMP NULL,
+    PRIMARY KEY (`id`),
+    INDEX `product_warehouse_product_id_warehouse_id_index` (`product_id`, `warehouse_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `work_orders` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `reference` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `date` date NOT NULL,
+  `product_id` bigint(20) unsigned NOT NULL,
+  `warehouse_id` bigint(20) unsigned NOT NULL,
+  `quantity` double NOT NULL,
+  `unit` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+CREATE TABLE `work_order_details` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `work_order_id` bigint(20) unsigned NOT NULL,
+  `product_id` bigint(20) unsigned NOT NULL,
+  `quantity` double NOT NULL,
+  `unit` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+ALTER TABLE products 
+ADD COLUMN is_recipe ENUM('Y', 'N') DEFAULT 'N' 
+AFTER product_note;
+
+ALTER TABLE sales
+ADD COLUMN warehouse_id BIGINT(20) UNSIGNED NULL AFTER note;
+
+ALTER TABLE inventories
+ADD COLUMN warehouse_id BIGINT(20) UNSIGNED NULL AFTER note;
 
 
 

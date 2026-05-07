@@ -20,5 +20,6 @@
     "Shift": true,
     "FeatureManager": true,
     "ServiceCharge": true,
-    "InventoryMovement": true
+    "InventoryMovement": true,
+    "Production": true
 }

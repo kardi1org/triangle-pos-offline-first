@@ -16,7 +16,7 @@ class UpdateSaleRequest extends FormRequest
     {
         return [
             //     'customer_id' => 'required|numeric',
-            'customer_name'  => 'required|string|max:255', // Add field by Chris
+            //'customer_name'  => 'required|string|max:255', // Add field by Chris
             'reference' => 'required|string|max:255',
             'tax_percentage' => 'required|integer|min:0|max:100',
             'discount_percentage' => 'required|integer|min:0|max:100',

@@ -11,6 +11,8 @@
 |
 */
 
+use Modules\Reports\Http\Controllers\MutationReportController;
+
 Route::group(['middleware' => 'auth'], function () {
     //Profit Loss Report
     Route::get('/profit-loss-report', 'ReportsController@profitLossReport')
@@ -42,4 +44,7 @@ Route::group(['middleware' => 'auth'], function () {
     // Stock Card Report
     Route::get('/stock-card-report', 'ReportsController@stockCardReport')
         ->name('stock-card-report.index');
+
+    Route::get('/mutation-report', [MutationReportController::class, 'index'])
+        ->name('report.mutation.index');
 });

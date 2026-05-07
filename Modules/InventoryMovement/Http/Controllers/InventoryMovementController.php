@@ -9,6 +9,7 @@ use Modules\InventoryMovement\Entities\InventoryMovement;
 use Modules\InventoryMovement\Entities\InventoryMovementDetail;
 use Modules\Product\Entities\Product;
 use Modules\Setting\Entities\Warehouse;
+use Modules\Setting\Entities\ProductWarehouse;
 
 class InventoryMovementController extends Controller
 {
@@ -35,51 +36,6 @@ class InventoryMovementController extends Controller
         $warehouses = Warehouse::where('is_active', true)->get();
         $products = Product::all();
         return view('inventorymovement::create', compact('warehouses', 'products'));
-    }
-
-    public function store(Request $request)
-    {
-        // 1. Perbarui validasi agar sesuai dengan struktur array terpisah
-        $request->validate([
-            'from_warehouse_id' => 'required|exists:warehouses,id',
-            'to_warehouse_id'   => 'required|exists:warehouses,id|different:from_warehouse_id',
-            'date'              => 'required|date',
-            'product_ids'       => 'required|array|min:1',
-            'product_ids.*'     => 'required|exists:products,id',
-            'quantities'        => 'required|array|min:1',
-            'quantities.*'      => 'required|integer|min:1',
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            // 2. Simpan Header
-            $movement = new InventoryMovement();
-            $movement->reference = $request->reference ?? 'MVT-' . strtoupper(now()->format('Ymd-His'));
-            $movement->date = $request->date;
-            $movement->from_warehouse_id = $request->from_warehouse_id;
-            $movement->to_warehouse_id = $request->to_warehouse_id;
-            $movement->user_id = auth()->id();
-            $movement->note = $request->note;
-            $movement->save();
-
-            // 3. Simpan Detail dengan looping berdasarkan index array
-            foreach ($request->product_ids as $index => $productId) {
-                $detail = new InventoryMovementDetail();
-                $detail->inventory_movement_id = $movement->id;
-                $detail->product_id = $productId;
-                $detail->quantity = $request->quantities[$index]; // Ambil kuantitas berdasarkan index yang sama
-                $detail->save();
-            }
-
-            DB::commit();
-            return redirect()->route('inventory-movements.index')
-                ->with('success', 'Mutasi stok berhasil disimpan.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            // Return error ke session untuk ditampilkan di view
-            return back()->with('error', 'Gagal menyimpan mutasi: ' . $e->getMessage());
-        }
     }
 
     public function show($id)
@@ -116,9 +72,58 @@ class InventoryMovementController extends Controller
         return view('inventorymovement::edit', compact('movement', 'warehouses', 'movementProducts'));
     }
 
+    public function store(Request $request)
+    {
+        $request->validate([
+            'from_warehouse_id' => 'required|exists:warehouses,id',
+            'to_warehouse_id'   => 'required|exists:warehouses,id|different:from_warehouse_id',
+            'date'              => 'required|date',
+            'product_ids'       => 'required|array|min:1',
+            'product_ids.*'     => 'required|exists:products,id',
+            'quantities'        => 'required|array|min:1',
+            'quantities.*'      => 'required|integer|min:1',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $movement = new InventoryMovement();
+            $movement->reference = $request->reference ?? 'MVT-' . strtoupper(now()->format('Ymd-His'));
+            $movement->date = $request->date;
+            $movement->from_warehouse_id = $request->from_warehouse_id;
+            $movement->to_warehouse_id = $request->to_warehouse_id;
+            $movement->user_id = auth()->id();
+            $movement->note = $request->note;
+            $movement->save();
+
+            foreach ($request->product_ids as $index => $productId) {
+                $qty = $request->quantities[$index];
+
+                // 1. Simpan Detail
+                $detail = new InventoryMovementDetail();
+                $detail->inventory_movement_id = $movement->id;
+                $detail->product_id = $productId;
+                $detail->quantity = $qty;
+                $detail->save();
+
+                // 2. UPDATE STOK: Kurangi di Gudang Asal
+                $this->adjustStock($productId, $request->from_warehouse_id, $qty, 'decrement');
+
+                // 3. UPDATE STOK: Tambah di Gudang Tujuan
+                $this->adjustStock($productId, $request->to_warehouse_id, $qty, 'increment');
+            }
+
+            DB::commit();
+            return redirect()->route('inventory-movements.index')
+                ->with('success', 'Mutasi stok berhasil disimpan dan stok telah diperbarui.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menyimpan mutasi: ' . $e->getMessage());
+        }
+    }
+
     public function update(Request $request, $id)
     {
-        // Validasi tetap diperlukan
         $request->validate([
             'from_warehouse_id' => 'required',
             'to_warehouse_id'   => 'required|different:from_warehouse_id',
@@ -129,35 +134,43 @@ class InventoryMovementController extends Controller
         try {
             DB::beginTransaction();
 
-            $movement = InventoryMovement::findOrFail($id);
+            $movement = InventoryMovement::with('details')->findOrFail($id);
 
-            // Gunakan mapping manual untuk memastikan data masuk ke kolom yang tepat
+            // --- A. REVERSAL (Kembalikan stok lama sebelum diupdate) ---
+            foreach ($movement->details as $oldDetail) {
+                // Tambahkan kembali ke gudang asal lama
+                $this->adjustStock($oldDetail->product_id, $movement->from_warehouse_id, $oldDetail->quantity, 'increment');
+                // Kurangi dari gudang tujuan lama
+                $this->adjustStock($oldDetail->product_id, $movement->to_warehouse_id, $oldDetail->quantity, 'decrement');
+            }
+
+            // --- B. UPDATE HEADER ---
             $movement->reference = $request->reference;
             $movement->date = $request->date;
             $movement->from_warehouse_id = $request->from_warehouse_id;
             $movement->to_warehouse_id = $request->to_warehouse_id;
-            // $movement->status = $request->status;
             $movement->note = $request->note;
-            $movement->user_id = auth()->id(); // Update siapa yang terakhir mengedit
+            $movement->user_id = auth()->id();
+            $movement->save();
 
-            $movement->save(); // Simpan header
-
-            // Hapus detail lama
+            // --- C. UPDATE DETAIL & STOK BARU ---
             $movement->details()->delete();
 
-            // Simpan detail baru
-            if ($request->has('product_ids')) {
-                foreach ($request->product_ids as $index => $productId) {
-                    InventoryMovementDetail::create([
-                        'inventory_movement_id' => $movement->id,
-                        'product_id'            => $productId,
-                        'quantity'              => $request->quantities[$index],
-                    ]);
-                }
+            foreach ($request->product_ids as $index => $productId) {
+                $qty = $request->quantities[$index];
+
+                InventoryMovementDetail::create([
+                    'inventory_movement_id' => $movement->id,
+                    'product_id'            => $productId,
+                    'quantity'              => $qty,
+                ]);
+
+                // Update stok dengan data gudang/qty yang baru
+                $this->adjustStock($productId, $request->from_warehouse_id, $qty, 'decrement');
+                $this->adjustStock($productId, $request->to_warehouse_id, $qty, 'increment');
             }
 
             DB::commit();
-
             return redirect()->route('inventory-movements.index')
                 ->with('success', 'Mutasi stok #' . $movement->reference . ' berhasil diperbarui.');
         } catch (\Exception $e) {
@@ -165,25 +178,57 @@ class InventoryMovementController extends Controller
             return back()->with('error', 'Gagal update: ' . $e->getMessage());
         }
     }
+
     public function destroy($id)
     {
         try {
             DB::beginTransaction();
 
-            $movement = InventoryMovement::findOrFail($id);
+            $movement = InventoryMovement::with('details')->findOrFail($id);
 
-            // Hapus detail terlebih dahulu karena ada foreign key
+            // --- REVERSAL (Kembalikan stok sebelum data dihapus) ---
+            foreach ($movement->details as $detail) {
+                $this->adjustStock($detail->product_id, $movement->from_warehouse_id, $detail->quantity, 'increment');
+                $this->adjustStock($detail->product_id, $movement->to_warehouse_id, $detail->quantity, 'decrement');
+            }
+
             $movement->details()->delete();
-
-            // Hapus header
             $movement->delete();
 
             DB::commit();
             return redirect()->route('inventory-movements.index')
-                ->with('success', 'Data mutasi berhasil dihapus.');
+                ->with('success', 'Data mutasi berhasil dihapus dan stok dikembalikan.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Helper function untuk menyesuaikan stok di ProductWarehouse
+     */
+    private function adjustStock($productId, $warehouseId, $qty, $type)
+    {
+        $stock = ProductWarehouse::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        if ($type === 'increment') {
+            if ($stock) {
+                $stock->increment('qty', $qty);
+            } else {
+                ProductWarehouse::create([
+                    'product_id' => $productId,
+                    'warehouse_id' => $warehouseId,
+                    'qty' => $qty
+                ]);
+            }
+        } elseif ($type === 'decrement') {
+            if (!$stock || $stock->qty < $qty) {
+                $product = Product::find($productId);
+                throw new \Exception("Stok produk [" . ($product->product_name ?? $productId) . "] tidak mencukupi di gudang asal!");
+            }
+            $stock->decrement('qty', $qty);
         }
     }
 }

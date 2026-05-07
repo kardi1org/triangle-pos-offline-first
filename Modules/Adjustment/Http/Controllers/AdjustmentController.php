@@ -3,7 +3,6 @@
 namespace Modules\Adjustment\Http\Controllers;
 
 use Modules\Adjustment\DataTables\AdjustmentsDataTable;
-use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
@@ -11,24 +10,21 @@ use Illuminate\Support\Facades\Gate;
 use Modules\Adjustment\Entities\AdjustedProduct;
 use Modules\Adjustment\Entities\Adjustment;
 use Modules\Product\Entities\Product;
-use Modules\Setting\Entities\Warehouse; // Tambahkan import model Warehouse
+use Modules\Setting\Entities\Warehouse;
+use Modules\Setting\Entities\ProductWarehouse; // Import Model ProductWarehouse
 
 class AdjustmentController extends Controller
 {
     public function index(AdjustmentsDataTable $dataTable)
     {
         abort_if(Gate::denies('access_adjustments'), 403);
-
         return $dataTable->render('adjustment::index');
     }
 
     public function create()
     {
         abort_if(Gate::denies('create_adjustments'), 403);
-
-        // Ambil data gudang aktif untuk dropdown
         $warehouses = Warehouse::where('is_active', true)->get();
-
         return view('adjustment::create', compact('warehouses'));
     }
 
@@ -38,63 +34,67 @@ class AdjustmentController extends Controller
 
         $request->validate([
             'reference'    => 'required|string|max:255',
-            'warehouse_id' => 'required', // Validasi warehouse_id
+            'warehouse_id' => 'required',
             'date'         => 'required|date',
             'note'         => 'nullable|string|max:1000',
-            'product_ids'  => 'required',
-            'quantities'   => 'required',
-            'types'        => 'required'
+            'product_ids'  => 'required|array',
+            'quantities'   => 'required|array',
+            'types'        => 'required|array'
         ]);
 
-        DB::transaction(function () use ($request) {
+        try {
+            DB::beginTransaction();
+
             $adjustment = Adjustment::create([
                 'reference'    => $request->reference,
-                'warehouse_id' => $request->warehouse_id, // Simpan warehouse_id
+                'warehouse_id' => $request->warehouse_id,
                 'date'         => $request->date,
                 'note'         => $request->note
             ]);
 
             foreach ($request->product_ids as $key => $id) {
+                $qty = $request->quantities[$key];
+                $type = $request->types[$key];
+
                 AdjustedProduct::create([
                     'adjustment_id' => $adjustment->id,
                     'product_id'    => $id,
-                    'quantity'      => $request->quantities[$key],
-                    'type'          => $request->types[$key]
+                    'quantity'      => $qty,
+                    'type'          => $type
                 ]);
 
+                // Update Master Product (Global Stock)
                 $product = Product::findOrFail($id);
-
-                if ($request->types[$key] == 'add') {
-                    $product->update([
-                        'product_quantity' => $product->product_quantity + $request->quantities[$key]
-                    ]);
-                } elseif ($request->types[$key] == 'sub') {
-                    $product->update([
-                        'product_quantity' => $product->product_quantity - $request->quantities[$key]
-                    ]);
+                if ($type == 'add') {
+                    $product->increment('product_quantity', $qty);
+                    // Update Warehouse Stock
+                    $this->updateWarehouseStock($id, $request->warehouse_id, $qty, 'increment');
+                } else {
+                    $product->decrement('product_quantity', $qty);
+                    // Update Warehouse Stock
+                    $this->updateWarehouseStock($id, $request->warehouse_id, $qty, 'decrement');
                 }
             }
-        });
 
-        toast('Adjustment Created!', 'success');
-
-        return redirect()->route('adjustments.index');
+            DB::commit();
+            toast('Adjustment Created!', 'success');
+            return redirect()->route('adjustments.index');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal: ' . $e->getMessage());
+        }
     }
 
     public function show(Adjustment $adjustment)
     {
         abort_if(Gate::denies('show_adjustments'), 403);
-
         return view('adjustment::show', compact('adjustment'));
     }
 
     public function edit(Adjustment $adjustment)
     {
         abort_if(Gate::denies('edit_adjustments'), 403);
-
-        // Ambil data gudang aktif untuk dropdown di halaman edit
         $warehouses = Warehouse::where('is_active', true)->get();
-
         return view('adjustment::edit', compact('adjustment', 'warehouses'));
     }
 
@@ -104,86 +104,135 @@ class AdjustmentController extends Controller
 
         $request->validate([
             'reference'    => 'required|string|max:255',
-            'warehouse_id' => 'required', // Validasi warehouse_id
+            'warehouse_id' => 'required',
             'date'         => 'required|date',
             'note'         => 'nullable|string|max:1000',
-            'product_ids'  => 'required',
-            'quantities'   => 'required',
-            'types'        => 'required'
+            'product_ids'  => 'required|array',
+            'quantities'   => 'required|array',
+            'types'        => 'required|array'
         ]);
 
-        DB::transaction(function () use ($request, $adjustment) {
-            // Kembalikan stok lama sebelum menghapus AdjustedProduct lama
-            foreach ($adjustment->adjustedProducts as $adjustedProduct) {
-                $product = Product::findOrFail($adjustedProduct->product->id);
+        try {
+            DB::beginTransaction();
 
-                if ($adjustedProduct->type == 'add') {
-                    $product->update([
-                        'product_quantity' => $product->product_quantity - $adjustedProduct->quantity
-                    ]);
-                } elseif ($adjustedProduct->type == 'sub') {
-                    $product->update([
-                        'product_quantity' => $product->product_quantity + $adjustedProduct->quantity
-                    ]);
+            // --- 1. REVERSAL STOK LAMA ---
+            foreach ($adjustment->adjustedProducts as $oldDetail) {
+                $oldProduct = Product::findOrFail($oldDetail->product_id);
+
+                if ($oldDetail->type == 'add') {
+                    // Jika dulu ditambah, sekarang kurangi untuk menetralkan
+                    $oldProduct->decrement('product_quantity', $oldDetail->quantity);
+                    $this->updateWarehouseStock($oldDetail->product_id, $adjustment->warehouse_id, $oldDetail->quantity, 'decrement');
+                } else {
+                    // Jika dulu dikurangi, sekarang tambah untuk menetralkan
+                    $oldProduct->increment('product_quantity', $oldDetail->quantity);
+                    $this->updateWarehouseStock($oldDetail->product_id, $adjustment->warehouse_id, $oldDetail->quantity, 'increment');
                 }
-
-                $adjustedProduct->delete();
+                $oldDetail->delete();
             }
 
-            // Update Header Adjustment termasuk warehouse_id
+            // --- 2. UPDATE HEADER ---
             $adjustment->update([
                 'reference'    => $request->reference,
-                'warehouse_id' => $request->warehouse_id, // Update warehouse_id
+                'warehouse_id' => $request->warehouse_id,
                 'date'         => $request->date,
                 'note'         => $request->note
             ]);
 
-            // Simpan detail baru dan update stok baru
+            // --- 3. SIMPAN DETAIL & STOK BARU ---
             foreach ($request->product_ids as $key => $id) {
+                $qty = $request->quantities[$key];
+                $type = $request->types[$key];
+
                 AdjustedProduct::create([
                     'adjustment_id' => $adjustment->id,
                     'product_id'    => $id,
-                    'quantity'      => $request->quantities[$key],
-                    'type'          => $request->types[$key]
+                    'quantity'      => $qty,
+                    'type'          => $type
                 ]);
 
                 $product = Product::findOrFail($id);
-
-                if ($request->types[$key] == 'add') {
-                    $product->update([
-                        'product_quantity' => $product->product_quantity + $request->quantities[$key]
-                    ]);
-                } elseif ($request->types[$key] == 'sub') {
-                    $product->update([
-                        'product_quantity' => $product->product_quantity - $request->quantities[$key]
-                    ]);
+                if ($type == 'add') {
+                    $product->increment('product_quantity', $qty);
+                    $this->updateWarehouseStock($id, $request->warehouse_id, $qty, 'increment');
+                } else {
+                    $product->decrement('product_quantity', $qty);
+                    $this->updateWarehouseStock($id, $request->warehouse_id, $qty, 'decrement');
                 }
             }
-        });
 
-        toast('Adjustment Updated!', 'info');
-
-        return redirect()->route('adjustments.index');
+            DB::commit();
+            toast('Adjustment Updated!', 'info');
+            return redirect()->route('adjustments.index');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal update: ' . $e->getMessage());
+        }
     }
 
     public function destroy(Adjustment $adjustment)
     {
         abort_if(Gate::denies('delete_adjustments'), 403);
 
-        // Sebelum hapus adjustment, kembalikan stok
-        foreach ($adjustment->adjustedProducts as $adjustedProduct) {
-            $product = Product::findOrFail($adjustedProduct->product_id);
-            if ($adjustedProduct->type == 'add') {
-                $product->update(['product_quantity' => $product->product_quantity - $adjustedProduct->quantity]);
+        try {
+            DB::beginTransaction();
+
+            // --- REVERSAL STOK SEBELUM HAPUS ---
+            foreach ($adjustment->adjustedProducts as $detail) {
+                $product = Product::findOrFail($detail->product_id);
+                if ($detail->type == 'add') {
+                    $product->decrement('product_quantity', $detail->quantity);
+                    $this->updateWarehouseStock($detail->product_id, $adjustment->warehouse_id, $detail->quantity, 'decrement');
+                } else {
+                    $product->increment('product_quantity', $detail->quantity);
+                    $this->updateWarehouseStock($detail->product_id, $adjustment->warehouse_id, $detail->quantity, 'increment');
+                }
+            }
+
+            $adjustment->delete();
+
+            DB::commit();
+            toast('Adjustment Deleted!', 'warning');
+            return redirect()->route('adjustments.index');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal hapus: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Helper untuk mengupdate tabel ProductWarehouse
+     */
+    private function updateWarehouseStock($product_id, $warehouse_id, $qty, $action)
+    {
+        $stock = ProductWarehouse::where('product_id', $product_id)
+            ->where('warehouse_id', $warehouse_id)
+            ->first();
+
+        if ($action == 'increment') {
+            if ($stock) {
+                $stock->increment('qty', $qty);
             } else {
-                $product->update(['product_quantity' => $product->product_quantity + $adjustedProduct->quantity]);
+                ProductWarehouse::create([
+                    'product_id' => $product_id,
+                    'warehouse_id' => $warehouse_id,
+                    'qty' => $qty
+                ]);
+            }
+        } else {
+            // Jika decrement, pastikan data ada (idealnya data stok gudang harus ada sebelum adjustment 'sub')
+            if ($stock) {
+                // Opsional: Cek jika stok akhir akan negatif (jika bisnis tidak mengizinkan stok minus)
+                // if ($stock->qty < $qty) { throw new \Exception("Stok gudang tidak cukup untuk dikurangi!"); }
+                $stock->decrement('qty', $qty);
+            } else {
+                // Jika data gudang belum ada tapi dilakukan pengurangan stok
+                ProductWarehouse::create([
+                    'product_id' => $product_id,
+                    'warehouse_id' => $warehouse_id,
+                    'qty' => -$qty
+                ]);
             }
         }
-
-        $adjustment->delete();
-
-        toast('Adjustment Deleted!', 'warning');
-
-        return redirect()->route('adjustments.index');
     }
 }
