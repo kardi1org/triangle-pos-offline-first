@@ -1111,6 +1111,14 @@ class PosController extends Controller
         return view('sale::prints.kitchen', compact('sale'));
     }
 
+    public function getPreBillContent($reference)
+    {
+        $sale = Sale::where('reference', $reference)->first();
+        $saleDetails = SaleDetails::where('sale_id', $sale->id)->get();
 
+        // Pastikan view ini HANYA berisi konten tabel,
+        // jangan ada @extends('layouts.app') di dalamnya!
+        return view('sale::pos.prebill-preview', compact('sale', 'saleDetails'));
+    }
     /*------------------------------------------------------------------------------- */
 }

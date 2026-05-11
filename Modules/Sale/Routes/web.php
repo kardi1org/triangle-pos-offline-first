@@ -25,6 +25,7 @@ Route::group(['middleware' => ['auth', 'check.shift']], function () {
     Route::get('/app/pos', 'PosController@index')->name('app.pos.index');
     Route::post('/app/pos', 'PosController@store')->name('app.pos.store');
     Route::post('/pos/update', 'PosController@update')->name('app.pos.update');
+    Route::get('/pos/prebill-preview/{reference}', 'PosController@getPreBillContent');
 
     //  Route::get('/show', 'PosController@showorder')->name('show.showorder'); //Add by Chris
     Route::post('/save-order', 'PosController@saveorder')->name('save.saveorder');  //Add by Chris

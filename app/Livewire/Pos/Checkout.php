@@ -1058,6 +1058,29 @@ class Checkout extends Component
         $this->dispatch('openKitchenPreviewModal');
     }
 
+    /**
+     * Memanggil Modal Preview Pre-Bill via JavaScript
+     * @param int|string $orderId
+     */
+    public function printPreBill($orderId)
+    {
+        // 1. Cari data Sale berdasarkan ID
+        $sale = Sale::find($orderId);
+
+        if (!$sale) {
+            $this->alertType = 'danger';
+            $this->alertMessage = 'Data pesanan tidak ditemukan.';
+            return;
+        }
+
+        // 2. Kirim event ke JavaScript (Browser Event)
+        // Ini akan ditangkap oleh listener JavaScript yang sudah Anda buat sebelumnya
+        $this->dispatch('show-prebill-preview', reference: $sale->reference);
+
+        // 3. Optional: Jika ingin menutup modal pending orders otomatis saat pre-bill muncul
+        $this->dispatch('unblur-pending-orders-modal');
+    }
+
     public function updatedLainA()
     {
         $this->total_amount = $this->calculateTotal();

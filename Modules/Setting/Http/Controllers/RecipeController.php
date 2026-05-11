@@ -15,7 +15,7 @@ class RecipeController extends Controller
 {
     public function index()
     {
-        $recipes = Recipe::with('product')->latest()->get();
+        $recipes = Recipe::with(['product', 'details'])->get();
         return view('setting::recipes.index', compact('recipes'));
     }
 

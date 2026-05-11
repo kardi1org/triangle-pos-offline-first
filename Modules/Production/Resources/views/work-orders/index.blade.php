@@ -29,8 +29,8 @@
                                 <tr>
                                     <td><strong>{{ $wo->reference }}</strong></td>
                                     <td>{{ \Carbon\Carbon::parse($wo->date)->format('d/m/Y') }}</td>
-                                    <td>{{ $wo->product->product_name }}</td>
-                                    <td>{{ $wo->warehouse->name }}</td>
+                                    <td>{{ optional($wo->product)->product_name ?? '-' }}</td>
+                                    <td>{{ optional($wo->warehouse)->name ?? '-' }}</td>
                                     <td class="text-center">{{ $wo->quantity }} {{ $wo->unit }}</td>
                                     <td class="text-center">
                                         <a href="{{ route('work-orders.edit', $wo->id) }}" class="btn btn-info btn-sm">

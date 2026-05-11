@@ -480,6 +480,29 @@
         Livewire.on('show-pending-orders-modal', () => {
             $('#' + PENDING_ORDERS_MODAL_ID).modal('show');
         });
+
+        // Menangkap event 'show-prebill-preview' dari Livewire
+        Livewire.on('show-prebill-preview', (event) => {
+
+            // LOGIKA PERBAIKAN:
+            // Di Livewire 3, data biasanya ada di dalam array pertama jika dikirim
+            // dengan dispatch('event', {key: value})
+
+            const data = Array.isArray(event) ? event[0] : event;
+            const ref = data.reference;
+
+            console.log("Menerima Reference:", ref); // Debugging
+
+            if (ref) {
+                if (typeof loadAndShowPreBillModal === "function") {
+                    loadAndShowPreBillModal(ref);
+                } else {
+                    console.error("Fungsi loadAndShowPreBillModal tidak ditemukan!");
+                }
+            } else {
+                console.error("Data reference kosong!");
+            }
+        });
     });
 
     // --- 2. BOOTSTRAP EVENT LISTENERS (Dikompromikan/Dihapus) ---
@@ -594,6 +617,110 @@
         unblurPendingOrdersModal();
         $('#kitchenPreviewModal').modal('hide');
     }
+
+    function printPreBill() {
+        const content = document.getElementById('prebill-content').innerHTML;
+        if (!content) {
+            alert("Konten tidak ditemukan!");
+            return;
+        }
+
+        const win = window.open('', 'PRINT_PREBILL', 'width=450,height=600');
+
+        win.document.write(`
+        <html>
+        <head>
+            <title>Print Pre-Bill</title>
+            <style>
+                @page { size: 58mm auto; margin: 0; }
+                body {
+                    font-family: monospace;
+                    font-size: 12px; /* Sedikit diperbesar agar mudah dibaca */
+                    line-height: 1.2;
+                    margin: 0;
+                    padding: 0;
+                    width: 48mm;
+                    background-color: #fff;
+                    color: #000;
+                }
+                .prebill-container {
+                    width: 100%;
+                    padding: 5px 0 10px 2mm;
+                    box-sizing: border-box;
+                }
+                .center { text-align: center; }
+                .text-right { text-align: right; }
+                .font-bold { font-weight: bold; }
+
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed; /* Mengunci lebar kolom */
+                }
+                td {
+                    padding: 1px 0;
+                    vertical-align: top;
+                    overflow: hidden;
+                }
+                .divider {
+                    border-top: 1px dashed #000;
+                    margin: 5px 0;
+                }
+
+                /* Pengaturan Lebar Kolom agar tidak pecah seperti di gambar */
+                .col-label { width: 30%; }
+                .col-separator { width: 5%; }
+                .col-value { width: 65%; }
+
+                .col-desc { width: 50%; }
+                .col-qty-price { width: 50%; }
+
+                .title-prebill {
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-bottom: 2px;
+                    display: block;
+                }
+            </style>
+        </head>
+        <body onload="window.print(); setTimeout(() => { window.close(); }, 500);">
+            <div class="prebill-container">
+                ${content}
+            </div>
+        </body>
+        </html>
+    `);
+
+        win.document.close();
+    }
+    // ✅ FUNGSI UNTUK MENGAMBIL DATA DAN MENAMPILKAN MODAL PRE-BILL
+    function loadAndShowPreBillModal(reference) {
+        console.log("Memuat Pre-Bill untuk Ref: " + reference);
+
+        // Ganti URL ini sesuai dengan route Laravel Anda yang menangani preview pre-bill
+        // Contoh: /pos/prebill-preview/{reference}
+        fetch(`/pos/prebill-preview/${reference}`)
+            .then(response => response.text())
+            .then(html => {
+                // 1. Masukkan konten HTML ke dalam area konten modal pre-bill Anda
+                // Pastikan Anda punya elemen dengan ID 'prebill-content' di dalam modal
+                const contentArea = document.getElementById('prebill-content');
+                if (contentArea) {
+                    contentArea.innerHTML = html;
+                }
+
+                // 2. Tampilkan Modal Pre-Bill
+                // Pastikan ID modal sesuai, misal: 'preBillModal'
+                $('#preBillModal').modal('show');
+
+                // 3. Pastikan UI lain rapi (unblur jika perlu)
+                unblurPendingOrdersModal();
+            })
+            .catch(error => {
+                console.error('Gagal memuat preview pre-bill:', error);
+                alert('Gagal memuat data pre-bill.');
+            });
+    }
 </script>
 
 <script>
@@ -627,12 +754,12 @@
             $('#receiptContent').html('<div class="text-center">Memuat Struk...</div>');
 
             const iframeHtml = `
-    <iframe
-        src="${printUrl}?modal=true"
-        style="width: 100%; height: 400px; border: none;"
-        id="receiptIframe">
-    </iframe>
-`;
+            <iframe
+                src="${printUrl}?modal=true"
+                style="width: 100%; height: 400px; border: none;"
+                id="receiptIframe">
+            </iframe>
+        `;
 
             $('#receiptContent').html(iframeHtml);
             $('#printReceiptModal').modal('show');
@@ -665,12 +792,12 @@
             $('#kitchenOrderContent').html('<div class="text-center">Memuat Kitchen Order...</div>');
 
             const iframeHtml = `
-    <iframe
-        src="${kitchenUrl}?modal=true"
-        style="width: 100%; height: 400px; border: none;"
-        id="kitchenIframe">
-    </iframe>
-`;
+            <iframe
+                src="${kitchenUrl}?modal=true"
+                style="width: 100%; height: 400px; border: none;"
+                id="kitchenIframe">
+            </iframe>
+        `;
 
             $('#kitchenOrderContent').html(iframeHtml);
             $('#kitchenOrderModal').modal('show');

@@ -179,6 +179,38 @@ ADD COLUMN warehouse_id BIGINT(20) UNSIGNED NULL AFTER note;
 ALTER TABLE inventories
 ADD COLUMN warehouse_id BIGINT(20) UNSIGNED NULL AFTER note;
 
+CREATE TABLE `cash_transfers` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `date` date NOT NULL,
+  `reference` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `receive_type_transferfrom` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `amount_transferfrom` int(11) DEFAULT NULL,
+  `amount_change` int(11) DEFAULT NULL,
+  `transferto_id` int(10) DEFAULT NULL,
+  `receive_type_transferto` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `amount_transferto` int(11) DEFAULT NULL,
+  `details` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `trans_type` varchar(2) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+CREATE TABLE `methode_payment` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `methode_name` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `active` varchar(2) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*Data for the table `methode_payment` */
+
+insert  into `methode_payment`(`id`,`code`,`methode_name`,`active`,`created_at`,`updated_at`) values (1,'1001','Cash','1','2025-11-04 13:37:20',NULL),(2,'1002','Debit Card','1','2025-11-04 13:39:11',NULL),(3,'1003','Gopay','1','2025-11-04 13:43:46',NULL),(4,'1004','Credit Card','1','2025-11-04 13:44:33',NULL),(5,'1005','OVO','1','2025-11-04 13:46:07',NULL),(6,'1006','ShopeePay','1','2025-11-04 13:46:33',NULL),(7,'1007','Kredivo','1','2025-11-04 13:47:03',NULL),(8,'1008','Dana','1','2025-11-04 13:47:35',NULL),(9,'1009','GrabPay','1','2025-11-04 13:48:11',NULL),(10,'1010','QRIS','1','2025-11-04 13:48:40',NULL);
+
+
 
 
 

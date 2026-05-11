@@ -183,6 +183,22 @@
                                                             Detail
                                                         </span>
                                                     </button>
+                                                    {{-- 🆕 TOMBOL PRE-BILL --}}
+                                                    <button wire:click="printPreBill({{ $order->id }})"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="printPreBill({{ $order->id }})"
+                                                        class="btn btn-sm btn-warning mr-1">
+
+                                                        <span wire:loading
+                                                            wire:target="printPreBill({{ $order->id }})">
+                                                            Loading...
+                                                            {{-- <i class="bi bi-hourglass-split"></i> --}}
+                                                        </span>
+                                                        <span wire:loading.remove
+                                                            wire:target="printPreBill({{ $order->id }})">
+                                                            <i class="bi bi-file-earmark-text"></i> Pre-Bill
+                                                        </span>
+                                                    </button>
                                                     <button wire:click="restorePendingOrder({{ $order->id }})"
                                                         wire:loading.attr="disabled"
                                                         wire:target="restorePendingOrder({{ $order->id }})"
@@ -216,6 +232,25 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- ✅ Modal Pre-Bill -->
+    <div class="modal fade" id="preBillModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Pre-Bill Preview</h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body" id="prebill-content">
+                    <p class="text-center">Memuat data...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="printPreBill()">Print</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -321,8 +356,8 @@
     </style>
 
     <!-- ✅ Print preview Order dapur -->
-    <div wire:ignore.self class="modal fade" id="kitchenPreviewModal" tabindex="-1" role="dialog" aria-hidden="true"
-        data-backdrop="static" data-keyboard="false">
+    <div wire:ignore.self class="modal fade" id="kitchenPreviewModal" tabindex="-1" role="dialog"
+        aria-hidden="true" data-backdrop="static" data-keyboard="false">
         <div class="modal-dialog modal-md" role="document">
             <div class="modal-content">
                 {{-- Header Modal --}}
