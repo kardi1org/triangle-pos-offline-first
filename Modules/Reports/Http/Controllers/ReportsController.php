@@ -112,7 +112,8 @@ class ReportsController extends Controller
             $start_date = $request->start_date;
             $end_date = $request->end_date;
 
-            // 1. Hitung Stock Awal (Sebelum start_date)
+            // --- 1. HITUNG STOCK AWAL (Sebelum start_date) ---
+
             $prev_purchase = \Modules\Purchase\Entities\PurchaseDetail::whereHas('purchase', function ($q) use ($warehouse_id, $start_date) {
                 $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date)->where('status', 'Completed');
             })->where('product_id', $product_id)->sum('quantity');
@@ -127,7 +128,18 @@ class ReportsController extends Controller
                 ->selectRaw("SUM(CASE WHEN type = 'add' THEN quantity ELSE -quantity END) as total")
                 ->value('total');
 
-            $stock_awal = $prev_purchase - $prev_purchase_return + ($prev_adjustment ?? 0);
+            // Tambahan: Stock Awal dari Work Order (Produk Jadi - Masuk)
+            $prev_wo_in = \Modules\Production\Entities\WorkOrder::where('product_id', $product_id)
+                ->where('warehouse_id', $warehouse_id)
+                ->where('date', '<', $start_date)
+                ->sum('quantity');
+
+            // Tambahan: Stock Awal dari Work Order (Bahan Baku - Keluar)
+            $prev_wo_out = \Modules\Production\Entities\WorkOrderDetail::whereHas('workOrder', function ($q) use ($warehouse_id, $start_date) {
+                $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date);
+            })->where('product_id', $product_id)->sum('quantity');
+
+            $stock_awal = $prev_purchase - $prev_purchase_return + ($prev_adjustment ?? 0) + $prev_wo_in - $prev_wo_out;
 
             // 2. Ambil Transaksi (Purchase)
             \Modules\Purchase\Entities\PurchaseDetail::with('purchase')
@@ -169,6 +181,42 @@ class ReportsController extends Controller
                         'in'   => $item->type == 'add' ? $item->quantity : 0,
                         'out'  => $item->type == 'sub' ? $item->quantity : 0
                     ]);
+                });
+
+            // 5. AMBIL TRANSAKSI WORK ORDER ---
+
+            // A. Sebagai Produk Jadi (Barang Masuk / IN)
+            \Modules\Production\Entities\WorkOrder::where('product_id', $product_id)
+                ->where('warehouse_id', $warehouse_id)
+                ->whereBetween('date', [$start_date, $end_date])
+                ->get()->each(function ($item) use ($movements) {
+                    $movements->push([
+                        'date' => $item->date,
+                        'ref'  => $item->reference,
+                        'type' => 'Work Order (Output)',
+                        'in'   => $item->quantity,
+                        'out'  => 0
+                    ]);
+                });
+
+            // B. Sebagai Bahan Baku (Barang Keluar / OUT)
+            \Modules\Production\Entities\WorkOrderDetail::with('workOrder')
+                ->whereHas('workOrder', function ($q) use ($warehouse_id, $start_date, $end_date) {
+                    $q->where('warehouse_id', $warehouse_id)
+                        ->whereBetween('date', [$start_date, $end_date]);
+                })
+                ->where('product_id', $product_id)
+                ->get()->each(function ($item) use ($movements) {
+                    // Pastikan workOrder ada sebelum push
+                    if ($item->workOrder) {
+                        $movements->push([
+                            'date' => $item->workOrder->date,
+                            'ref'  => $item->workOrder->reference,
+                            'type' => 'Work Order (Material)',
+                            'in'   => 0,
+                            'out'  => $item->quantity
+                        ]);
+                    }
                 });
 
             $movements = $movements->sortBy('date');
