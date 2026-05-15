@@ -719,15 +719,26 @@ class PosController extends Controller
 
     public function printReceipt(Request $request, $reference)
     {
-        // Ambil data sale dari database tenant (pastikan model Sale sudah menggunakan koneksi tenant)
+        // 1. Ambil data Sale
         $sale = Sale::with('saleDetails')->where('reference', $reference)->firstOrFail();
 
-        // 🎯 AMBIL DATA SETTING DARI DATABASE TENANT
-        // Pastikan Anda memiliki model Setting yang diarahkan ke database tenant
-        // Ini akan mengambil data langsung dari tabel 'settings' di database yang aktif (tenant)
+        // 2. Ambil data Outlet secara MANUAL (Fail-safe)
+        // Kita paksa menggunakan koneksi 'mysql' (pusat) agar field 'info' pasti terbaca
+        $outlet = null;
+        if ($sale->outlet_id) {
+            $outlet = \Illuminate\Support\Facades\DB::connection('mysql') // Pastikan 'mysql' adalah nama koneksi db_pos
+                ->table('outlets')
+                ->where('id', $sale->outlet_id)
+                ->first();
+        }
+
+        // Simpan data outlet ke dalam properti sale secara manual agar tidak mengubah struktur view
+        $sale->outlet_data = $outlet;
+
+        // 3. Ambil data Setting Tenant
         $settings = \Illuminate\Support\Facades\DB::table('settings')->first();
 
-        // --- LOGIKA KONVERSI ID MEJA (Tetap seperti kode Anda) ---
+        // --- LOGIKA KONVERSI ID MEJA ---
         $tableIds = $sale->selected_table_ids;
         if (is_array($tableIds) && !empty($tableIds)) {
             $tableNames = Meja::whereIn('id', $tableIds)->pluck('name', 'id')->toArray();
@@ -739,7 +750,6 @@ class PosController extends Controller
 
         $isModal = $request->query('modal') === 'true';
 
-        // Kirim variabel $settings ke view
         return view('sale::pos.print-receipt', compact('sale', 'isModal', 'settings'));
     }
 

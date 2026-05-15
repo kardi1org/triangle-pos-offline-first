@@ -126,4 +126,11 @@ class Sale extends Model
     {
         return $this->belongsTo(\App\Models\User::class, 'user_id');
     }
+
+    // Tambahkan di dalam class Sale
+    public function outlet()
+    {
+        // Sesuaikan namespace model Outlet Anda jika berbeda
+        return $this->belongsTo(\Modules\User\Entities\Outlet::class, 'outlet_id');
+    }
 }

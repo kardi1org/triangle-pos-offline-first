@@ -20,7 +20,7 @@ class Outlet extends Model
      */
     protected $table = 'outlets';
 
-    protected $fillable = ['name', 'email', 'address'];
+    protected $guarded = [];
 
     /**
      * Relasi ke User (Many-to-Many)
