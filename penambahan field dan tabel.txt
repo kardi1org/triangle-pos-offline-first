@@ -45,8 +45,6 @@ CREATE TABLE `outlets` (
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 
 
-Create Table
-
 CREATE TABLE `outlet_user` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) unsigned NOT NULL,
@@ -209,6 +207,17 @@ CREATE TABLE `methode_payment` (
 /*Data for the table `methode_payment` */
 
 insert  into `methode_payment`(`id`,`code`,`methode_name`,`active`,`created_at`,`updated_at`) values (1,'1001','Cash','1','2025-11-04 13:37:20',NULL),(2,'1002','Debit Card','1','2025-11-04 13:39:11',NULL),(3,'1003','Gopay','1','2025-11-04 13:43:46',NULL),(4,'1004','Credit Card','1','2025-11-04 13:44:33',NULL),(5,'1005','OVO','1','2025-11-04 13:46:07',NULL),(6,'1006','ShopeePay','1','2025-11-04 13:46:33',NULL),(7,'1007','Kredivo','1','2025-11-04 13:47:03',NULL),(8,'1008','Dana','1','2025-11-04 13:47:35',NULL),(9,'1009','GrabPay','1','2025-11-04 13:48:11',NULL),(10,'1010','QRIS','1','2025-11-04 13:48:40',NULL);
+
+ALTER TABLE shifts 
+ADD COLUMN terminal_id BIGINT UNSIGNED NULL AFTER STATUS,
+ADD COLUMN session_token VARCHAR(255) NULL AFTER terminal_id;
+
+ALTER TABLE outlets
+ADD COLUMN telp VARCHAR(30) NULL AFTER email,
+ADD COLUMN info TEXT NULL AFTER telp;
+
+ALTER TABLE products
+ADD COLUMN product_type VARCHAR(30) DEFAULT 'FG' AFTER is_recipe;
 
 
 

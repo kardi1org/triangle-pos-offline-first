@@ -182,6 +182,19 @@
                                         </select>
                                     </div>
                                 </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="product_type">Product Type <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="product_type" id="product_type" required>
+                                            <option value="FG"
+                                                {{ old('product_type', $product->product_type) == 'FG' ? 'selected' : '' }}>
+                                                FG (Finished Goods)</option>
+                                            <option value="Material"
+                                                {{ old('product_type', $product->product_type) == 'Material' ? 'selected' : '' }}>
+                                                Material</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

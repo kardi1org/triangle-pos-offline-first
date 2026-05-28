@@ -31,6 +31,18 @@
                         {!! Session::get('account_deactivated') !!}
                     </div>
                 @endif
+                {{-- Cek Pesan Error/Message dari Middleware --}}
+                @if (Session::has('message'))
+                    <div class="alert alert-warning border-0 shadow-sm" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill mr-2"></i> {{ Session::get('message') }}
+                    </div>
+                @endif
+
+                @if (Session::has('error'))
+                    <div class="alert alert-danger border-0 shadow-sm" role="alert">
+                        <i class="bi bi-x-circle-fill mr-2"></i> {{ Session::get('error') }}
+                    </div>
+                @endif
                 <div class="card p-4 border-0 shadow-sm">
                     <div class="card-body">
                         <form id="login" method="post" action="{{ url('/login') }}">

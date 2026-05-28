@@ -35,11 +35,15 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\EncryptCookies::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
-            \App\Http\Middleware\InitializeTenantConnection::class,
-            // \Illuminate\Session\Middleware\AuthenticateSession::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+
+            // 🎯 UTAMA: Set database tenant harus paling pertama setelah core Laravel siap
+            \App\Http\Middleware\SetTenantDatabase::class,
+
+            // 🎯 KEDUA: Jalankan middleware check lainnya setelah database dipastikan terkoneksi
+            \App\Http\Middleware\InitializeTenantConnection::class, // Jika ini isinya mirip, hapus/comment saja
             \App\Http\Middleware\EnsureOutletSelected::class,
         ],
 

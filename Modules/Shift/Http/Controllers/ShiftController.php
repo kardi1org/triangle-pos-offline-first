@@ -9,17 +9,17 @@ use Modules\Shift\Entities\CashTransaction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\Session;
 
 class ShiftController extends Controller
 {
-    // Fungsi Helper Private untuk hitung sales agar tidak copy-paste kode berulang
+    // Fungsi Helper Private untuk hitung sales
     private function calculateNetCashSales($userId, $startTime, $endTime)
     {
         return DB::table('sale_payments')
             ->join('sales', 'sale_payments.sale_id', '=', 'sales.id')
             ->where('sales.user_id', $userId)
             ->whereBetween('sale_payments.created_at', [$startTime, $endTime])
-            // PERBAIKAN DI SINI: Cashpay - Change
             ->sum(DB::raw('sale_payments.cashpay - COALESCE(sale_payments.change, 0)'));
     }
 
@@ -34,8 +34,6 @@ class ShiftController extends Controller
 
         if ($activeShift) {
             $now = now();
-
-            // Panggil fungsi helper perhitungan
             $totalCashSales = $this->calculateNetCashSales($userId, $activeShift->open_time, $now);
 
             $totalIncome = CashTransaction::where('user_id', $userId)
@@ -55,15 +53,34 @@ class ShiftController extends Controller
     public function openShift(Request $request)
     {
         $request->validate([
-            'starting_cash' => 'required|numeric|min:0'
+            'starting_cash' => 'required|numeric|min:0',
+            'terminal_id'   => 'nullable|string' // Terminal bisa dikirim dari form hidden atau cookie
         ]);
 
+        $userId = Auth::id();
+
+        // 1. CEK APAKAH USER SUDAH PUNYA SHIFT OPEN (Global Check)
+        $existingShift = Shift::where('user_id', Auth::id())
+            ->where('status', 'open')
+            ->first();
+
+        if ($existingShift) {
+            // Berikan pesan yang lebih informatif
+            $terminal = $existingShift->terminal_id ?? 'Unknown Terminal';
+            toast("Anda sudah memiliki shift aktif di terminal: {$terminal}. Silakan tutup shift tersebut terlebih dahulu.", 'error');
+            return back();
+        }
+
+        // 2. CREATE SHIFT BARU DENGAN LOCK SESSION
         Shift::create([
-            'user_id'       => Auth::id(),
+            'user_id'       => $userId,
             'open_time'     => now(),
             'starting_cash' => $request->starting_cash,
+            'terminal_id'   => $request->terminal_id ?? $request->cookie('terminal_id'), // Ambil dari input atau cookie
+            'session_token' => Session::getId(), // Kunci session browser saat ini
             'status'        => 'open'
         ]);
+
         toast('Shift opened successfully.', 'success');
         return back();
     }
@@ -94,7 +111,6 @@ class ShiftController extends Controller
         $userId = $shift->user_id;
         $now = now();
 
-        // Panggil fungsi helper perhitungan
         $sales = $this->calculateNetCashSales($userId, $shift->open_time, $now);
 
         $income = CashTransaction::where('user_id', $userId)
@@ -110,14 +126,15 @@ class ShiftController extends Controller
         $expected = ($shift->starting_cash + $sales + $income) - $expense;
 
         $shift->update([
-            'close_time' => $now,
-            'ending_cash' => $request->ending_cash,
-            'expected_ending_cash' => $expected,
-            'status' => 'closed',
-            'note' => "Sales: $sales, Income: $income, Expense: $expense. " . $request->note
+            'close_time'            => $now,
+            'ending_cash'           => $request->ending_cash,
+            'expected_ending_cash'  => $expected,
+            'status'                => 'closed',
+            'session_token'         => null, // Hapus token session saat tutup
+            'note'                  => "Sales: $sales, Income: $income, Expense: $expense. " . $request->note
         ]);
+
         toast('Shift closed successfully.', 'success');
-        //return redirect()->route('shift.index')->with('message', 'Shift ditutup.');
         return redirect()->route('shift.show', $shift->id)->with('success', 'Shift closed successfully.');
     }
 

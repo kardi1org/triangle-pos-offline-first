@@ -59,7 +59,11 @@
                                 </td>
 
                                 <td class="align-middle text-center">
-                                    @include('livewire.includes.product-cart-quantity')
+                                    @if ($cart_instance !== 'sale')
+                                        @include('livewire.includes.product-cart-quantity-all')
+                                    @else
+                                        @include('livewire.includes.product-cart-quantity')
+                                    @endif
                                 </td>
 
                                 <td class="align-middle text-center">

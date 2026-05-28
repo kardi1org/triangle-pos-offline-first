@@ -20,7 +20,7 @@
                 @include('utils.alerts')
             </div>
             <div class="col-lg-7">
-                <livewire:search-product />
+                <livewire:search-product :cart-instance="'sale'" />
                 <livewire:pos.product-list :categories="$product_categories" />
             </div>
             <div class="col-lg-5">

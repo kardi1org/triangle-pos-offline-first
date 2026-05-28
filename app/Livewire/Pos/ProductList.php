@@ -30,9 +30,10 @@ class ProductList extends Component
     public function render()
     {
         return view('livewire.pos.product-list', [
-            'products' => Product::when($this->category_id, function ($query) {
-                return $query->where('category_id', $this->category_id);
-            })
+            'products' => Product::where('product_type', 'FG') // 🎯 Hanya memunculkan produk bertipe FG
+                ->when($this->category_id, function ($query) {
+                    return $query->where('category_id', $this->category_id);
+                })
                 ->paginate($this->limit)
         ]);
     }

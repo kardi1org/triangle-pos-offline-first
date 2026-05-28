@@ -29,7 +29,7 @@ class SearchProduct extends Component
         'barcode' => 'required|min:3'
     ];
 
-    public function mount()
+    public function mount($cartInstance = null)
     {
         $this->query = '';
         $this->sql = '';
@@ -39,6 +39,7 @@ class SearchProduct extends Component
         $this->product = '';
         $this->barcode = '';
         $this->quantity = [];
+        $this->cart_instance = $cartInstance;
     }
 
     public function render()
@@ -48,10 +49,16 @@ class SearchProduct extends Component
 
     public function updatedQuery()
     {
-        $this->search_results = Product::where('product_name', 'like', '%' . $this->query . '%')
-            ->orWhere('product_code', 'like', '%' . $this->query . '%')
-            // ->orWhere('product_barcode_symbology', 'like', '%' . $this->query . '%')
-            ->take($this->how_many)->get();
+        $this->search_results = Product::when($this->cart_instance === 'sale', function ($query) {
+            // 🎯 Hanya kunci ke FG jika ini instance penjualan (sale)
+            return $query->where('product_type', 'FG');
+        })
+            ->where(function ($query) {
+                $query->where('product_name', 'like', '%' . $this->query . '%')
+                    ->orWhere('product_code', 'like', '%' . $this->query . '%');
+            })
+            ->take($this->how_many)
+            ->get();
     }
 
     public function loadMore()

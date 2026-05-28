@@ -76,6 +76,11 @@
                                 <div class="col-md-6 border-left">
                                     <div class="text-center py-4">
                                         <h5 class="text-muted">Shift ID: #{{ $activeShift->id }}</h5>
+                                        @if ($activeShift->terminal_id)
+                                            <div class="badge badge-info mb-2">
+                                                <i class="bi bi-cpu"></i> TERMINAL: {{ $activeShift->terminal_id }}
+                                            </div>
+                                        @endif
                                         <p class="mb-1">Opened by: <strong>{{ Auth::user()->name }}</strong></p>
                                         <p class="text-muted small">
                                             {{ \Carbon\Carbon::parse($activeShift->open_time)->format('l, d F Y H:i') }}</p>
@@ -116,12 +121,21 @@
                         <div class="card-header bg-primary text-white text-center py-3">
                             <h4 class="mb-0 font-weight-bold"><i class="bi bi-shop"></i> Open New Shift</h4>
                         </div>
+                        {{-- Di dalam form action="{{ route('shift.open') }}" --}}
                         <div class="card-body p-4">
                             <form action="{{ route('shift.open') }}" method="POST">
                                 @csrf
+
+                                {{-- TAMBAHKAN INI: Input Terminal ID --}}
+                                <div class="form-group">
+                                    <label class="font-weight-bold">Terminal / No. Kasir</label>
+                                    <input type="text" name="terminal_id" class="form-control mb-3"
+                                        value="{{ request()->cookie('terminal_id') }}" placeholder="Contoh: 01" required>
+                                    <small class="form-text text-muted">Identitas komputer/terminal ini.</small>
+                                </div>
+
                                 <div class="form-group text-center mb-4">
-                                    <label class="text-muted mb-3">Please enter the amount of cash currently in the drawer
-                                        to start selling.</label>
+                                    {{-- Input starting_cash yang sudah ada --}}
                                     <label class="font-weight-bold h5">Starting Cash (Cash in Hand)</label>
                                     <div class="input-group input-group-lg mt-2">
                                         <div class="input-group-prepend">
@@ -131,6 +145,7 @@
                                             required autofocus>
                                     </div>
                                 </div>
+
                                 <button type="submit" class="btn btn-primary btn-lg btn-block">
                                     Start Shift
                                 </button>
@@ -142,7 +157,8 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalKas" tabindex="-1" role="dialog" aria-labelledby="modalKasLabel" aria-hidden="true">
+    <div class="modal fade" id="modalKas" tabindex="-1" role="dialog" aria-labelledby="modalKasLabel"
+        aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header shadow-sm" id="modalHeader">

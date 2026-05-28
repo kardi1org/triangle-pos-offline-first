@@ -84,22 +84,32 @@ class ProductController extends Controller
         }
     }
 
-    public function show(Product $product)
+    // 1. Perbaikan fungsi SHOW
+    public function show($id)
     {
         abort_if(Gate::denies('show_products'), 403);
+
+        $product = Product::findOrFail($id);
+
         return view('product::products.show', compact('product'));
     }
 
-
-    public function edit(Product $product)
+    // 2. Perbaikan fungsi EDIT
+    public function edit($id)
     {
         abort_if(Gate::denies('edit_products'), 403);
+
+        $product = Product::findOrFail($id);
+
         return view('product::products.edit', compact('product'));
     }
 
-
-    public function update(UpdateProductRequest $request, Product $product)
+    // 3. Perbaikan fungsi UPDATE
+    public function update(UpdateProductRequest $request, $id)
     {
+        // Ambil data product secara manual berdasarkan ID rute
+        $product = Product::findOrFail($id);
+
         // Update data utama produk
         $product->update($request->except('document', 'variant_name', 'variant_id'));
 
@@ -138,11 +148,12 @@ class ProductController extends Controller
         return redirect()->route('products.index');
     }
 
-
-    public function destroy(Product $product)
+    // 4. Perbaikan fungsi DESTROY
+    public function destroy($id)
     {
         abort_if(Gate::denies('delete_products'), 403);
 
+        $product = Product::findOrFail($id);
         $product->delete();
 
         toast('Product Deleted!', 'warning');

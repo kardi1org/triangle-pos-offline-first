@@ -139,9 +139,18 @@ class ReportsController extends Controller
                 $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date);
             })->where('product_id', $product_id)->sum('quantity');
 
-            $stock_awal = $prev_purchase - $prev_purchase_return + ($prev_adjustment ?? 0) + $prev_wo_in - $prev_wo_out;
+            // 🎯 TAMBAHAN: Stock Awal dari Sales (Status Completed - Mengurangi Stok)
+            $prev_sales = \Modules\Sale\Entities\SaleDetails::whereHas('sale', function ($q) use ($warehouse_id, $start_date) {
+                $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date)->where('status', 'Completed');
+            })->where('product_id', $product_id)->sum('quantity');
 
-            // 2. Ambil Transaksi (Purchase)
+            // Hitung akumulasi stock awal murni (Sales mengurangi stock)
+            $stock_awal = $prev_purchase - $prev_purchase_return + ($prev_adjustment ?? 0) + $prev_wo_in - $prev_wo_out - $prev_sales;
+
+
+            // --- 2. AMBIL MUTASI TRANSAKSI (Dalam Periode Tanggal) ---
+
+            // A. Ambil Transaksi (Purchase)
             \Modules\Purchase\Entities\PurchaseDetail::with('purchase')
                 ->whereHas('purchase', function ($q) use ($warehouse_id, $start_date, $end_date) {
                     $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
@@ -155,7 +164,7 @@ class ReportsController extends Controller
                     ]);
                 });
 
-            // 3. Ambil Transaksi (Purchase Return)
+            // B. Ambil Transaksi (Purchase Return)
             \Modules\PurchasesReturn\Entities\PurchaseReturnDetail::with('purchaseReturn')
                 ->whereHas('purchaseReturn', function ($q) use ($warehouse_id, $start_date, $end_date) {
                     $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
@@ -169,7 +178,7 @@ class ReportsController extends Controller
                     ]);
                 });
 
-            // 4. Ambil Transaksi (Adjustment)
+            // C. Ambil Transaksi (Adjustment)
             \Modules\Adjustment\Entities\AdjustedProduct::with('adjustment')
                 ->whereHas('adjustment', function ($q) use ($warehouse_id, $start_date, $end_date) {
                     $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date]);
@@ -183,9 +192,7 @@ class ReportsController extends Controller
                     ]);
                 });
 
-            // 5. AMBIL TRANSAKSI WORK ORDER ---
-
-            // A. Sebagai Produk Jadi (Barang Masuk / IN)
+            // D. Ambil Transaksi Work Order (Output / IN)
             \Modules\Production\Entities\WorkOrder::where('product_id', $product_id)
                 ->where('warehouse_id', $warehouse_id)
                 ->whereBetween('date', [$start_date, $end_date])
@@ -199,15 +206,13 @@ class ReportsController extends Controller
                     ]);
                 });
 
-            // B. Sebagai Bahan Baku (Barang Keluar / OUT)
+            // E. Ambil Transaksi Work Order (Material / OUT)
             \Modules\Production\Entities\WorkOrderDetail::with('workOrder')
                 ->whereHas('workOrder', function ($q) use ($warehouse_id, $start_date, $end_date) {
-                    $q->where('warehouse_id', $warehouse_id)
-                        ->whereBetween('date', [$start_date, $end_date]);
+                    $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date]);
                 })
                 ->where('product_id', $product_id)
                 ->get()->each(function ($item) use ($movements) {
-                    // Pastikan workOrder ada sebelum push
                     if ($item->workOrder) {
                         $movements->push([
                             'date' => $item->workOrder->date,
@@ -219,6 +224,25 @@ class ReportsController extends Controller
                     }
                 });
 
+            // 🎯 F. TAMBAHAN: Ambil Transaksi Sales (Status Completed / OUT)
+            \Modules\Sale\Entities\SaleDetails::with('sale')
+                ->whereHas('sale', function ($q) use ($warehouse_id, $start_date, $end_date) {
+                    $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
+                })
+                ->where('product_id', $product_id)
+                ->get()->each(function ($item) use ($movements) {
+                    if ($item->sale) {
+                        $movements->push([
+                            'date' => $item->sale->date,
+                            'ref'  => $item->sale->reference,
+                            'type' => 'Sale',
+                            'in'   => 0,
+                            'out'  => $item->quantity
+                        ]);
+                    }
+                });
+
+            // Urutkan pergerakan berdasarkan tanggal secara kronologis
             $movements = $movements->sortBy('date');
         }
 

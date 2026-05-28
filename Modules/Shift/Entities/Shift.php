@@ -9,7 +9,8 @@ class Shift extends Model
 {
     protected $fillable = [
         'user_id', 'open_time', 'close_time', 'starting_cash',
-        'ending_cash', 'expected_ending_cash', 'note', 'status'
+        'ending_cash', 'expected_ending_cash', 'note', 'status', 'terminal_id',
+        'session_token',
     ];
 
     public function user()

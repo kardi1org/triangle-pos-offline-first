@@ -7,8 +7,9 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Providers\RouteServiceProvider;
-use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use App\Traits\ManagesTenantConnection;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Foundation\Auth\AuthenticatesUsers;
 
 class LoginController extends Controller
 {
@@ -99,6 +100,9 @@ class LoginController extends Controller
 
     protected function authenticated(Request $request, $user)
     {
+        Session::put('just_logged_in', true);
+        $user->update(['last_login_at' => now()]);
+
         $mytime = Carbon::now();
 
         // 1. CEK STATUS AKTIF & MASA BERLAKU
