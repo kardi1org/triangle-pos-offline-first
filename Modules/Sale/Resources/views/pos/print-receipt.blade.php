@@ -96,14 +96,15 @@
         <div class="center">
             <strong style="font-size: 13px;">{{ $settings->company_name ?? 'POS SYSTEM' }}</strong><br>
 
-            {{-- Memanggil outlet_data --}}
-            @if ($sale->outlet_data)
+            {{-- Gunakan optional() agar jika outlet_data kosong, sistem tidak crash --}}
+            @if (!empty($sale->outlet_data))
                 <strong style="font-size: 11px;">{{ $sale->outlet_data->name }}</strong><br>
-                {{-- Telp: {{ (string) ($sale->outlet_data->telp ?? '-') }}<br> --}}
+                {{ $sale->outlet_data->address ?? '' }}<br>
+                Telp: {{ $sale->outlet_data->telp ?? '' }}
             @endif
 
-            {{ $settings->company_address ?? '' }}<br>
-            Telp: {{ $settings->company_phone ?? '' }}
+            {{-- {{ $settings->company_address ?? '' }}<br>
+            Telp: {{ $settings->company_phone ?? '' }} --}}
             <div class="divider"></div>
         </div>
 
@@ -247,11 +248,11 @@
 
         {{-- FOOTER --}}
         <div class="center">
-            @if ($sale->outlet_data->info)
+            {{-- Amankan pengecekan properti 'info' dengan isset atau !empty --}}
+            @if (!empty($sale->outlet_data) && isset($sale->outlet_data->info))
                 <div
                     style="margin-bottom: 5px; white-space: pre-line; font-size: 10px; line-height: 1.4; border-top: 1px dashed #000; padding-top: 1px;">
                     {!! e($sale->outlet_data->info) !!}
-                    {{-- {{ $sale->outlet_data->info }}  --}}
                 </div>
             @endif
 

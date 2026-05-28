@@ -719,20 +719,41 @@ class PosController extends Controller
 
     public function printReceipt(Request $request, $reference)
     {
-        // 1. Ambil data Sale
-        $sale = Sale::with('saleDetails')->where('reference', $reference)->firstOrFail();
+        // 1. Ambil data Sale tanpa terpengaruh Global Scope outlet yang sedang aktif
+        $sale = Sale::withoutGlobalScopes()
+            ->with('saleDetails')
+            ->where('reference', $reference)
+            ->firstOrFail();
 
-        // 2. Ambil data Outlet secara MANUAL (Fail-safe)
-        // Kita paksa menggunakan koneksi 'mysql' (pusat) agar field 'info' pasti terbaca
         $outlet = null;
+
         if ($sale->outlet_id) {
-            $outlet = \Illuminate\Support\Facades\DB::connection('mysql') // Pastikan 'mysql' adalah nama koneksi db_pos
-                ->table('outlets')
-                ->where('id', $sale->outlet_id)
-                ->first();
+            try {
+                // Trik Pertama: Coba tembak menggunakan koneksi db_pos (Sesuai config)
+                $outlet = \Illuminate\Support\Facades\DB::connection('db_pos')
+                    ->table('outlets')
+                    ->where('id', $sale->outlet_id)
+                    ->first();
+
+                // Trik Kedua (Backup): Jika lewat db_pos masih kosong/null, paksa tembak manual lewat nama databasenya langsung
+                if (!$outlet) {
+                    $outlet = \Illuminate\Support\Facades\DB::table('db_pos.outlets')
+                        ->where('id', $sale->outlet_id)
+                        ->first();
+                }
+            } catch (\Exception $e) {
+                // Trik Ketiga (Emergency Backup): Jika koneksi 'db_pos' error/tidak terdefinisi
+                // Kita coba lari ke database default dengan nama tabel absolut 'db_pos.outlets'
+                $outlet = \Illuminate\Support\Facades\DB::connection('mysql')
+                    ->table('db_pos.outlets')
+                    ->where('id', $sale->outlet_id)
+                    ->first();
+            }
         }
 
-        // Simpan data outlet ke dalam properti sale secara manual agar tidak mengubah struktur view
+        // dd($outlet); // <-- 🛠️ JIKA TETAP TIDAK MUNCUL, hapus tanda '//' di depan dd($outlet) ini untuk melihat isi error datanya.
+
+        // Ikat hasil query ke properti temporary model
         $sale->outlet_data = $outlet;
 
         // 3. Ambil data Setting Tenant

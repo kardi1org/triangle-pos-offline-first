@@ -28,7 +28,7 @@ class MutationReportController extends Controller
             // 1. HITUNG SALDO AWAL (OPENING BALANCE)
             // ==========================================
 
-            // a. Dari Cash Transfer sebelum tanggal mulai
+            // a. Dari Cash Transfer sebelum tanggal mulai (Asumsi tidak dikali 100)
             $cashInBefore = CashTransfer::where('date', '<', $startDate)
                 ->where('receive_type_transferto', $receiveType)
                 ->sum('amount_transferto');
@@ -37,36 +37,33 @@ class MutationReportController extends Controller
                 ->where('receive_type_transferfrom', $receiveType)
                 ->sum('amount_transferfrom');
 
-            // b. Dari Sales Return (Uang Keluar -> Mengurangi Saldo)
+            // 🎯 b. Dari Sales Return (Uang Keluar -> Dibagi 100)
             $salesReturnBefore = DB::table('sale_returns')
                 ->where('date', '<', $startDate)
                 ->where('status', 'Completed')
                 ->where('payment_method', $receiveType)
-                ->sum('paid_amount');
+                ->sum(DB::raw('paid_amount / 100'));
 
-            // c. Dari Purchase (Uang Keluar -> Mengurangi Saldo)
+            // 🎯 c. Dari Purchase (Uang Keluar -> Dibagi 100)
             $purchaseBefore = DB::table('purchases')
                 ->where('date', '<', $startDate)
                 ->where('status', 'Completed')
                 ->where('payment_method', $receiveType)
-                ->sum('paid_amount');
+                ->sum(DB::raw('paid_amount / 100'));
 
-            // d. Dari Purchase Return (Uang Masuk -> Menambah Saldo)
+            // 🎯 d. Dari Purchase Return (Uang Masuk -> Dibagi 100)
             $purchaseReturnBefore = DB::table('purchase_returns')
                 ->where('date', '<', $startDate)
                 ->where('status', 'Completed')
                 ->where('payment_method', $receiveType)
-                ->sum('paid_amount');
+                ->sum(DB::raw('paid_amount / 100'));
 
-            // e. Dari Sale Payments (Uang Masuk -> Menambah Saldo)
+            // e. Dari Sale Payments (Uang Masuk -> Asumsi cashpay/gopay tidak dikali 100 karena merujuk ke tabel input)
             $salesBefore = 0;
-            // Tentukan kolom mana yang dibaca berdasarkan $receiveType
             $column = $this->determinePaymentColumn($receiveType);
 
             if ($column) {
                 if ($column === 'cashpay') {
-                    // Jika cashpay, total nominal dikurangi kembalian (change)
-                    // 🎯 Perbaikan: Ubah :: menjadi . dan tambahkan DB::raw untuk kalkulasi matematika di sum()
                     $salesBefore = DB::table('sale_payments')
                         ->join('sales', 'sale_payments.sale_id', '=', 'sales.id')
                         ->where('sales.status', 'Completed')
@@ -74,8 +71,6 @@ class MutationReportController extends Controller
                         ->where('sale_payments.cashpay', '>', 0)
                         ->sum(DB::raw('sale_payments.cashpay - IFNULL(sale_payments.change, 0)'));
                 } else {
-                    // Jika non-tunai (gopay, debitcard, dll)
-                    // 🎯 Perbaikan: Ubah :: menjadi .
                     $salesBefore = DB::table('sale_payments')
                         ->join('sales', 'sale_payments.sale_id', '=', 'sales.id')
                         ->where('sales.status', 'Completed')
@@ -85,8 +80,17 @@ class MutationReportController extends Controller
                 }
             }
 
+            // f. Dari Selisih Shift Berdasarkan Kalkulasi Matematika Sebelum Tanggal Mulai
+            $shiftDifferenceBefore = 0;
+            if ($column === 'cashpay') {
+                $shiftDifferenceBefore = DB::table('shifts')
+                    ->where('status', 'closed')
+                    ->whereRaw('DATE(close_time) < ?', [$startDate])
+                    ->sum(DB::raw('IFNULL(ending_cash, 0) - IFNULL(expected_ending_cash, 0)'));
+            }
+
             // Rumus Akhir Saldo Awal Berjalan
-            $openingBalance = ($cashInBefore + $purchaseReturnBefore + $salesBefore) - ($cashOutBefore + $salesReturnBefore + $purchaseBefore);
+            $openingBalance = ($cashInBefore + $purchaseReturnBefore + $salesBefore + $shiftDifferenceBefore) - ($cashOutBefore + $salesReturnBefore + $purchaseBefore);
 
             // ==========================================
             // 2. QUERY UNION UNTUK DATA MUTASI BERJALAN
@@ -107,46 +111,46 @@ class MutationReportController extends Controller
                         ->orWhere('receive_type_transferto', $receiveType);
                 });
 
-            // Query b: Sales Return (Uang Keluar)
+            // 🎯 Query b: Sales Return (Uang Keluar -> kredit dibagi 100)
             $querySalesReturn = DB::table('sale_returns')
                 ->select(
                     'date',
                     'reference',
                     DB::raw("'Retur Penjualan (Sales Return)' as details"),
                     DB::raw("0 as debet"),
-                    'paid_amount as kredit'
+                    DB::raw("(paid_amount / 100) as kredit")
                 )
                 ->where('status', 'Completed')
                 ->where('payment_method', $receiveType)
                 ->whereBetween('date', [$startDate, $endDate]);
 
-            // Query c: Purchase (Uang Keluar)
+            // 🎯 Query c: Purchase (Uang Keluar -> kredit dibagi 100)
             $queryPurchase = DB::table('purchases')
                 ->select(
                     'date',
                     'reference',
                     DB::raw("'Pembelian ke Supplier (Purchase)' as details"),
                     DB::raw("0 as debet"),
-                    'paid_amount as kredit'
+                    DB::raw("(paid_amount / 100) as kredit")
                 )
                 ->where('status', 'Completed')
                 ->where('payment_method', $receiveType)
                 ->whereBetween('date', [$startDate, $endDate]);
 
-            // Query d: Purchase Return (Uang Masuk)
+            // 🎯 Query d: Purchase Return (Uang Masuk -> debet dibagi 100)
             $queryPurchaseReturn = DB::table('purchase_returns')
                 ->select(
                     'date',
                     'reference',
                     DB::raw("'Retur Pembelian Supplier (Purchase Return)' as details"),
-                    'paid_amount as debet',
+                    DB::raw("(paid_amount / 100) as debet"),
                     DB::raw("0 as kredit")
                 )
                 ->where('status', 'Completed')
                 ->where('payment_method', $receiveType)
                 ->whereBetween('date', [$startDate, $endDate]);
 
-            // Query e: Sale Payments (Uang Masuk dinamis berdasarkan kolom terpilih)
+            // Query e: Sale Payments
             $querySales = DB::table('sale_payments')
                 ->join('sales', 'sale_payments.sale_id', '=', 'sales.id')
                 ->select(
@@ -161,20 +165,38 @@ class MutationReportController extends Controller
                 ->where('sales.status', 'Completed')
                 ->whereBetween('sale_payments.date', [$startDate, $endDate]);
 
-            // Jika filter field payment method ditemukan, eksekusi gabungan UNION ALL
+            // Query f: Selisih Shift Kasir
+            $queryShift = null;
+            if ($column === 'cashpay') {
+                $queryShift = DB::table('shifts')
+                    ->select(
+                        DB::raw('DATE(close_time) as date'),
+                        DB::raw("CONCAT('SHIFT-', id) as reference"),
+                        DB::raw("'Penyesuaian Selisih Shift Kasir' as details"),
+                        DB::raw('IF(IFNULL(ending_cash, 0) - IFNULL(expected_ending_cash, 0) > 0, IFNULL(ending_cash, 0) - IFNULL(expected_ending_cash, 0), 0) as debet'),
+                        DB::raw('IF(IFNULL(ending_cash, 0) - IFNULL(expected_ending_cash, 0) < 0, ABS(IFNULL(ending_cash, 0) - IFNULL(expected_ending_cash, 0)), 0) as kredit')
+                    )
+                    ->where('status', 'closed')
+                    ->whereRaw('IFNULL(ending_cash, 0) - IFNULL(expected_ending_cash, 0) != 0')
+                    ->whereRaw('DATE(close_time) between ? and ?', [$startDate, $endDate]);
+            }
+
+            // Gabungkan menggunakan UNION ALL
             if ($column) {
-                // 🎯 FIXED: Mengubah "sale_payments::$column" menjadi "sale_payments.$column"
                 $querySales->where("sale_payments.$column", '>', 0);
 
-                $combinedData = $queryCash
+                $unionQuery = $queryCash
                     ->unionAll($querySalesReturn)
                     ->unionAll($queryPurchase)
                     ->unionAll($queryPurchaseReturn)
-                    ->unionAll($querySales)
-                    ->orderBy('date', 'asc')
-                    ->get();
+                    ->unionAll($querySales);
+
+                if ($queryShift) {
+                    $unionQuery = $unionQuery->unionAll($queryShift);
+                }
+
+                $combinedData = $unionQuery->orderBy('date', 'asc')->get();
             } else {
-                // Jika metode pembayaran tidak terikat ke kolom penjualan (misal tipe transaksi internal)
                 $combinedData = $queryCash
                     ->unionAll($querySalesReturn)
                     ->unionAll($queryPurchase)
@@ -213,9 +235,6 @@ class MutationReportController extends Controller
         ));
     }
 
-    /**
-     * Helper privat untuk mencocokkan receive_type dari request dengan nama kolom fisik di tabel sale_payments.
-     */
     private function determinePaymentColumn($receiveType)
     {
         $receiveType = strtolower($receiveType);
@@ -231,6 +250,6 @@ class MutationReportController extends Controller
         if (str_contains($receiveType, 'kredivo')) return 'kredivopay';
         if (str_contains($receiveType, 'qris')) return 'qrispay';
 
-        return null; // Return null jika tidak ada field yang cocok
+        return null;
     }
 }

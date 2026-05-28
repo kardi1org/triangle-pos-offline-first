@@ -219,6 +219,8 @@ ADD COLUMN info TEXT NULL AFTER telp;
 ALTER TABLE products
 ADD COLUMN product_type VARCHAR(30) DEFAULT 'FG' AFTER is_recipe;
 
+ALTER TABLE expenses
+ADD COLUMN outlet_id bigint(20) unsigned NULL AFTER id;
 
 
 
