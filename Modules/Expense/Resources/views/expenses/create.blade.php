@@ -62,6 +62,18 @@
                                 </div>
                             </div>
 
+                            {{-- 🎯 TAMBAHAN: FORM ROW PAYMENT METHOD --}}
+                            <div class="form-row">
+                                <div class="col-lg-6">
+                                    <div class="form-group">
+                                        <label for="payment_method">Payment Method <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="payment_method" required readonly
+                                            value="Cash">
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="form-group">
                                 <label for="details">Details</label>
                                 <textarea class="form-control" rows="6" name="details"></textarea>
@@ -76,18 +88,4 @@
 
 @push('page_scripts')
     <script src="{{ asset('js/jquery-mask-money.js') }}"></script>
-    {{-- <script>
-        $(document).ready(function() {
-            $('#amount').maskMoney({
-                prefix: '{{ settings()->currency->symbol }}',
-                thousands: '{{ settings()->currency->thousand_separator }}',
-                decimal: '{{ settings()->currency->decimal_separator }}',
-            });
-
-            $('#expense-form').submit(function() {
-                var amount = $('#amount').maskMoney('unmasked')[0];
-                $('#amount').val(amount);
-            });
-        });
-    </script> --}}
 @endpush

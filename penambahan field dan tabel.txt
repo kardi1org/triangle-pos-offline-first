@@ -222,6 +222,9 @@ ADD COLUMN product_type VARCHAR(30) DEFAULT 'FG' AFTER is_recipe;
 ALTER TABLE expenses
 ADD COLUMN outlet_id bigint(20) unsigned NULL AFTER id;
 
+ALTER TABLE expenses
+ADD COLUMN payment_method VARCHAR(30) DEFAULT 'Cash' AFTER amount;
+
 
 
 

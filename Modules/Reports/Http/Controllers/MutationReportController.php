@@ -58,6 +58,12 @@ class MutationReportController extends Controller
                 ->where('payment_method', $receiveType)
                 ->sum(DB::raw('paid_amount / 100'));
 
+            // 🎯 d.2. DARI EXPENSES SEBELUM TANGGAL MULAI (Uang Keluar -> Dibagi 100)
+            $expenseBefore = DB::table('expenses')
+                ->where('date', '<', $startDate)
+                ->where('payment_method', $receiveType)
+                ->sum(DB::raw('amount / 100'));
+
             // e. Dari Sale Payments (Uang Masuk -> Asumsi cashpay/gopay tidak dikali 100 karena merujuk ke tabel input)
             $salesBefore = 0;
             $column = $this->determinePaymentColumn($receiveType);
@@ -89,8 +95,8 @@ class MutationReportController extends Controller
                     ->sum(DB::raw('IFNULL(ending_cash, 0) - IFNULL(expected_ending_cash, 0)'));
             }
 
-            // Rumus Akhir Saldo Awal Berjalan
-            $openingBalance = ($cashInBefore + $purchaseReturnBefore + $salesBefore + $shiftDifferenceBefore) - ($cashOutBefore + $salesReturnBefore + $purchaseBefore);
+            // Rumus Akhir Saldo Awal Berjalan (Expense mengurangi saldo awal karena uang keluar)
+            $openingBalance = ($cashInBefore + $purchaseReturnBefore + $salesBefore + $shiftDifferenceBefore) - ($cashOutBefore + $salesReturnBefore + $purchaseBefore + $expenseBefore);
 
             // ==========================================
             // 2. QUERY UNION UNTUK DATA MUTASI BERJALAN
@@ -150,6 +156,18 @@ class MutationReportController extends Controller
                 ->where('payment_method', $receiveType)
                 ->whereBetween('date', [$startDate, $endDate]);
 
+            // 🎯 Query d.2: Expenses (Uang Keluar -> kredit dibagi 100)
+            $queryExpense = DB::table('expenses')
+                ->select(
+                    'date',
+                    'reference',
+                    DB::raw("IFNULL(details, 'Pengeluaran (Expense)') as details"),
+                    DB::raw("0 as debet"),
+                    DB::raw("(amount / 100) as kredit")
+                )
+                ->where('payment_method', $receiveType)
+                ->whereBetween('date', [$startDate, $endDate]);
+
             // Query e: Sale Payments
             $querySales = DB::table('sale_payments')
                 ->join('sales', 'sale_payments.sale_id', '=', 'sales.id')
@@ -181,7 +199,7 @@ class MutationReportController extends Controller
                     ->whereRaw('DATE(close_time) between ? and ?', [$startDate, $endDate]);
             }
 
-            // Gabungkan menggunakan UNION ALL
+            // Gabungkan menggunakan UNION ALL (Termasuk queryExpense)
             if ($column) {
                 $querySales->where("sale_payments.$column", '>', 0);
 
@@ -189,6 +207,7 @@ class MutationReportController extends Controller
                     ->unionAll($querySalesReturn)
                     ->unionAll($queryPurchase)
                     ->unionAll($queryPurchaseReturn)
+                    ->unionAll($queryExpense) // 🎯 Dimasukkan ke jalur utama
                     ->unionAll($querySales);
 
                 if ($queryShift) {
@@ -201,6 +220,7 @@ class MutationReportController extends Controller
                     ->unionAll($querySalesReturn)
                     ->unionAll($queryPurchase)
                     ->unionAll($queryPurchaseReturn)
+                    ->unionAll($queryExpense) // 🎯 Dimasukkan ke jalur fallback
                     ->orderBy('date', 'asc')
                     ->get();
             }

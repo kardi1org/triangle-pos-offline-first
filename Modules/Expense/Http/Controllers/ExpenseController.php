@@ -45,7 +45,8 @@ class ExpenseController extends Controller
             'date' => $request->date,
             'category_id' => $request->category_id,
             'amount' => $request->amount,
-            'details' => $request->details
+            'details' => $request->details,
+            'payment_method' => $request->payment_method
         ]);
 
         toast('Expense Created!', 'success');
@@ -79,7 +80,8 @@ class ExpenseController extends Controller
             'reference' => $request->reference,
             'category_id' => $request->category_id,
             'amount' => $request->amount,
-            'details' => $request->details
+            'details' => $request->details,
+            'payment_method' => $request->payment_method
         ]);
 
         toast('Expense Updated!', 'info');

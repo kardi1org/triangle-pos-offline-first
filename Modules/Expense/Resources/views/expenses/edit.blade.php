@@ -63,6 +63,18 @@
                                 </div>
                             </div>
 
+                            {{-- 🎯 TAMBAHAN: FORM ROW PAYMENT METHOD --}}
+                            <div class="form-row">
+                                <div class="col-lg-6">
+                                    <div class="form-group">
+                                        <label for="payment_method">Payment Method <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="payment_method" required readonly
+                                            value="{{ $expense->payment_method }}">
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="form-group">
                                 <label for="details">Details</label>
                                 <textarea class="form-control" rows="6" name="details">{{ $expense->details }}</textarea>
