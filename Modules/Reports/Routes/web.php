@@ -47,4 +47,7 @@ Route::group(['middleware' => 'auth'], function () {
 
     Route::get('/mutation-report', [MutationReportController::class, 'index'])
         ->name('report.mutation.index');
+
+    Route::get('/profit-loss-detail', 'ProfitLossReportController@index')
+        ->name('profit-loss-detail.index');
 });

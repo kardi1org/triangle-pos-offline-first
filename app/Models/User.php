@@ -49,16 +49,29 @@ class User extends Authenticatable implements HasMedia
      * Relasi ke Outlets
      * Menggunakan mysql.outlet_user agar tidak mencari di DB tenant
      */
+    // public function outlets()
+    // {
+    //     return $this->belongsToMany(
+    //         \Modules\User\Entities\Outlet::class,
+    //         'outlet_user',
+    //         'user_id',
+    //         'outlet_id'
+    //     );
+    // }
+    /**
+     * Relasi ke Outlets
+     * Memaksa query ke database pusat menggunakan prefix nama database
+     */
     public function outlets()
     {
+        // Ganti 'db_pos' dengan nama database utama Anda yang ada di phpMyAdmin
         return $this->belongsToMany(
             \Modules\User\Entities\Outlet::class,
-            'outlet_user',
+            'db_pos.outlet_user', // 🎯 Paksa tabel pivot ke DB Pusat
             'user_id',
             'outlet_id'
         );
     }
-
     /**
      * Helper untuk cek akses outlet
      */

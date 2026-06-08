@@ -112,6 +112,14 @@ class ReportsController extends Controller
             $start_date = $request->start_date;
             $end_date = $request->end_date;
 
+            // 🎯 CEK 1: Apakah produk yang sedang dicari ini merupakan BARANG JADI yang punya resep?
+            $isBarangJadiBeresep = \Modules\Setting\Entities\Recipe::where('product_id', $product_id)->exists();
+
+            // 🎯 CEK 2: Cari resep apa saja yang menggunakan produk ini sebagai BAHAN BAKU (di recipe_details)
+            $recipesAsIngredient = \Modules\Setting\Entities\RecipeDetail::with('recipe')
+                ->where('product_id', $product_id)
+                ->get();
+
             // --- 1. HITUNG STOCK AWAL (Sebelum start_date) ---
 
             $prev_purchase = \Modules\Purchase\Entities\PurchaseDetail::whereHas('purchase', function ($q) use ($warehouse_id, $start_date) {
@@ -128,29 +136,46 @@ class ReportsController extends Controller
                 ->selectRaw("SUM(CASE WHEN type = 'add' THEN quantity ELSE -quantity END) as total")
                 ->value('total');
 
-            // Tambahan: Stock Awal dari Work Order (Produk Jadi - Masuk)
             $prev_wo_in = \Modules\Production\Entities\WorkOrder::where('product_id', $product_id)
                 ->where('warehouse_id', $warehouse_id)
                 ->where('date', '<', $start_date)
                 ->sum('quantity');
 
-            // Tambahan: Stock Awal dari Work Order (Bahan Baku - Keluar)
             $prev_wo_out = \Modules\Production\Entities\WorkOrderDetail::whereHas('workOrder', function ($q) use ($warehouse_id, $start_date) {
                 $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date);
             })->where('product_id', $product_id)->sum('quantity');
 
-            // 🎯 TAMBAHAN: Stock Awal dari Sales (Status Completed - Mengurangi Stok)
-            $prev_sales = \Modules\Sale\Entities\SaleDetails::whereHas('sale', function ($q) use ($warehouse_id, $start_date) {
-                $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date)->where('status', 'Completed');
-            })->where('product_id', $product_id)->sum('quantity');
 
-            // Hitung akumulasi stock awal murni (Sales mengurangi stock)
+            // --- HITUNG PREV SALES (Stok Awal dari Penjualan) ---
+            $prev_sales = 0;
+
+            // Kondisi A: Jika produk yang dicari BUKAN Barang Jadi beresep, hitung penjualan langsungnya
+            if (!$isBarangJadiBeresep) {
+                $prev_sales += \Modules\Sale\Entities\SaleDetails::whereHas('sale', function ($q) use ($warehouse_id, $start_date) {
+                    $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date)->where('status', 'Completed');
+                })->where('product_id', $product_id)->sum('quantity');
+            }
+
+            // Kondisi B: Hitung potongan tidak langsung jika produk ini jadi Bahan Baku di recipe_details
+            foreach ($recipesAsIngredient as $detail) {
+                $barang_jadi_id = $detail->recipe->product_id ?? null;
+                if ($barang_jadi_id) {
+                    $qty_barang_jadi_terjual = \Modules\Sale\Entities\SaleDetails::whereHas('sale', function ($q) use ($warehouse_id, $start_date) {
+                        $q->where('warehouse_id', $warehouse_id)->where('date', '<', $start_date)->where('status', 'Completed');
+                    })->where('product_id', $barang_jadi_id)->sum('quantity');
+
+                    // Akumulasikan: Qty terjual * takaran resep bahan baku
+                    $prev_sales += ($qty_barang_jadi_terjual * $detail->quantity);
+                }
+            }
+
+            // Akumulasi Stock Awal Akhir
             $stock_awal = $prev_purchase - $prev_purchase_return + ($prev_adjustment ?? 0) + $prev_wo_in - $prev_wo_out - $prev_sales;
 
 
             // --- 2. AMBIL MUTASI TRANSAKSI (Dalam Periode Tanggal) ---
 
-            // A. Ambil Transaksi (Purchase)
+            // A. Transaksi (Purchase)
             \Modules\Purchase\Entities\PurchaseDetail::with('purchase')
                 ->whereHas('purchase', function ($q) use ($warehouse_id, $start_date, $end_date) {
                     $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
@@ -164,7 +189,7 @@ class ReportsController extends Controller
                     ]);
                 });
 
-            // B. Ambil Transaksi (Purchase Return)
+            // B. Transaksi (Purchase Return)
             \Modules\PurchasesReturn\Entities\PurchaseReturnDetail::with('purchaseReturn')
                 ->whereHas('purchaseReturn', function ($q) use ($warehouse_id, $start_date, $end_date) {
                     $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
@@ -178,7 +203,7 @@ class ReportsController extends Controller
                     ]);
                 });
 
-            // C. Ambil Transaksi (Adjustment)
+            // C. Transaksi (Adjustment)
             \Modules\Adjustment\Entities\AdjustedProduct::with('adjustment')
                 ->whereHas('adjustment', function ($q) use ($warehouse_id, $start_date, $end_date) {
                     $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date]);
@@ -192,7 +217,7 @@ class ReportsController extends Controller
                     ]);
                 });
 
-            // D. Ambil Transaksi Work Order (Output / IN)
+            // D. Transaksi Work Order (Output / IN)
             \Modules\Production\Entities\WorkOrder::where('product_id', $product_id)
                 ->where('warehouse_id', $warehouse_id)
                 ->whereBetween('date', [$start_date, $end_date])
@@ -206,7 +231,7 @@ class ReportsController extends Controller
                     ]);
                 });
 
-            // E. Ambil Transaksi Work Order (Material / OUT)
+            // E. Transaksi Work Order (Material / OUT)
             \Modules\Production\Entities\WorkOrderDetail::with('workOrder')
                 ->whereHas('workOrder', function ($q) use ($warehouse_id, $start_date, $end_date) {
                     $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date]);
@@ -224,23 +249,55 @@ class ReportsController extends Controller
                     }
                 });
 
-            // 🎯 F. TAMBAHAN: Ambil Transaksi Sales (Status Completed / OUT)
-            \Modules\Sale\Entities\SaleDetails::with('sale')
-                ->whereHas('sale', function ($q) use ($warehouse_id, $start_date, $end_date) {
-                    $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
-                })
-                ->where('product_id', $product_id)
-                ->get()->each(function ($item) use ($movements) {
-                    if ($item->sale) {
-                        $movements->push([
-                            'date' => $item->sale->date,
-                            'ref'  => $item->sale->reference,
-                            'type' => 'Sale',
-                            'in'   => 0,
-                            'out'  => $item->quantity
-                        ]);
-                    }
-                });
+            // F. Transaksi Penjualan (Sales / OUT) Murni & Bahan Baku resep
+
+            // 1. Jika BUKAN Barang Jadi Beresep, tampilkan baris penjualan langsungnya
+            if (!$isBarangJadiBeresep) {
+                \Modules\Sale\Entities\SaleDetails::with('sale')
+                    ->whereHas('sale', function ($q) use ($warehouse_id, $start_date, $end_date) {
+                        $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
+                    })
+                    ->where('product_id', $product_id)
+                    ->get()->each(function ($item) use ($movements) {
+                        if ($item->sale) {
+                            $movements->push([
+                                'date' => $item->sale->date,
+                                'ref'  => $item->sale->reference,
+                                'type' => 'Sale',
+                                'in'   => 0,
+                                'out'  => $item->quantity
+                            ]);
+                        }
+                    });
+            }
+
+            // 2. Loop jika produk ini merupakan bahan baku yang terikat pada recipe_details barang jadi lain
+            foreach ($recipesAsIngredient as $detail) {
+                $barang_jadi_id = $detail->recipe->product_id ?? null;
+
+                if ($barang_jadi_id) {
+                    \Modules\Sale\Entities\SaleDetails::with(['sale', 'product'])
+                        ->whereHas('sale', function ($q) use ($warehouse_id, $start_date, $end_date) {
+                            $q->where('warehouse_id', $warehouse_id)->whereBetween('date', [$start_date, $end_date])->where('status', 'Completed');
+                        })
+                        ->where('product_id', $barang_jadi_id)
+                        ->get()->each(function ($item) use ($movements, $detail) {
+                            if ($item->sale) {
+                                // Hitung pengali bahan baku terpakai
+                                $total_bahan_terpotong = $item->quantity * $detail->quantity;
+
+                                $movements->push([
+                                    'date' => $item->sale->date,
+                                    'ref'  => $item->sale->reference,
+                                    // Beri keterangan nama produk jadi yang memicu potongan bahan baku ini
+                                    'type' => 'Sale Recipe Target (' . ($item->product->product_name ?? 'Product') . ')',
+                                    'in'   => 0,
+                                    'out'  => $total_bahan_terpotong
+                                ]);
+                            }
+                        });
+                }
+            }
 
             // Urutkan pergerakan berdasarkan tanggal secara kronologis
             $movements = $movements->sortBy('date');

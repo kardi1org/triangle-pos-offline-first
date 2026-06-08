@@ -18,10 +18,12 @@
                             <div class="form-row">
                                 <div class="col-md-6">
                                     <label>Pilih Barang Jadi <span class="text-danger">*</span></label>
-                                    <select name="product_id" class="form-control select2-main" required>
+                                    <select name="product_id" id="product_outcome_select"
+                                        class="form-control select2-product-outcome" required>
+                                        <option value="">-- Pilih Barang Jadi --</option>
                                         @foreach ($products as $product)
-                                            <option value="{{ $product->id }}"
-                                                {{ $recipe->product_id == $product->id ? 'selected' : '' }}>
+                                            {{-- 🎯 Ambil $recipe->product_id langsung dari tabel resep tenant, lalu bandingkan --}}
+                                            <option value="{{ $product->id }}" @selected((int) $recipe->product_id === (int) $product->id)>
                                                 {{ $product->product_code }} | {{ $product->product_name }}
                                             </option>
                                         @endforeach
@@ -71,8 +73,9 @@
                                                     <select name="ingredient_id[]"
                                                         class="form-control item-select select2-dyn" required>
                                                         @foreach ($products as $p)
+                                                            {{-- 🎯 Menggunakan @selected() agar tidak tertukar dengan produk baris lain --}}
                                                             <option value="{{ $p->id }}"
-                                                                {{ $detail->product_id == $p->id ? 'selected' : '' }}>
+                                                                @selected($detail->product_id == $p->id)>
                                                                 {{ $p->product_name }}
                                                             </option>
                                                         @endforeach
@@ -125,6 +128,7 @@
         (function($) {
             $(document).ready(function() {
 
+                // Fungsi inisialisasi dasar
                 function initSelect2(element) {
                     if ($.fn.select2) {
                         $(element).select2({
@@ -134,14 +138,18 @@
                     }
                 }
 
-                // Inisialisasi awal untuk Select2 yang sudah ada (saat Edit dimuat)
-                initSelect2('.select2-main');
-                initSelect2('.select2-dyn');
+                // 🎯 1. Inisialisasi KHUSUS untuk Produk Hasil (Atas) secara independen via ID
+                initSelect2('#product_outcome_select');
+
+                // 🎯 2. Inisialisasi untuk Bahan Baku (Bawah) satu per satu secara mandiri
+                $('.select2-dyn').each(function() {
+                    initSelect2(this);
+                });
 
                 // Hitung total awal saat halaman dimuat
                 calculateGrandTotal();
 
-                // Tambah Baris Baru
+                // Tambah Baris Baru (Ganti bagian ini juga agar class selector barunya rapi)
                 $('#addRow').on('click', function(e) {
                     e.preventDefault();
                     let rowId = Date.now();
@@ -234,7 +242,7 @@
                         e.preventDefault();
                         alert(
                             'Mohon tunggu hingga semua data bahan baku terisi otomatis atau pastikan data bahan lengkap.'
-                            );
+                        );
                     }
                 });
             });

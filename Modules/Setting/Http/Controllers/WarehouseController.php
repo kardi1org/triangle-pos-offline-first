@@ -13,9 +13,8 @@ class WarehouseController extends Controller
     {
         $user = auth()->user();
 
-        // 1. Cari email admin tetap dari tabel users di database utama (db_pos)
-        // Kita gunakan koneksi 'db_pos' agar mencari di tabel users yang menjadi master
-        $adminEmail = DB::connection('db_pos')->table('users')
+        // 1. Gunakan koneksi 'mysql' (pusat), lalu hardcode nama database pusatnya ('db_pos.users')
+        $adminEmail = DB::connection('mysql')->table('db_pos.users')
             ->where('tenant_database', $user->tenant_database)
             ->where('level', 'admin')
             ->value('email');
@@ -23,12 +22,13 @@ class WarehouseController extends Controller
         // 2. Ambil daftar outlet dari db_pos berdasarkan email admin tersebut
         $outlets = [];
         if ($adminEmail) {
-            $outlets = DB::connection('db_pos')
-                ->table('outlets')
+            $outlets = DB::connection('mysql')
+                ->table('db_pos.outlets')
                 ->where('email', $adminEmail)
                 ->get();
         }
 
+        // Ini akan mengambil data gudang dari DB tenant aktif saat ini (db_pos2)
         $warehouses = Warehouse::latest()->get();
 
         return view('setting::warehouses.index', compact('warehouses', 'outlets'));

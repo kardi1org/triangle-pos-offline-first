@@ -498,6 +498,12 @@
                     <i class="c-sidebar-nav-icon bi bi-clipboard-data" style="line-height: 1;"></i> Stock Card Report
                 </a>
             </li>
+            <li class="c-sidebar-nav-item">
+                <a class="c-sidebar-nav-link {{ request()->routeIs('profit-loss-detail.index') ? 'c-active' : '' }}"
+                    href="{{ route('profit-loss-detail.index') }}">
+                    <i class="c-sidebar-nav-icon bi bi-clipboard-data" style="line-height: 1;"></i> Laba Rugi Detail
+                </a>
+            </li>
         </ul>
     </li>
 @endcan

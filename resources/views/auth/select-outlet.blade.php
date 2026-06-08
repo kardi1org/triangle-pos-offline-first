@@ -30,6 +30,18 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-5">
+
+                {{-- 🎯 DITAMBAHKAN: Menampilkan Pesan Error Validasi jika ada yang gagal --}}
+                @if ($errors->any())
+                    <div class="alert alert-danger shadow-sm">
+                        <ul class="mb-0 pl-3 small">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 @if (session('warning'))
                     <div class="alert alert-warning text-center small mb-3">{{ session('warning') }}</div>
                 @endif
@@ -40,11 +52,19 @@
                         <small>{{ auth()->user()->name }} ({{ auth()->user()->email }})</small>
                     </div>
                     <div class="card-body p-4">
+
+                        {{-- FORM UTAMA --}}
                         <form action="{{ route('auth.select-outlet.post') }}" method="POST">
                             @csrf
+
+                            {{-- 🎯 DITAMBAHKAN: Input hidden penampung ID outlet agar kirim data via button bekerja stabil di semua browser --}}
+                            <input type="hidden" name="outlet_id" id="selected_outlet_id">
+
                             <div class="list-group mb-4">
                                 @foreach ($outlets as $outlet)
-                                    <button type="submit" name="outlet_id" value="{{ $outlet->id }}"
+                                    {{-- Mengubah button submit agar mengisi value ke input hidden sebelum form terkirim --}}
+                                    <button type="submit"
+                                        onclick="document.getElementById('selected_outlet_id').value='{{ $outlet->id }}';"
                                         class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
                                         <div>
                                             <span class="h6 mb-0">{{ $outlet->name }}</span>

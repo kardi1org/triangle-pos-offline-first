@@ -30,13 +30,9 @@ Route::group(['middleware' => 'auth'], function () {
     // Warehouses
     Route::resource('warehouses', WarehouseController::class)->except(['create', 'show', 'edit']);
 
-    // Recipes (Disesuaikan agar seragam)
-    Route::resource('recipes', RecipeController::class);
-
-    // Route AJAX Product Data
-    // Letakkan di atas resource atau pastikan URL unik agar tidak bentrok dengan {recipe} ID
+    // 🎯 1. Ambil data AJAX wajib di atas resource agar tidak terbaca sebagai ID resep ({recipe})
     Route::get('/recipes/product-data/{id}', [RecipeController::class, 'getProductData'])->name('recipes.product-data');
 
-    // 2. Route Resource untuk Index, Create, Store, Edit, Update, Destroy
+    // 🎯 2. Cukup panggil SATU resource resep saja
     Route::resource('recipes', RecipeController::class);
 });
