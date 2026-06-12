@@ -71,16 +71,7 @@
                             <livewire:product-cart :cartInstance="'purchase_return'" />
 
                             <div class="form-row">
-                                <div class="col-lg-4">
-                                    <div class="form-group">
-                                        <label for="status">Status <span class="text-danger">*</span></label>
-                                        <select class="form-control" name="status" id="status" required>
-                                            <option value="Pending">Pending</option>
-                                            <option value="Shipped">Shipped</option>
-                                            <option value="Completed">Completed</option>
-                                        </select>
-                                    </div>
-                                </div>
+                                <input type="hidden" name="status" id="status" value="Completed">
                                 <div class="col-lg-4">
                                     <div class="form-group">
                                         <label for="payment_method">Payment Method <span

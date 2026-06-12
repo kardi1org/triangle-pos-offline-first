@@ -18,14 +18,16 @@ use Modules\SalesReturn\Http\Requests\UpdateSaleReturnRequest;
 class SalesReturnController extends Controller
 {
 
-    public function index(SaleReturnsDataTable $dataTable) {
+    public function index(SaleReturnsDataTable $dataTable)
+    {
         abort_if(Gate::denies('access_sale_returns'), 403);
 
         return $dataTable->render('salesreturn::index');
     }
 
 
-    public function create() {
+    public function create()
+    {
         abort_if(Gate::denies('create_sale_returns'), 403);
 
         Cart::instance('sale_return')->destroy();
@@ -34,7 +36,8 @@ class SalesReturnController extends Controller
     }
 
 
-    public function store(StoreSaleReturnRequest $request) {
+    public function store(StoreSaleReturnRequest $request)
+    {
         DB::transaction(function () use ($request) {
             $due_amount = $request->total_amount - $request->paid_amount;
 
@@ -92,7 +95,7 @@ class SalesReturnController extends Controller
             if ($sale_return->paid_amount > 0) {
                 SaleReturnPayment::create([
                     'date' => $request->date,
-                    'reference' => 'INV/'.$sale_return->reference,
+                    'reference' => 'INV/' . $sale_return->reference,
                     'amount' => $sale_return->paid_amount,
                     'sale_return_id' => $sale_return->id,
                     'payment_method' => $request->payment_method
@@ -106,7 +109,8 @@ class SalesReturnController extends Controller
     }
 
 
-    public function show(SaleReturn $sale_return) {
+    public function show(SaleReturn $sale_return)
+    {
         abort_if(Gate::denies('show_sale_returns'), 403);
 
         $customer = Customer::findOrFail($sale_return->customer_id);
@@ -115,13 +119,17 @@ class SalesReturnController extends Controller
     }
 
 
-    public function edit(SaleReturn $sale_return) {
+    // Mengubah dari Type-hinting Model ke ID biasa
+    public function edit($id)
+    {
         abort_if(Gate::denies('edit_sale_returns'), 403);
+
+        // Ambil data menggunakan fail-safe method
+        $sale_return = \Modules\SalesReturn\Entities\SaleReturn::findOrFail($id);
 
         $sale_return_details = $sale_return->saleReturnDetails;
 
         Cart::instance('sale_return')->destroy();
-
         $cart = Cart::instance('sale_return');
 
         foreach ($sale_return_details as $sale_return_detail) {
@@ -136,7 +144,7 @@ class SalesReturnController extends Controller
                     'product_discount_type' => $sale_return_detail->product_discount_type,
                     'sub_total'   => $sale_return_detail->sub_total,
                     'code'        => $sale_return_detail->product_code,
-                    'stock'       => Product::findOrFail($sale_return_detail->product_id)->product_quantity,
+                    'stock'       => \Modules\Product\Entities\Product::findOrFail($sale_return_detail->product_id)->product_quantity,
                     'product_tax' => $sale_return_detail->product_tax_amount,
                     'unit_price'  => $sale_return_detail->unit_price
                 ]
@@ -147,7 +155,11 @@ class SalesReturnController extends Controller
     }
 
 
-    public function update(UpdateSaleReturnRequest $request, SaleReturn $sale_return) {
+    public function update(UpdateSaleReturnRequest $request, $id)
+    {
+        // 🎯 Ambil data SaleReturn berdasarkan ID secara manual untuk menghindari 404 Model Binding
+        $sale_return = SaleReturn::findOrFail($id);
+
         DB::transaction(function () use ($request, $sale_return) {
             $due_amount = $request->total_amount - $request->paid_amount;
 
@@ -220,8 +232,12 @@ class SalesReturnController extends Controller
     }
 
 
-    public function destroy(SaleReturn $sale_return) {
+    public function destroy($id)
+    {
         abort_if(Gate::denies('delete_sale_returns'), 403);
+
+        // 🎯 Ambil data SaleReturn berdasarkan ID secara manual
+        $sale_return = SaleReturn::findOrFail($id);
 
         $sale_return->delete();
 

@@ -12,8 +12,12 @@ use Modules\Quotation\Entities\Quotation;
 
 class SendQuotationEmailController extends Controller
 {
-    public function __invoke(Quotation $quotation) {
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Route Model Binding
+    public function __invoke($quotation_id)
+    {
         try {
+            $quotation = Quotation::findOrFail($quotation_id);
+
             Mail::to($quotation->customer->customer_email)->send(new QuotationMail($quotation));
 
             $quotation->update([
@@ -21,7 +25,6 @@ class SendQuotationEmailController extends Controller
             ]);
 
             toast('Sent On "' . $quotation->customer->customer_email . '"!', 'success');
-
         } catch (\Exception $exception) {
             Log::error($exception);
             toast('Something Went Wrong!', 'error');

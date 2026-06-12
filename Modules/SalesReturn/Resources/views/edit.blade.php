@@ -63,20 +63,8 @@
                             <livewire:product-cart :cartInstance="'sale_return'" :data="$sale_return" />
 
                             <div class="form-row">
-                                <div class="col-lg-4">
-                                    <div class="form-group">
-                                        <label for="status">Status <span class="text-danger">*</span></label>
-                                        <select class="form-control" name="status" id="status" required>
-                                            <option {{ $sale_return->status == 'Pending' ? 'selected' : '' }}
-                                                value="Pending">Pending</option>
-                                            <option {{ $sale_return->status == 'Shipped' ? 'selected' : '' }}
-                                                value="Shipped">Shipped</option>
-                                            <option {{ $sale_return->status == 'Completed' ? 'selected' : '' }}
-                                                value="Completed">Completed</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-lg-4">
+                                <input type="hidden" name="status" id="status" value="{{ $sale_return->status }}">
+                                <div class="col-lg-6">
                                     <div class="from-group">
                                         <div class="form-group">
                                             <label for="payment_method">Payment Method <span
@@ -86,7 +74,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-lg-4">
+                                <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="paid_amount">Amount Paid <span class="text-danger">*</span></label>
                                         <input id="paid_amount" type="number" class="form-control" name="paid_amount"

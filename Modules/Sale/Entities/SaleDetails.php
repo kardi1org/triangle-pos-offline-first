@@ -11,9 +11,14 @@ class SaleDetails extends Model
     use HasFactory;
 
     // protected $guarded = [];
-    protected $fillable = ['id', 'sale_id', 'reference', 'product_id', 'product_name', 'product_code', 'quantity', 'price', 'unit_price', 'sub_total', 'variant_detail'];
+    protected $fillable = ['id', 'sale_id', 'reference', 'product_id', 'product_name', 'product_code', 'quantity', 'price', 'unit_price', 'sub_total', 'variant_detail', 'recipe_snapshot'];
     protected $table = 'sale_details';
     protected $with = ['product'];
+
+    // 🎯 CASTING OTOMATIS KE ARRAY PHP
+    protected $casts = [
+        'recipe_snapshot' => 'array'
+    ];
 
     public function product()
     {

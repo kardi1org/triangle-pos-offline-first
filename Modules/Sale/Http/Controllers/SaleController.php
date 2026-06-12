@@ -145,8 +145,11 @@ class SaleController extends Controller
         return redirect()->route('sales.index');
     }
 
-    public function update(UpdateSaleRequest $request, Sale $sale)
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function update(UpdateSaleRequest $request, $sale_id)
     {
+        $sale = Sale::findOrFail($sale_id);
+
         // Menggunakan warehouse_id yang tersimpan di data sale lama
         $warehouse_id = $sale->warehouse_id;
 
@@ -267,21 +270,23 @@ class SaleController extends Controller
         return redirect()->route('sales.index');
     }
 
-    public function show(Sale $sale)
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function show($sale_id)
     {
         abort_if(Gate::denies('show_sales'), 403);
 
-        // $customer = Customer::findOrFail($sale->customer_id);
+        $sale = Sale::findOrFail($sale_id);
 
-        //return view('sale::show', compact('sale', 'customer'));
         return view('sale::show', compact('sale'));
     }
 
 
-    public function edit(Sale $sale)
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function edit($sale_id)
     {
         abort_if(Gate::denies('edit_sales'), 403);
 
+        $sale = Sale::findOrFail($sale_id);
         $sale_details = $sale->saleDetails;
 
         Cart::instance('sale')->destroy();
@@ -311,11 +316,12 @@ class SaleController extends Controller
     }
 
 
-
-    public function destroy(Sale $sale)
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function destroy($sale_id)
     {
         abort_if(Gate::denies('delete_sales'), 403);
 
+        $sale = Sale::findOrFail($sale_id);
         $sale->delete();
 
         toast('Sale Deleted!', 'warning');

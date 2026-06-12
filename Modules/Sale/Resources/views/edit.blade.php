@@ -62,30 +62,18 @@
                             <livewire:product-cart :cartInstance="'sale'" :data="$sale" />
 
                             <div class="form-row">
-                                <div class="col-lg-4">
+                                <input type="hidden" name="status" id="status" value="{{ $sale->status }}">
+
+                                <div class="col-lg-6">
                                     <div class="form-group">
-                                        <label for="status">Status <span class="text-danger">*</span></label>
-                                        <select class="form-control" name="status" id="status" required>
-                                            <option {{ $sale->status == 'Pending' ? 'selected' : '' }} value="Pending">
-                                                Pending</option>
-                                            <option {{ $sale->status == 'Shipped' ? 'selected' : '' }} value="Shipped">
-                                                Shipped</option>
-                                            <option {{ $sale->status == 'Completed' ? 'selected' : '' }} value="Completed">
-                                                Completed</option>
-                                        </select>
+                                        <label for="payment_method">Payment Method <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="payment_method"
+                                            value="{{ $sale->payment_method }}" readonly>
                                     </div>
                                 </div>
-                                <div class="col-lg-4">
-                                    <div class="from-group">
-                                        <div class="form-group">
-                                            <label for="payment_method">Payment Method <span
-                                                    class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" name="payment_method"
-                                                value="{{ $sale->payment_method }}" readonly>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-4">
+
+                                <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="paid_amount">Amount Received <span class="text-danger">*</span></label>
                                         <input id="paid_amount" type="number" class="form-control" name="paid_amount"

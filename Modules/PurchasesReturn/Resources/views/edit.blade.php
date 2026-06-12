@@ -79,20 +79,9 @@
                             <livewire:product-cart :cartInstance="'purchase_return'" :data="$purchase_return" />
 
                             <div class="form-row">
-                                <div class="col-lg-4">
-                                    <div class="form-group">
-                                        <label for="status">Status <span class="text-danger">*</span></label>
-                                        <select class="form-control" name="status" id="status" required>
-                                            <option {{ $purchase_return->status == 'Pending' ? 'selected' : '' }}
-                                                value="Pending">Pending</option>
-                                            <option {{ $purchase_return->status == 'Shipped' ? 'selected' : '' }}
-                                                value="Shipped">Shipped</option>
-                                            <option {{ $purchase_return->status == 'Completed' ? 'selected' : '' }}
-                                                value="Completed">Completed</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-lg-4">
+                                <input type="hidden" name="status" id="status" value="{{ $purchase_return->status }}">
+
+                                <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="payment_method">Payment Method <span
                                                 class="text-danger">*</span></label>
@@ -100,7 +89,7 @@
                                             value="{{ $purchase_return->payment_method }}" readonly>
                                     </div>
                                 </div>
-                                <div class="col-lg-4">
+                                <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="paid_amount">Amount Paid <span class="text-danger">*</span></label>
                                         <input id="paid_amount" type="text" class="form-control" name="paid_amount"

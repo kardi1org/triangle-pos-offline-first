@@ -293,28 +293,10 @@ class PosController extends Controller
                     $currentCart = Cart::instance('sale')->content();
 
                     // --- AWAL KEMBALIKAN STOK LAMA (VOIDING/UPDATING) ---
-                    foreach ($oldDetails as $oldItem) {
-                        $oldProduct = \Modules\Product\Entities\Product::find($oldItem->product_id);
-                        // Kemablikan stcok diremark tidak perlu dikembalikan krn saat save order belum potong stock
-                        // if ($oldProduct) {
-                        //     if ($oldProduct->is_recipe == 'Y') {
-                        //         $recipeHeader = \Modules\Setting\Entities\Recipe::where('product_id', $oldProduct->id)->first();
-                        //         if ($recipeHeader) {
-                        //             foreach ($recipeHeader->details as $detail) {
-                        //                 $qty_to_restore = (float)$detail->quantity * $oldItem->quantity;
-                        //                 $pw = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $detail->product_id)
-                        //                     ->where('warehouse_id', $warehouse_id)->first();
-                        //                 if ($pw) $pw->increment('qty', $qty_to_restore);
-                        //             }
-                        //         }
-                        //     } else {
-                        //         $pw = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $oldProduct->id)
-                        //             ->where('warehouse_id', $warehouse_id)->first();
-                        //         if ($pw) $pw->increment('qty', $oldItem->quantity);
-                        //     }
-                        // }
+                    // (Catatan Anda: Di-remark karena saat save order belum potong stock)
 
-                        // Logika Kitchen Log (Void)
+                    // Logika Kitchen Log (Void)
+                    foreach ($oldDetails as $oldItem) {
                         $matchInCart = $currentCart->first(fn ($cartItem) => $cartItem->id == $oldItem->product_id);
                         $voidQty = 0;
                         $reason = "";
@@ -435,6 +417,24 @@ class PosController extends Controller
             // --- SIMPAN DETAIL BARU & POTONG STOK ---
             foreach (Cart::instance('sale')->content() as $cart_item) {
                 $variants = json_decode($request->variants[$cart_item->id] ?? '[]', true);
+
+                // =================================================================
+                // 🎯 AMBIL SNAPSHOT RESEP AKTIF SAAT INI (TANGGAL TRANSAKSI)
+                // =================================================================
+                $recipeSnapshot = null;
+                $recipeHeader = \Modules\Setting\Entities\Recipe::with('details')->where('product_id', $cart_item->id)->first();
+
+                if ($recipeHeader && $recipeHeader->details->count() > 0) {
+                    $recipeSnapshot = $recipeHeader->details->map(function ($detail) {
+                        return [
+                            'ingredient_product_id' => $detail->product_id,
+                            'quantity_per_portion'  => (float)$detail->quantity,
+                            'unit'                  => $detail->unit ?? ''
+                        ];
+                    })->toArray();
+                }
+                // =================================================================
+
                 SaleDetails::create([
                     'sale_id' => $sale->id,
                     'reference' => $sale->reference,
@@ -449,13 +449,14 @@ class PosController extends Controller
                     'product_discount_type' => $cart_item->options->product_discount_type,
                     'product_tax_amount' => $cart_item->options->product_tax,
                     'variant_detail' => json_encode($variants),
+                    'recipe_snapshot' => $recipeSnapshot, // 🎯 Simpan array snapshot (Otomatis ke JSON jika model di-cast ke array)
                 ]);
 
                 // LOGIKA POTONG STOK
                 $product = \Modules\Product\Entities\Product::find($cart_item->id);
                 if ($product) {
                     if ($product->is_recipe == 'Y') {
-                        $recipeHeader = \Modules\Setting\Entities\Recipe::where('product_id', $product->id)->first();
+                        // Gunakan data $recipeHeader dari pencarian resep di atas untuk efisiensi query
                         if ($recipeHeader) {
                             foreach ($recipeHeader->details as $detail) {
                                 $qty_to_reduce = (float)$detail->quantity * $cart_item->qty;

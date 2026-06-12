@@ -110,7 +110,7 @@
             <a class="c-sidebar-nav-link c-sidebar-nav-dropdown-toggle" href="#">
                 <i class="c-sidebar-nav-icon bi bi-bag" style="line-height: 1;"></i> Purchases
             </a>
-            @can('create_purchase')
+            @can('create_purchases')
                 <ul class="c-sidebar-nav-dropdown-items pl-2">
                     <li class="c-sidebar-nav-item ">
                         <a class="c-sidebar-nav-link {{ request()->routeIs('purchases.create') ? 'c-active' : '' }}"

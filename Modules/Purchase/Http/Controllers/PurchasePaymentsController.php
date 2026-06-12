@@ -13,7 +13,8 @@ use Modules\Purchase\Entities\PurchasePayment;
 class PurchasePaymentsController extends Controller
 {
 
-    public function index($purchase_id, PurchasePaymentsDataTable $dataTable) {
+    public function index($purchase_id, PurchasePaymentsDataTable $dataTable)
+    {
         abort_if(Gate::denies('access_purchase_payments'), 403);
 
         $purchase = Purchase::findOrFail($purchase_id);
@@ -22,7 +23,8 @@ class PurchasePaymentsController extends Controller
     }
 
 
-    public function create($purchase_id) {
+    public function create($purchase_id)
+    {
         abort_if(Gate::denies('access_purchase_payments'), 403);
 
         $purchase = Purchase::findOrFail($purchase_id);
@@ -31,7 +33,8 @@ class PurchasePaymentsController extends Controller
     }
 
 
-    public function store(Request $request) {
+    public function store(Request $request)
+    {
         abort_if(Gate::denies('access_purchase_payments'), 403);
 
         $request->validate([
@@ -78,16 +81,21 @@ class PurchasePaymentsController extends Controller
     }
 
 
-    public function edit($purchase_id, PurchasePayment $purchasePayment) {
+    // 🎯 PERBAIKAN: Menggunakan variabel ID biasa untuk mematikan Route Model Binding
+    public function edit($purchase_id, $purchasePayment)
+    {
         abort_if(Gate::denies('access_purchase_payments'), 403);
 
         $purchase = Purchase::findOrFail($purchase_id);
+        $purchasePayment = PurchasePayment::findOrFail($purchasePayment);
 
         return view('purchase::payments.edit', compact('purchasePayment', 'purchase'));
     }
 
 
-    public function update(Request $request, PurchasePayment $purchasePayment) {
+    // 🎯 PERBAIKAN: Menggunakan variabel ID biasa untuk mematikan Route Model Binding
+    public function update(Request $request, $purchasePayment)
+    {
         abort_if(Gate::denies('access_purchase_payments'), 403);
 
         $request->validate([
@@ -98,6 +106,9 @@ class PurchasePaymentsController extends Controller
             'purchase_id' => 'required',
             'payment_method' => 'required|string|max:255'
         ]);
+
+        // Cari data payment secara manual sebelum masuk transaksi database
+        $purchasePayment = PurchasePayment::findOrFail($purchasePayment);
 
         DB::transaction(function () use ($request, $purchasePayment) {
             $purchase = $purchasePayment->purchase;
@@ -134,9 +145,12 @@ class PurchasePaymentsController extends Controller
     }
 
 
-    public function destroy(PurchasePayment $purchasePayment) {
+    // 🎯 PERBAIKAN: Menggunakan variabel ID biasa untuk mematikan Route Model Binding
+    public function destroy($purchasePayment)
+    {
         abort_if(Gate::denies('access_purchase_payments'), 403);
 
+        $purchasePayment = PurchasePayment::findOrFail($purchasePayment);
         $purchasePayment->delete();
 
         toast('Purchase Payment Deleted!', 'warning');

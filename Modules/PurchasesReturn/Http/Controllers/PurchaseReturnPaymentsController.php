@@ -13,7 +13,8 @@ use Modules\PurchasesReturn\Entities\PurchaseReturnPayment;
 class PurchaseReturnPaymentsController extends Controller
 {
 
-    public function index($purchase_return_id, PurchaseReturnPaymentsDataTable $dataTable) {
+    public function index($purchase_return_id, PurchaseReturnPaymentsDataTable $dataTable)
+    {
         abort_if(Gate::denies('access_purchase_return_payments'), 403);
 
         $purchase_return = PurchaseReturn::findOrFail($purchase_return_id);
@@ -22,7 +23,8 @@ class PurchaseReturnPaymentsController extends Controller
     }
 
 
-    public function create($purchase_return_id) {
+    public function create($purchase_return_id)
+    {
         abort_if(Gate::denies('access_purchase_return_payments'), 403);
 
         $purchase_return = PurchaseReturn::findOrFail($purchase_return_id);
@@ -31,7 +33,8 @@ class PurchaseReturnPaymentsController extends Controller
     }
 
 
-    public function store(Request $request) {
+    public function store(Request $request)
+    {
         abort_if(Gate::denies('access_purchase_return_payments'), 403);
 
         $request->validate([
@@ -78,16 +81,21 @@ class PurchaseReturnPaymentsController extends Controller
     }
 
 
-    public function edit($purchase_return_id, PurchaseReturnPayment $purchaseReturnPayment) {
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function edit($purchase_return_id, $purchaseReturnPayment)
+    {
         abort_if(Gate::denies('access_purchase_return_payments'), 403);
 
         $purchase_return = PurchaseReturn::findOrFail($purchase_return_id);
+        $purchaseReturnPayment = PurchaseReturnPayment::findOrFail($purchaseReturnPayment);
 
         return view('purchasesreturn::payments.edit', compact('purchaseReturnPayment', 'purchase_return'));
     }
 
 
-    public function update(Request $request, PurchaseReturnPayment $purchaseReturnPayment) {
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function update(Request $request, $purchaseReturnPayment)
+    {
         abort_if(Gate::denies('access_purchase_return_payments'), 403);
 
         $request->validate([
@@ -98,6 +106,9 @@ class PurchaseReturnPaymentsController extends Controller
             'purchase_return_id' => 'required',
             'payment_method' => 'required|string|max:255'
         ]);
+
+        // Cari data payment secara manual sebelum transaction dimulai
+        $purchaseReturnPayment = PurchaseReturnPayment::findOrFail($purchaseReturnPayment);
 
         DB::transaction(function () use ($request, $purchaseReturnPayment) {
             $purchase_return = $purchaseReturnPayment->purchaseReturn;
@@ -134,9 +145,12 @@ class PurchaseReturnPaymentsController extends Controller
     }
 
 
-    public function destroy(PurchaseReturnPayment $purchaseReturnPayment) {
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function destroy($purchaseReturnPayment)
+    {
         abort_if(Gate::denies('access_purchase_return_payments'), 403);
 
+        $purchaseReturnPayment = PurchaseReturnPayment::findOrFail($purchaseReturnPayment);
         $purchaseReturnPayment->delete();
 
         toast('Purchase Return Payment Deleted!', 'warning');

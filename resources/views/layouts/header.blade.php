@@ -40,14 +40,25 @@
                     <i class="bi bi-bell" style="font-size: 20px;"></i>
                     <span class="badge badge-pill badge-danger">
                         @php
+                            // 🎯 QUERY BARU: Mengambil stok gabungan per gudang dari product_warehouse
                             $low_quantity_products = \Modules\Product\Entities\Product::select(
-                                'id',
-                                'product_quantity',
-                                'product_stock_alert',
-                                'product_code',
+                                'products.id',
+                                'products.product_code',
+                                'products.product_name',
+                                'products.product_stock_alert',
+                                \DB::raw('SUM(product_warehouse.qty) as total_warehouse_qty'),
                             )
-                                ->whereColumn('product_quantity', '<=', 'product_stock_alert')
+                                ->join('product_warehouse', 'products.id', '=', 'product_warehouse.product_id')
+                                ->groupBy(
+                                    'products.id',
+                                    'products.product_code',
+                                    'products.product_name',
+                                    'products.product_stock_alert',
+                                )
+                                // Membandingkan hasil SUM(qty) gudang dengan nilai alert limit di produk
+                                ->havingRaw('SUM(product_warehouse.qty) <= products.product_stock_alert')
                                 ->get();
+
                             echo $low_quantity_products->count();
                         @endphp
                     </span>
@@ -58,12 +69,14 @@
                     </div>
                     @forelse($low_quantity_products as $product)
                         <a class="dropdown-item" href="{{ route('products.show', $product->id) }}">
-                            <i class="bi bi-hash mr-1 text-primary"></i> Product: "{{ $product->product_code }}" is low in
-                            quantity!
+                            <i class="bi bi-exclamation-triangle mr-1 text-warning"></i>
+                            <strong>[{{ $product->product_code }}]</strong>&nbsp;
+                            {{ Str::limit($product->product_name, 20) }}&nbsp;
+                            <span class="text-danger">(Stok: {{ number_format($product->total_warehouse_qty, 0) }})</span>
                         </a>
                     @empty
-                        <a class="dropdown-item" href="#">
-                            <i class="bi bi-app-indicator mr-2 text-danger"></i> No notifications available.
+                        <a class="dropdown-item text-center" href="#">
+                            <i class="bi bi-check-circle mr-2 text-success"></i> All stocks are safe.
                         </a>
                     @endforelse
                 </div>

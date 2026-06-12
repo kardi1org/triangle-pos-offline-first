@@ -6,21 +6,26 @@ use Illuminate\Support\Facades\Auth;
 if (!function_exists('isFeatureEnabled')) {
     function isFeatureEnabled($key)
     {
-        // Pastikan user sudah login
+        // 1. Pastikan user sudah login
         if (!Auth::check()) {
             return false;
         }
 
-        $package = Auth::user()->package_id; // Pastikan kolom package_id ada di tabel users
+        $user = Auth::user();
 
-        // Jika package_id kosong, default ke package 1 (Free)
-        if (!$package) {
-            $package = 1;
+        // 2. Ambil code paket milik user (misal hasilnya: 'free', 'premium', atau angka '1', '2')
+        // Pastikan kolom 'codepaket' ini memang menyimpan nilai yang sesuai dengan nama kolom di DB
+        $codePaket = $user->codepaket;
+
+        // Jika codepaket kosong di user, set default (sesuaikan dengan default sistem Anda, misal '1' atau 'free')
+        if (!$codePaket) {
+            $codePaket = '1';
         }
 
-        return \Modules\FeatureManager\Entities\FeatureManagement::on('mysql') // <--- Tambahkan ini
+        // 3. Query ke Database Utama ('mysql') membedah tabel FeatureManagement
+        return \Modules\FeatureManager\Entities\FeatureManagement::on('db_pos')
             ->where('feature_key', $key)
-            ->where('package_' . auth()->user()->codepaket, 1)
+            ->where('package_' . $codePaket, 1) // Menghasilkan: package_1, package_free, dll.
             ->exists();
     }
 }

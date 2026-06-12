@@ -12,9 +12,12 @@ use Modules\Quotation\Http\Requests\StoreQuotationSaleRequest;
 class QuotationSalesController extends Controller
 {
 
-    public function __invoke(Quotation $quotation) {
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Route Model Binding
+    public function __invoke($quotation_id)
+    {
         abort_if(Gate::denies('create_quotation_sales'), 403);
 
+        $quotation = Quotation::findOrFail($quotation_id);
         $quotation_details = $quotation->quotationDetails;
 
         Cart::instance('sale')->destroy();

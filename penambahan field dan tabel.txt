@@ -225,6 +225,10 @@ ADD COLUMN outlet_id bigint(20) unsigned NULL AFTER id;
 ALTER TABLE expenses
 ADD COLUMN payment_method VARCHAR(30) DEFAULT 'Cash' AFTER amount;
 
+ALTER TABLE sale_details
+ADD COLUMN recipe_snapshot LONGTEXT NULL
+AFTER variant_detail;
+
 
 
 

@@ -1272,6 +1272,63 @@ class Checkout extends Component
 
 
 
+    // public function updateQuantity($row_id, $product_id)
+    // {
+    //     $cart = Cart::instance($this->cart_instance);
+
+    //     // Ambil cart item awal
+    //     $cart_item = $cart->get($row_id);
+    //     if (!$cart_item) return;
+
+    //     $newQty = $this->quantity[$product_id] ?? $cart_item->qty;
+
+    //     // Stock
+    //     $availableStock = $this->check_quantity[$product_id]
+    //         ?? $cart_item->options->stock
+    //         ?? 0;
+
+    //     // Validasi minimal
+    //     if ($newQty < 1) $newQty = 1;
+
+    //     // Validasi stok
+    //     if ($newQty > $availableStock) {
+    //         session()->flash('message', 'The requested quantity is not available in stock.');
+    //         $newQty = $cart_item->qty;
+    //     }
+
+    //     // 1️⃣ Update qty dulu
+    //     $cart->update($row_id, $newQty);
+
+    //     // 2️⃣ Hapus variant (TAPI jangan pakai row_id lama!)
+    //     $this->removeVariantAfterQtyDecrease($product_id, $newQty);
+
+    //     // 3️⃣ Normalize variant (TANPA ROW_ID)
+    //     $this->normalizeVariantsAfterQtyChange($product_id, $newQty);
+
+    //     // 4️⃣ Simpan qty ke state
+    //     $this->quantity[$product_id] = $newQty;
+    //     $this->total_amount = $this->calculateTotal();
+
+    //     // 5️⃣ ***AMBIL CART ITEM TERBARU BERDASARKAN PRODUCT ID***
+    //     $newCartItem = $cart->search(fn ($i) => $i->id == $product_id)->first();
+    //     if (!$newCartItem) return; // antisipasi
+
+    //     // 6️⃣ Update options menggunakan ROW ID BARU
+    //     $cart->update($newCartItem->rowId, [
+    //         'options' => [
+    //             'sub_total'             => $newCartItem->price * $newCartItem->qty,
+    //             'code'                  => $newCartItem->options->code,
+    //             'stock'                 => $newCartItem->options->stock,
+    //             'unit'                  => $newCartItem->options->unit,
+    //             'product_tax'           => $newCartItem->options->product_tax,
+    //             'unit_price'            => $newCartItem->options->unit_price,
+    //             'product_discount'      => $newCartItem->options->product_discount,
+    //             'product_discount_type' => $newCartItem->options->product_discount_type,
+    //             'variants'              => $newCartItem->options->variants ?? [],
+    //         ]
+    //     ]);
+    // }
+
     public function updateQuantity($row_id, $product_id)
     {
         $cart = Cart::instance($this->cart_instance);
@@ -1282,18 +1339,60 @@ class Checkout extends Component
 
         $newQty = $this->quantity[$product_id] ?? $cart_item->qty;
 
-        // Stock
-        $availableStock = $this->check_quantity[$product_id]
-            ?? $cart_item->options->stock
-            ?? 0;
+        // --- 🎯 AMBIL WAREHOUSE ID DARI SESSION OUTLET ACTIVE ---
+        $userOutletId = session('selected_outlet_id') ?? auth()->user()->outlets()->first()?->id;
+        $warehouse = \Modules\Setting\Entities\Warehouse::where('outlet_id', $userOutletId)
+            ->where('is_active', 1)
+            ->first();
 
-        // Validasi minimal
+        $warehouse_id = $warehouse ? $warehouse->id : null;
+
+        // --- 🎯 LOGIKA HITUNG AVAILABLE STOCK DARI PRODUCT_WAREHOUSE ---
+        $availableStock = 0;
+
+        if ($warehouse_id) {
+            // Cek apakah produk ini memiliki resep (Barang Jadi)
+            $recipe = \Modules\Setting\Entities\Recipe::with('details')->where('product_id', $product_id)->first();
+
+            if ($recipe && $recipe->details->count() > 0) {
+                // CONTEXT: BARANG JADI BERESEP
+                // Stok maksimal ditentukan oleh bahan baku yang paling sedikit/kritis ketersediaannya
+                $maxPossibleQty = [];
+
+                foreach ($recipe->details as $detail) {
+                    // Ambil stok masing-masing bahan baku di gudang yang aktif
+                    $ingredientStock = \DB::table('product_warehouse')
+                        ->where('warehouse_id', $warehouse_id)
+                        ->where('product_id', $detail->product_id)
+                        ->value('qty') ?? 0;
+
+                    // Batas maksimal produk jadi yang bisa dibuat dari bahan ini = Stok Bahan / Takaran Resep
+                    if ($detail->quantity > 0) {
+                        $maxPossibleQty[] = floor($ingredientStock / $detail->quantity);
+                    }
+                }
+
+                // Ambil nilai terkecil sebagai batas available stock real-time
+                $availableStock = count($maxPossibleQty) > 0 ? min($maxPossibleQty) : 0;
+            } else {
+                // CONTEXT: BARANG BIASA / BAHAN BAKU MURNI
+                $availableStock = \DB::table('product_warehouse')
+                    ->where('warehouse_id', $warehouse_id)
+                    ->where('product_id', $product_id)
+                    ->value('qty') ?? 0;
+            }
+        } else {
+            // Fallback jika data gudang tidak ditemukan, gunakan data state awal/cart
+            $availableStock = $this->check_quantity[$product_id] ?? $cart_item->options->stock ?? 0;
+        }
+
+        // Validasi minimal kuantitas
         if ($newQty < 1) $newQty = 1;
 
-        // Validasi stok
+        // Validasi stok real-time gudang
         if ($newQty > $availableStock) {
             session()->flash('message', 'The requested quantity is not available in stock.');
-            $newQty = $cart_item->qty;
+            //$newQty = $cart_item->qty;
         }
 
         // 1️⃣ Update qty dulu
@@ -1313,12 +1412,12 @@ class Checkout extends Component
         $newCartItem = $cart->search(fn ($i) => $i->id == $product_id)->first();
         if (!$newCartItem) return; // antisipasi
 
-        // 6️⃣ Update options menggunakan ROW ID BARU
+        // 6️⃣ Update options menggunakan ROW ID BARU dan suntikkan AvailableStock terbaru ke state cart
         $cart->update($newCartItem->rowId, [
             'options' => [
                 'sub_total'             => $newCartItem->price * $newCartItem->qty,
                 'code'                  => $newCartItem->options->code,
-                'stock'                 => $newCartItem->options->stock,
+                'stock'                 => $availableStock, // 🎯 Pasang real-time stock gudang terbaru di opsi cart
                 'unit'                  => $newCartItem->options->unit,
                 'product_tax'           => $newCartItem->options->product_tax,
                 'unit_price'            => $newCartItem->options->unit_price,

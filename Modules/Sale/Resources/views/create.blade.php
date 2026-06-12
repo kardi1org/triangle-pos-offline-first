@@ -62,30 +62,21 @@
                             <livewire:product-cart :cartInstance="'sale'" />
 
                             <div class="form-row">
-                                <div class="col-lg-4">
+                                <input type="hidden" name="status" id="status" value="Completed">
+
+                                <div class="col-lg-6">
                                     <div class="form-group">
-                                        <label for="status">Status <span class="text-danger">*</span></label>
-                                        <select class="form-control" name="status" id="status" required>
-                                            <option value="Pending">Pending</option>
-                                            <option value="Shipped">Shipped</option>
-                                            <option value="Completed">Completed</option>
+                                        <label for="payment_method">Payment Method <span
+                                                class="text-danger">*</span></label>
+                                        <select class="form-control" name="payment_method" id="payment_method">
+                                            <option value="Cash">Cash</option>
+                                            <option value="Credit Card">Credit Card</option>
+                                            <option value="Debit Card">Debit Card</option>
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-lg-4">
-                                    <div class="from-group">
-                                        <div class="form-group">
-                                            <label for="payment_method">Payment Method <span
-                                                    class="text-danger">*</span></label>
-                                            <select class="form-control" name="payment_method" id="payment_method">
-                                                <option value="Cash">Cash</option>
-                                                <option value="Credit Card">Credit Card</option>
-                                                <option value="Debit Card">Debit Card</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-4">
+
+                                <div class="col-lg-6">
                                     <div class="form-group">
                                         <label for="paid_amount">Amount Received <span class="text-danger">*</span></label>
                                         <div class="input-group">

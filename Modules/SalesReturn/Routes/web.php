@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -23,7 +24,7 @@ Route::group(['middleware' => 'auth'], function () {
             'customer' => $customer,
         ])->setPaper('a4');
 
-        return $pdf->stream('sale-return-'. $saleReturn->reference .'.pdf');
+        return $pdf->stream('sale-return-' . $saleReturn->reference . '.pdf');
     })->name('sale-returns.pdf');
 
     //Sale Returns

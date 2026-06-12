@@ -14,7 +14,8 @@ use Modules\Sale\Entities\SalePayment;
 class SalePaymentsController extends Controller
 {
 
-    public function index($sale_id, SalePaymentsDataTable $dataTable) {
+    public function index($sale_id, SalePaymentsDataTable $dataTable)
+    {
         abort_if(Gate::denies('access_sale_payments'), 403);
 
         $sale = Sale::findOrFail($sale_id);
@@ -23,7 +24,8 @@ class SalePaymentsController extends Controller
     }
 
 
-    public function create($sale_id) {
+    public function create($sale_id)
+    {
         abort_if(Gate::denies('access_sale_payments'), 403);
 
         $sale = Sale::findOrFail($sale_id);
@@ -32,7 +34,8 @@ class SalePaymentsController extends Controller
     }
 
 
-    public function store(Request $request) {
+    public function store(Request $request)
+    {
         abort_if(Gate::denies('access_sale_payments'), 403);
 
         $request->validate([
@@ -88,16 +91,21 @@ class SalePaymentsController extends Controller
     }
 
 
-    public function edit($sale_id, SalePayment $salePayment) {
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function edit($sale_id, $salePayment)
+    {
         abort_if(Gate::denies('access_sale_payments'), 403);
 
         $sale = Sale::findOrFail($sale_id);
+        $salePayment = SalePayment::findOrFail($salePayment);
 
         return view('sale::payments.edit', compact('salePayment', 'sale'));
     }
 
 
-    public function update(Request $request, SalePayment $salePayment) {
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function update(Request $request, $salePayment)
+    {
         abort_if(Gate::denies('access_sale_payments'), 403);
 
         $request->validate([
@@ -108,6 +116,9 @@ class SalePaymentsController extends Controller
             'sale_id' => 'required',
             'payment_method' => 'required|string|max:255'
         ]);
+
+        // Cari data payment secara manual sebelum transaction dimulai
+        $salePayment = SalePayment::findOrFail($salePayment);
 
         DB::transaction(function () use ($request, $salePayment) {
             $sale = $salePayment->sale;
@@ -144,9 +155,12 @@ class SalePaymentsController extends Controller
     }
 
 
-    public function destroy(SalePayment $salePayment) {
+    // 🎯 PERBAIKAN: Menggunakan ID biasa untuk bypass 404 Model Binding
+    public function destroy($salePayment)
+    {
         abort_if(Gate::denies('access_sale_payments'), 403);
 
+        $salePayment = SalePayment::findOrFail($salePayment);
         $salePayment->delete();
 
         toast('Sale Payment Deleted!', 'warning');
