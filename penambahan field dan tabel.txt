@@ -229,6 +229,14 @@ ALTER TABLE sale_details
 ADD COLUMN recipe_snapshot LONGTEXT NULL
 AFTER variant_detail;
 
+ALTER TABLE `mejas` 
+ADD COLUMN `outlet_id` BIGINT(20) UNSIGNED NOT NULL AFTER `id`,
+ADD COLUMN `position_x` INT(11) NOT NULL DEFAULT 0 AFTER `shape`,
+ADD COLUMN `position_y` INT(11) NOT NULL DEFAULT 0 AFTER `position_x`,
+ADD COLUMN `width` INT(11) DEFAULT NULL AFTER `position_y`,
+ADD COLUMN `height` INT(11) DEFAULT NULL AFTER `width`,
+ADD COLUMN `rotation` INT(11) DEFAULT 0 AFTER `height`,
+ADD INDEX `mejas_outlet_id_foreign` (`outlet_id`);
 
 
 

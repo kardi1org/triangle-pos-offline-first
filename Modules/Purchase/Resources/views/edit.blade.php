@@ -23,9 +23,11 @@
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
                         @include('utils.alerts')
-                        <form id="purchase-form" action="{{ route('purchases.update', $purchase) }}" method="POST">
+
+                        {{-- PERBAIKAN: Melempar $purchase->id secara spesifik --}}
+                        <form id="purchase-form" action="{{ route('purchases.update', $purchase->id) }}" method="POST">
                             @csrf
-                            @method('patch')
+                            @method('PATCH')
                             <div class="form-row">
                                 <div class="col-lg-3">
                                     <div class="form-group">
@@ -35,7 +37,6 @@
                                     </div>
                                 </div>
 
-                                {{-- Tambahkan Dropdown Warehouse --}}
                                 <div class="col-lg-3">
                                     <div class="form-group">
                                         <label for="warehouse_id">Warehouse <span class="text-danger">*</span></label>

@@ -14,7 +14,7 @@ use Modules\Purchase\Entities\PurchaseDetail;
 use Modules\Purchase\Entities\PurchasePayment;
 use Modules\Purchase\Http\Requests\StorePurchaseRequest;
 use Modules\Purchase\Http\Requests\UpdatePurchaseRequest;
-use Modules\Setting\Entities\ProductWarehouse; // Import Model ProductWarehouse
+use Modules\Setting\Entities\ProductWarehouse;
 
 class PurchaseController extends Controller
 {
@@ -36,6 +36,11 @@ class PurchaseController extends Controller
         try {
             DB::beginTransaction();
 
+            $supplier = Supplier::find($request->supplier_id);
+            if (!$supplier) {
+                return back()->with('error', 'Gagal: Data Supplier tidak ditemukan di database.');
+            }
+
             $due_amount = $request->total_amount - $request->paid_amount;
             if ($due_amount == $request->total_amount) {
                 $payment_status = 'Unpaid';
@@ -48,7 +53,7 @@ class PurchaseController extends Controller
             $purchase = Purchase::create([
                 'date' => $request->date,
                 'supplier_id' => $request->supplier_id,
-                'supplier_name' => Supplier::findOrFail($request->supplier_id)->supplier_name,
+                'supplier_name' => $supplier->supplier_name,
                 'warehouse_id' => $request->warehouse_id,
                 'tax_percentage' => $request->tax_percentage,
                 'discount_percentage' => $request->discount_percentage,
@@ -79,11 +84,12 @@ class PurchaseController extends Controller
                     'product_tax_amount' => $cart_item->options->product_tax * 100,
                 ]);
 
-                // Update Stok jika status Completed
                 if ($request->status == 'Completed') {
-                    $product = Product::findOrFail($cart_item->id);
+                    $product = Product::find($cart_item->id);
+                    if (!$product) {
+                        throw new \Exception("Produk dengan ID {$cart_item->id} tidak ditemukan.");
+                    }
                     $product->increment('product_quantity', $cart_item->qty);
-
                     $this->updateWarehouseStock($cart_item->id, $request->warehouse_id, $cart_item->qty, 'increment');
                 }
             }
@@ -109,25 +115,50 @@ class PurchaseController extends Controller
         }
     }
 
-    public function update(UpdatePurchaseRequest $request, Purchase $purchase)
+    // =========================================================================
+    // PERBAIKAN: Menggunakan $id manual untuk menghindari 404 Model Binding di Linux
+    // =========================================================================
+
+    public function show($id)
+    {
+        abort_if(Gate::denies('show_purchases'), 403);
+
+        // Ambil data purchase secara manual menggunakan $id
+        $purchase = Purchase::findOrFail($id);
+
+        $supplier = Supplier::find($purchase->supplier_id);
+        if (!$supplier) {
+            $supplier = new Supplier(['supplier_name' => $purchase->supplier_name]);
+        }
+
+        return view('purchase::show', compact('purchase', 'supplier'));
+    }
+
+    public function update(UpdatePurchaseRequest $request, $id)
     {
         try {
             DB::beginTransaction();
 
-            // 1. REVERSAL STOK LAMA (Hanya jika status sebelumnya Completed)
+            // Ambil data purchase secara manual menggunakan $id
+            $purchase = Purchase::findOrFail($id);
+
+            $supplier = Supplier::find($request->supplier_id);
+            if (!$supplier) {
+                return back()->with('error', 'Gagal: Data Supplier tidak ditemukan.');
+            }
+
             if ($purchase->status == 'Completed') {
                 foreach ($purchase->purchaseDetails as $purchase_detail) {
-                    $product = Product::findOrFail($purchase_detail->product_id);
-                    $product->decrement('product_quantity', $purchase_detail->quantity);
-
-                    $this->updateWarehouseStock($purchase_detail->product_id, $purchase->warehouse_id, $purchase_detail->quantity, 'decrement');
+                    $product = Product::find($purchase_detail->product_id);
+                    if ($product) {
+                        $product->decrement('product_quantity', $purchase_detail->quantity);
+                        $this->updateWarehouseStock($purchase_detail->product_id, $purchase->warehouse_id, $purchase_detail->quantity, 'decrement');
+                    }
                 }
             }
 
-            // Hapus detail lama
             $purchase->purchaseDetails()->delete();
 
-            // 2. UPDATE HEADER
             $due_amount = $request->total_amount - $request->paid_amount;
             if ($due_amount == $request->total_amount) {
                 $payment_status = 'Unpaid';
@@ -141,7 +172,7 @@ class PurchaseController extends Controller
                 'date' => $request->date,
                 'reference' => $request->reference,
                 'supplier_id' => $request->supplier_id,
-                'supplier_name' => Supplier::findOrFail($request->supplier_id)->supplier_name,
+                'supplier_name' => $supplier->supplier_name,
                 'warehouse_id' => $request->warehouse_id,
                 'tax_percentage' => $request->tax_percentage,
                 'discount_percentage' => $request->discount_percentage,
@@ -157,7 +188,6 @@ class PurchaseController extends Controller
                 'discount_amount' => Cart::instance('purchase')->discount() * 100,
             ]);
 
-            // 3. SIMPAN DETAIL BARU & UPDATE STOK BARU
             foreach (Cart::instance('purchase')->content() as $cart_item) {
                 PurchaseDetail::create([
                     'purchase_id' => $purchase->id,
@@ -174,9 +204,11 @@ class PurchaseController extends Controller
                 ]);
 
                 if ($request->status == 'Completed') {
-                    $product = Product::findOrFail($cart_item->id);
+                    $product = Product::find($cart_item->id);
+                    if (!$product) {
+                        throw new \Exception("Produk dengan ID {$cart_item->id} tidak ditemukan.");
+                    }
                     $product->increment('product_quantity', $cart_item->qty);
-
                     $this->updateWarehouseStock($cart_item->id, $request->warehouse_id, $cart_item->qty, 'increment');
                 }
             }
@@ -191,20 +223,23 @@ class PurchaseController extends Controller
         }
     }
 
-    public function destroy(Purchase $purchase)
+    public function destroy($id)
     {
         abort_if(Gate::denies('delete_purchases'), 403);
 
         try {
             DB::beginTransaction();
 
-            // REVERSAL STOK SEBELUM HAPUS (Jika status Completed)
+            // Ambil data purchase secara manual menggunakan $id
+            $purchase = Purchase::findOrFail($id);
+
             if ($purchase->status == 'Completed') {
                 foreach ($purchase->purchaseDetails as $purchase_detail) {
-                    $product = Product::findOrFail($purchase_detail->product_id);
-                    $product->decrement('product_quantity', $purchase_detail->quantity);
-
-                    $this->updateWarehouseStock($purchase_detail->product_id, $purchase->warehouse_id, $purchase_detail->quantity, 'decrement');
+                    $product = Product::find($purchase_detail->product_id);
+                    if ($product) {
+                        $product->decrement('product_quantity', $purchase_detail->quantity);
+                        $this->updateWarehouseStock($purchase_detail->product_id, $purchase->warehouse_id, $purchase_detail->quantity, 'decrement');
+                    }
                 }
             }
 
@@ -218,9 +253,6 @@ class PurchaseController extends Controller
         }
     }
 
-    /**
-     * Helper untuk mengupdate tabel ProductWarehouse
-     */
     private function updateWarehouseStock($product_id, $warehouse_id, $qty, $action)
     {
         $stock = ProductWarehouse::where('product_id', $product_id)
@@ -244,21 +276,24 @@ class PurchaseController extends Controller
         }
     }
 
-    public function show(Purchase $purchase)
-    {
-        abort_if(Gate::denies('show_purchases'), 403);
-        $supplier = Supplier::findOrFail($purchase->supplier_id);
-        return view('purchase::show', compact('purchase', 'supplier'));
-    }
 
-    public function edit(Purchase $purchase)
+
+    // DISESUAIKAN: Menggunakan explicit binding (Purchase $purchase)
+    public function edit($id) // Ubah parameter menjadi $id biasa
     {
         abort_if(Gate::denies('edit_purchases'), 403);
+
+        // Cari manual menggunakan findOrFail agar jika error, kita tahu masalahnya
+        $purchase = Purchase::findOrFail($id);
+
         $purchase_details = $purchase->purchaseDetails;
         Cart::instance('purchase')->destroy();
         $cart = Cart::instance('purchase');
 
         foreach ($purchase_details as $purchase_detail) {
+            $product = Product::find($purchase_detail->product_id);
+            $current_stock = $product ? $product->product_quantity : 0;
+
             $cart->add([
                 'id'      => $purchase_detail->product_id,
                 'name'    => $purchase_detail->product_name,
@@ -270,7 +305,7 @@ class PurchaseController extends Controller
                     'product_discount_type' => $purchase_detail->product_discount_type,
                     'sub_total'   => $purchase_detail->sub_total,
                     'code'        => $purchase_detail->product_code,
-                    'stock'       => Product::findOrFail($purchase_detail->product_id)->product_quantity,
+                    'stock'       => $current_stock,
                     'product_tax' => $purchase_detail->product_tax_amount,
                     'unit_price'  => $purchase_detail->unit_price
                 ]

@@ -552,12 +552,23 @@
             <i class="c-sidebar-nav-icon bi bi-gear" style="line-height: 1;"></i> Settings
         </a>
 
-        @can('access_currencies')
+        {{-- @can('access_currencies')
             <ul class="c-sidebar-nav-dropdown-items pl-2">
                 <li class="c-sidebar-nav-item">
                     <a class="c-sidebar-nav-link {{ request()->routeIs('mejas*') ? 'c-active' : '' }}"
                         href="{{ route('mejas.index') }}">
                         <i class="c-sidebar-nav-icon bi bi-receipt" style="line-height: 1;"></i> Table
+                    </a>
+                </li>
+            </ul>
+        @endcan --}}
+
+        @can('access_currencies')
+            <ul class="c-sidebar-nav-dropdown-items pl-2">
+                <li class="c-sidebar-nav-item">
+                    <a class="c-sidebar-nav-link {{ request()->routeIs('mejas*') ? 'c-active' : '' }}"
+                        href="{{ route('mejas.floor_plan') }}">
+                        <i class="c-sidebar-nav-icon bi bi-receipt" style="line-height: 1;"></i> Floor Plan Designer
                     </a>
                 </li>
             </ul>

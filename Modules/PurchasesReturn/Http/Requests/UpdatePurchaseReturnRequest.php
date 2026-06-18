@@ -14,14 +14,21 @@ class UpdatePurchaseReturnRequest extends FormRequest
      */
     public function rules()
     {
+        // Ambil ID dari route (karena berupa string/integer biasa sekarang)
+        $purchaseReturnId = $this->route('purchase_return');
+
+        // Lakukan query manual untuk mengambil objek modelnya
+        $purchaseReturn = \Modules\PurchasesReturn\Entities\PurchaseReturn::findOrFail($purchaseReturnId);
+
         return [
-            'supplier_id' => 'required|numeric',
+            'date' => 'required|date',
             'reference' => 'required|string|max:255',
             'tax_percentage' => 'required|integer|min:0|max:100',
             'discount_percentage' => 'required|integer|min:0|max:100',
             'shipping_amount' => 'required|numeric',
             'total_amount' => 'required|numeric',
-            'paid_amount' => 'required|numeric|max:' . $this->purchase_return->total_amount,
+            // Gunakan variabel objek baru ($purchaseReturn) yang aman dari error string
+            'paid_amount' => 'required|numeric|max:' . $purchaseReturn->total_amount,
             'status' => 'required|string|max:255',
             'payment_method' => 'required|string|max:255',
             'note' => 'nullable|string|max:1000'

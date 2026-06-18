@@ -109,10 +109,13 @@ class PurchasesReturnController extends Controller
         }
     }
 
-    public function update(UpdatePurchaseReturnRequest $request, PurchaseReturn $purchase_return)
+    public function update(UpdatePurchaseReturnRequest $request, $id)
     {
         try {
             DB::beginTransaction();
+
+            // Tangkap model secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+            $purchase_return = PurchaseReturn::findOrFail($id);
 
             // 1. REVERSAL STOK LAMA (Kembalikan stok yang dulu sempat dikurangi)
             if ($purchase_return->status == 'Shipped' || $purchase_return->status == 'Completed') {
@@ -190,12 +193,15 @@ class PurchasesReturnController extends Controller
         }
     }
 
-    public function destroy(PurchaseReturn $purchase_return)
+    public function destroy($id)
     {
         abort_if(Gate::denies('delete_purchase_returns'), 403);
 
         try {
             DB::beginTransaction();
+
+            // Tangkap model secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+            $purchase_return = PurchaseReturn::findOrFail($id);
 
             // REVERSAL STOK SEBELUM HAPUS
             if ($purchase_return->status == 'Shipped' || $purchase_return->status == 'Completed') {
@@ -243,16 +249,24 @@ class PurchasesReturnController extends Controller
         }
     }
 
-    public function show(PurchaseReturn $purchase_return)
+    public function show($id)
     {
         abort_if(Gate::denies('show_purchase_returns'), 403);
+
+        // Tangkap model secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $purchase_return = PurchaseReturn::findOrFail($id);
+
         $supplier = Supplier::findOrFail($purchase_return->supplier_id);
         return view('purchasesreturn::show', compact('purchase_return', 'supplier'));
     }
 
-    public function edit(PurchaseReturn $purchase_return)
+    public function edit($id)
     {
         abort_if(Gate::denies('edit_purchase_returns'), 403);
+
+        // Tangkap model secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $purchase_return = PurchaseReturn::findOrFail($id);
+
         $purchase_return_details = $purchase_return->purchaseReturnDetails;
         Cart::instance('purchase_return')->destroy();
         $cart = Cart::instance('purchase_return');
