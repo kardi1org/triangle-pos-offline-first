@@ -2,22 +2,694 @@
     <div class="modal fade" id="tableSelectionModal" tabindex="-1" role="dialog" aria-labelledby="tableSelectionModalLabel"
         aria-hidden="true" wire:ignore.self>
 
+        <style>
+            .modal-floor-plan-canvas {
+                width: 100%;
+                height: 550px;
+                background-color: #f8fafc;
+                background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+                background-size: 24px 24px;
+                border: 3px dashed #94a3b8;
+                border-radius: 12px;
+                position: relative;
+                overflow: auto;
+            }
+
+            /* Elemen Dasar Meja Dinamis */
+            .modal-table-wrapper {
+                position: absolute;
+                cursor: pointer;
+                user-select: none;
+                transform-origin: center center;
+                z-index: 2;
+                overflow: visible !important;
+                /* Agar kursi di luar border tidak terpotong */
+                transition: opacity 0.2s ease;
+            }
+
+            .modal-table-wrapper:hover {
+                opacity: 0.85;
+            }
+
+            .modal-table-body {
+                width: 100%;
+                height: 100%;
+                background-color: #ffffff;
+                border: 2px solid #3b82f6;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                box-sizing: border-box;
+                padding: 5px;
+                z-index: 5;
+            }
+
+            /* State jika Meja Terpilih (Selected) */
+            .modal-table-wrapper.selected .modal-table-body {
+                border-color: #10b981 !important;
+                background-color: #ecfdf5 !important;
+                box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+            }
+
+            /* Kelestarian Bentuk Meja Masing-Masing Kategori */
+            .shape-round-4 .modal-table-body,
+            .shape-round-6 .modal-table-body,
+            .shape-round-8 .modal-table-body,
+            .shape-round-10 .modal-table-body,
+            .shape-round-12 .modal-table-body {
+                border-radius: 50% !important;
+            }
+
+            .shape-square-2-h .modal-table-body,
+            .shape-square-2-v .modal-table-body,
+            .shape-square-4 .modal-table-body {
+                border-radius: 4px !important;
+            }
+
+            .shape-rectangle-4-h .modal-table-body,
+            .shape-rectangle-6-h .modal-table-body,
+            .shape-rectangle-8-h .modal-table-body,
+            .shape-rectangle-4-v .modal-table-body,
+            .shape-rectangle-6-v .modal-table-body,
+            .shape-rectangle-8-v .modal-table-body {
+                border-radius: 6px !important;
+            }
+
+            /* FIX DIAGONAL SEGI 4 (Belah Ketupat / Diamond) */
+            .shape-diagonal-8 .modal-table-body {
+                border: none !important;
+                background-color: #3b82f6 !important;
+                padding: 2px !important;
+                clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
+                border-radius: 0px !important;
+            }
+
+            .modal-table-wrapper.selected.shape-diagonal-8 .modal-table-body {
+                background-color: #10b981 !important;
+            }
+
+            .shape-diagonal-8 .modal-table-body .modal-content-container {
+                background-color: #ffffff !important;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
+            }
+
+            .modal-table-wrapper.selected.shape-diagonal-8 .modal-table-body .modal-content-container {
+                background-color: #ecfdf5 !important;
+            }
+
+            /* Konten Teks di Dalam Meja */
+            .modal-content-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 6;
+                text-align: center;
+            }
+
+            .modal-table-label {
+                font-weight: bold;
+                font-size: 11px;
+                color: #1e293b;
+            }
+
+            .modal-table-pax {
+                font-size: 9px;
+                color: #64748b;
+            }
+
+            /* Overlay Checkmark Badge */
+            .modal-selection-badge {
+                position: absolute;
+                top: -10px;
+                right: -10px;
+                width: 22px;
+                height: 22px;
+                background-color: #10b981;
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                z-index: 12;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            }
+
+            /* ========================================================
+           ATURAN POSISI CSS CHAIRS 1:1 DARI LAYOUT UTAMA
+           ======================================================== */
+            .modal-table-wrapper .chair {
+                position: absolute;
+                background-color: #94a3b8;
+                border: 1px solid #64748b;
+                border-radius: 3px;
+                z-index: 1;
+                /* Berada di bawah table-body agar rapi */
+            }
+
+            /* --- RECTANGLE HORIZONTAL (UKURAN KURSI) --- */
+            .shape-rectangle-4-h .chair,
+            .shape-rectangle-6-h .chair,
+            .shape-rectangle-8-h .chair {
+                width: 22px !important;
+                height: 12px !important;
+            }
+
+            /* Koordinat Kursi */
+            .shape-rectangle-4-h .chair.t1 {
+                top: -16px;
+                left: calc(50% - 26px);
+            }
+
+            .shape-rectangle-4-h .chair.t2 {
+                top: -16px;
+                left: calc(50% + 4px);
+            }
+
+            .shape-rectangle-4-h .chair.b1 {
+                bottom: -16px;
+                left: calc(50% - 26px);
+            }
+
+            .shape-rectangle-4-h .chair.b2 {
+                bottom: -16px;
+                left: calc(50% + 4px);
+            }
+
+            .shape-rectangle-6-h .chair.t1 {
+                top: -16px;
+                left: calc(50% - 41px);
+            }
+
+            .shape-rectangle-6-h .chair.t2 {
+                top: -16px;
+                left: calc(50% - 11px);
+            }
+
+            .shape-rectangle-6-h .chair.t3 {
+                top: -16px;
+                left: calc(50% + 19px);
+            }
+
+            .shape-rectangle-6-h .chair.b1 {
+                bottom: -16px;
+                left: calc(50% - 41px);
+            }
+
+            .shape-rectangle-6-h .chair.b2 {
+                bottom: -16px;
+                left: calc(50% - 11px);
+            }
+
+            .shape-rectangle-6-h .chair.b3 {
+                bottom: -16px;
+                left: calc(50% + 19px);
+            }
+
+            .shape-rectangle-8-h .chair.t1 {
+                top: -16px;
+                left: calc(50% - 56px);
+            }
+
+            .shape-rectangle-8-h .chair.t2 {
+                top: -16px;
+                left: calc(50% - 28px);
+            }
+
+            .shape-rectangle-8-h .chair.t3 {
+                top: -16px;
+                left: calc(50% + 0px);
+            }
+
+            .shape-rectangle-8-h .chair.t4 {
+                top: -16px;
+                left: calc(50% + 28px);
+            }
+
+            .shape-rectangle-8-h .chair.b1 {
+                bottom: -16px;
+                left: calc(50% - 56px);
+            }
+
+            .shape-rectangle-8-h .chair.b2 {
+                bottom: -16px;
+                left: calc(50% - 28px);
+            }
+
+            .shape-rectangle-8-h .chair.b3 {
+                bottom: -16px;
+                left: calc(50% + 0px);
+            }
+
+            .shape-rectangle-8-h .chair.b4 {
+                bottom: -16px;
+                left: calc(50% + 28px);
+            }
+
+            /* --- RECTANGLE VERTICAL (UKURAN KURSI) --- */
+            .shape-rectangle-4-v .chair,
+            .shape-rectangle-6-v .chair,
+            .shape-rectangle-8-v .chair {
+                width: 12px !important;
+                height: 22px !important;
+            }
+
+            /* Koordinat Kursi */
+            .shape-rectangle-4-v .chair.l1 {
+                left: -16px;
+                top: calc(50% - 26px);
+            }
+
+            .shape-rectangle-4-v .chair.l2 {
+                left: -16px;
+                top: calc(50% + 4px);
+            }
+
+            .shape-rectangle-4-v .chair.r1 {
+                right: -16px;
+                top: calc(50% - 26px);
+            }
+
+            .shape-rectangle-4-v .chair.r2 {
+                right: -16px;
+                top: calc(50% + 4px);
+            }
+
+            .shape-rectangle-6-v .chair.l1 {
+                left: -16px;
+                top: calc(50% - 41px);
+            }
+
+            .shape-rectangle-6-v .chair.l2 {
+                left: -16px;
+                top: calc(50% - 11px);
+            }
+
+            .shape-rectangle-6-v .chair.l3 {
+                left: -16px;
+                top: calc(50% + 19px);
+            }
+
+            .shape-rectangle-6-v .chair.r1 {
+                right: -16px;
+                top: calc(50% - 41px);
+            }
+
+            .shape-rectangle-6-v .chair.r2 {
+                right: -16px;
+                top: calc(50% - 11px);
+            }
+
+            .shape-rectangle-6-v .chair.r3 {
+                right: -16px;
+                top: calc(50% + 19px);
+            }
+
+            .shape-rectangle-8-v .chair.l1 {
+                left: -16px;
+                top: calc(50% - 56px);
+            }
+
+            .shape-rectangle-8-v .chair.l2 {
+                left: -16px;
+                top: calc(50% - 28px);
+            }
+
+            .shape-rectangle-8-v .chair.l3 {
+                left: -16px;
+                top: calc(50% + 0px);
+            }
+
+            .shape-rectangle-8-v .chair.l4 {
+                left: -16px;
+                top: calc(50% + 28px);
+            }
+
+            .shape-rectangle-8-v .chair.r1 {
+                right: -16px;
+                top: calc(50% - 56px);
+            }
+
+            .shape-rectangle-8-v .chair.r2 {
+                right: -16px;
+                top: calc(50% - 28px);
+            }
+
+            .shape-rectangle-8-v .chair.r3 {
+                right: -16px;
+                top: calc(50% + 0px);
+            }
+
+            .shape-rectangle-8-v .chair.r4 {
+                right: -16px;
+                top: calc(50% + 28px);
+            }
+
+            /* --- SQUARE SERIES --- */
+            .shape-square-2-h .chair {
+                width: 12px;
+                height: 22px;
+                top: calc(50% - 11px);
+            }
+
+            .shape-square-2-h .chair.l1 {
+                left: -15px;
+            }
+
+            .shape-square-2-h .chair.r1 {
+                right: -15px;
+            }
+
+            .shape-square-2-v .chair {
+                width: 22px;
+                height: 12px;
+                left: calc(50% - 11px);
+            }
+
+            .shape-square-2-v .chair.t1 {
+                top: -15px;
+            }
+
+            .shape-square-2-v .chair.b1 {
+                bottom: -15px;
+            }
+
+            .shape-square-4 .chair {
+                width: 22px;
+                height: 12px;
+            }
+
+            .shape-square-4 .chair.t1 {
+                top: -15px;
+                left: calc(50% - 11px);
+            }
+
+            .shape-square-4 .chair.b1 {
+                bottom: -15px;
+                left: calc(50% - 11px);
+            }
+
+            .shape-square-4 .chair.l1 {
+                width: 12px;
+                height: 22px;
+                left: -15px;
+                top: calc(50% - 11px);
+            }
+
+            .shape-square-4 .chair.r1 {
+                width: 12px;
+                height: 22px;
+                right: -15px;
+                top: calc(50% - 11px);
+            }
+
+            /* --- DIAGONAL SERIES --- */
+            .shape-diagonal-8 .chair {
+                width: 22px !important;
+                height: 12px !important;
+            }
+
+            .shape-diagonal-8 .chair.tl-1 {
+                transform: rotate(-45deg);
+                top: 6px;
+                left: 16px;
+            }
+
+            .shape-diagonal-8 .chair.tl-2 {
+                transform: rotate(-45deg);
+                top: 24px;
+                left: -2px;
+            }
+
+            .shape-diagonal-8 .chair.tr-1 {
+                transform: rotate(45deg);
+                top: 6px;
+                right: 16px;
+            }
+
+            .shape-diagonal-8 .chair.tr-2 {
+                transform: rotate(45deg);
+                top: 24px;
+                right: -2px;
+            }
+
+            .shape-diagonal-8 .chair.bl-1 {
+                transform: rotate(45deg);
+                bottom: 24px;
+                left: -2px;
+            }
+
+            .shape-diagonal-8 .chair.bl-2 {
+                transform: rotate(45deg);
+                bottom: 6px;
+                left: 16px;
+            }
+
+            .shape-diagonal-8 .chair.br-1 {
+                transform: rotate(-45deg);
+                bottom: 24px;
+                right: -2px;
+            }
+
+            .shape-diagonal-8 .chair.br-2 {
+                transform: rotate(-45deg);
+                bottom: 6px;
+                right: 16px;
+            }
+
+            /* --- ROUND SERIES (FIXED: DITAMBAHKAN RADIAL KOORDINAT 10 & 12) --- */
+            [class*="shape-round-"] .chair {
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                top: calc(50% - 8px + (var(--y-dir, 0) * 62%));
+                left: calc(50% - 8px + (var(--x-dir, 0) * 62%));
+            }
+
+            .shape-round-4 .chair.c1 {
+                --x-dir: 0;
+                --y-dir: -1;
+            }
+
+            .shape-round-4 .chair.c2 {
+                --x-dir: 0;
+                --y-dir: 1;
+            }
+
+            .shape-round-4 .chair.c3 {
+                --x-dir: -1;
+                --y-dir: 0;
+            }
+
+            .shape-round-4 .chair.c4 {
+                --x-dir: 1;
+                --y-dir: 0;
+            }
+
+            .shape-round-6 .chair.c1 {
+                --x-dir: 0;
+                --y-dir: -1;
+            }
+
+            .shape-round-6 .chair.c2 {
+                --x-dir: 0;
+                --y-dir: 1;
+            }
+
+            .shape-round-6 .chair.c3 {
+                --x-dir: -0.866;
+                --y-dir: -0.5;
+            }
+
+            .shape-round-6 .chair.c4 {
+                --x-dir: -0.866;
+                --y-dir: 0.5;
+            }
+
+            .shape-round-6 .chair.c5 {
+                --x-dir: 0.866;
+                --y-dir: -0.5;
+            }
+
+            .shape-round-6 .chair.c6 {
+                --x-dir: 0.866;
+                --y-dir: 0.5;
+            }
+
+            .shape-round-8 .chair.c1 {
+                --x-dir: 0;
+                --y-dir: -1;
+            }
+
+            .shape-round-8 .chair.c2 {
+                --x-dir: 0;
+                --y-dir: 1;
+            }
+
+            .shape-round-8 .chair.c3 {
+                --x-dir: -1;
+                --y-dir: 0;
+            }
+
+            .shape-round-8 .chair.c4 {
+                --x-dir: 1;
+                --y-dir: 0;
+            }
+
+            .shape-round-8 .chair.c5 {
+                --x-dir: -0.707;
+                --y-dir: -0.707;
+            }
+
+            .shape-round-8 .chair.c6 {
+                --x-dir: 0.707;
+                --y-dir: -0.707;
+            }
+
+            .shape-round-8 .chair.c7 {
+                --x-dir: -0.707;
+                --y-dir: 0.707;
+            }
+
+            .shape-round-8 .chair.c8 {
+                --x-dir: 0.707;
+                --y-dir: 0.707;
+            }
+
+            /* ✅ PERBAIKAN: Ditambahkan koordinat lingkar untuk Round 10 */
+            .shape-round-10 .chair.c1 {
+                --x-dir: 0;
+                --y-dir: -1;
+            }
+
+            .shape-round-10 .chair.c2 {
+                --x-dir: 0;
+                --y-dir: 1;
+            }
+
+            .shape-round-10 .chair.c3 {
+                --x-dir: -0.588;
+                --y-dir: -0.809;
+            }
+
+            .shape-round-10 .chair.c4 {
+                --x-dir: 0.588;
+                --y-dir: -0.809;
+            }
+
+            .shape-round-10 .chair.c5 {
+                --x-dir: -0.951;
+                --y-dir: -0.309;
+            }
+
+            .shape-round-10 .chair.c6 {
+                --x-dir: 0.951;
+                --y-dir: -0.309;
+            }
+
+            .shape-round-10 .chair.c7 {
+                --x-dir: -0.951;
+                --y-dir: 0.309;
+            }
+
+            .shape-round-10 .chair.c8 {
+                --x-dir: 0.951;
+                --y-dir: 0.309;
+            }
+
+            .shape-round-10 .chair.c9 {
+                --x-dir: -0.588;
+                --y-dir: 0.809;
+            }
+
+            .shape-round-10 .chair.c10 {
+                --x-dir: 0.588;
+                --y-dir: 0.809;
+            }
+
+            /* ✅ PERBAIKAN: Ditambahkan koordinat lingkar untuk Round 12 */
+            .shape-round-12 .chair.c1 {
+                --x-dir: 0;
+                --y-dir: -1;
+            }
+
+            .shape-round-12 .chair.c2 {
+                --x-dir: 0.5;
+                --y-dir: -0.866;
+            }
+
+            .shape-round-12 .chair.c3 {
+                --x-dir: 0.866;
+                --y-dir: -0.5;
+            }
+
+            .shape-round-12 .chair.c4 {
+                --x-dir: 1;
+                --y-dir: 0;
+            }
+
+            .shape-round-12 .chair.c5 {
+                --x-dir: 0.866;
+                --y-dir: 0.5;
+            }
+
+            .shape-round-12 .chair.c6 {
+                --x-dir: 0.5;
+                --y-dir: 0.866;
+            }
+
+            .shape-round-12 .chair.c7 {
+                --x-dir: 0;
+                --y-dir: 1;
+            }
+
+            .shape-round-12 .chair.c8 {
+                --x-dir: -0.5;
+                --y-dir: 0.866;
+            }
+
+            .shape-round-12 .chair.c9 {
+                --x-dir: -0.866;
+                --y-dir: 0.5;
+            }
+
+            .shape-round-12 .chair.c10 {
+                --x-dir: -1;
+                --y-dir: 0;
+            }
+
+            .shape-round-12 .chair.c11 {
+                --x-dir: -0.866;
+                --y-dir: -0.5;
+            }
+
+            .shape-round-12 .chair.c12 {
+                --x-dir: -0.5;
+                --y-dir: -0.866;
+            }
+        </style>
+
         <div class="modal-dialog modal-lg" role="document" x-data="{
             localSelectedIds: [],
-
-            // Fungsi untuk sinkronisasi dari Livewire ke Alpine
             syncLivewireState() {
-                // 🚀 PERBAIKAN: Konversi semua elemen array dari Livewire menjadi Integer
                 this.localSelectedIds = $wire.table_ids_array.map(id => parseInt(id));
-                // console.log('Synced IDs:', this.localSelectedIds); // DEBUG: Coba cek di console browser
             },
-
-            // Fungsi untuk toggle ID di state lokal
             toggleLocalTable(id) {
-                // 🚀 PERBAIKAN: Konversi ID yang diterima dari klik ke Integer
                 const intId = parseInt(id);
                 const index = this.localSelectedIds.indexOf(intId);
-
                 if (index > -1) {
                     this.localSelectedIds.splice(index, 1);
                 } else {
@@ -28,46 +700,170 @@
             x-on:show.bs.modal="syncLivewireState()" x-on:sync-table-selection.window="syncLivewireState()">
 
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="tableSelectionModalLabel">Pilih Meja</h5>
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title font-weight-bold text-dark" id="tableSelectionModalLabel">
+                        <i class="bi bi-grid-3x3-gap mr-1 text-primary"></i> Denah Meja & Kapasitas (Floor Plan)
+                    </h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
 
-                <div class="modal-body">
-                    <div class="table-grid-container" id="tableGridContainer">
+                <div class="modal-body bg-white p-3">
+                    <div class="modal-floor-plan-canvas" id="modalFloorPlanCanvas">
+
                         @foreach ($tables as $table)
-                            {{-- 🛑 KODE PHP PENENTU STATUS (statusClass, statusIcon, statusText) DIHAPUS --}}
+                            @php
+                                $s = $table->shape;
+                                $defaultW = 120;
+                                $defaultH = 80;
+                                if ($s === 'rectangle-6-h') {
+                                    $defaultW = 160;
+                                } elseif ($s === 'rectangle-8-h') {
+                                    $defaultW = 200;
+                                } elseif ($s === 'rectangle-4-v') {
+                                    $defaultW = 80;
+                                    $defaultH = 120;
+                                } elseif ($s === 'rectangle-6-v') {
+                                    $defaultW = 80;
+                                    $defaultH = 160;
+                                } elseif ($s === 'rectangle-8-v') {
+                                    $defaultW = 80;
+                                    $defaultH = 200;
+                                } elseif (strpos($s, 'square-') !== false || $s === 'square-4') {
+                                    $defaultW = 85;
+                                    $defaultH = 85;
+                                } elseif ($s === 'diagonal-8') {
+                                    $defaultW = 120;
+                                    $defaultH = 120;
+                                } elseif ($s === 'round-4') {
+                                    $defaultW = 90;
+                                    $defaultH = 90;
+                                } elseif ($s === 'round-6') {
+                                    $defaultW = 110;
+                                    $defaultH = 110;
+                                } elseif ($s === 'round-8') {
+                                    $defaultW = 135;
+                                    $defaultH = 135;
+                                } elseif ($s === 'round-10') {
+                                    $defaultW = 155;
+                                    $defaultH = 155;
+                                } elseif ($s === 'round-12') {
+                                    $defaultW = 175;
+                                    $defaultH = 175;
+                                }
 
-                            <div class="table-card" {{-- Hanya bergantung pada localSelectedIds --}}
+                                $w = $table->width ?? $defaultW;
+                                $h = $table->height ?? $defaultH;
+
+                                if ($s === 'diagonal-8' && (!isset($table->width) || $table->width != 120)) {
+                                    $w = 120;
+                                    $h = 120;
+                                }
+
+                                $r = $table->rotation ?? 0;
+                                $x = $table->position_x ?? 20;
+                                $y = $table->position_y ?? 20;
+                            @endphp
+
+                            <div class="modal-table-wrapper shape-{{ $table->shape }} pax-{{ $table->qty_pax }}"
+                                id="modal-meja-{{ $table->id }}"
                                 :class="{ 'selected': localSelectedIds.includes({{ $table->id }}) }"
-                                @click.stop="toggleLocalTable({{ $table->id }})">
+                                @click.stop="toggleLocalTable({{ $table->id }})"
+                                style="transform: translate({{ $x }}px, {{ $y }}px) rotate({{ $r }}deg); width: {{ $w }}px; height: {{ $h }}px;">
 
-                                <div class="table-info">
-                                    <h3>{{ $table->no_meja }}</h3>
-                                    <p>{{ $table->name }}</p>
+                                @if ($table->shape === 'rectangle-4-h')
+                                    <div class="chair t1"></div>
+                                    <div class="chair t2"></div>
+                                    <div class="chair b1"></div>
+                                    <div class="chair b2"></div>
+                                @elseif ($table->shape === 'rectangle-6-h')
+                                    <div class="chair t1"></div>
+                                    <div class="chair t2"></div>
+                                    <div class="chair t3"></div>
+                                    <div class="chair b1"></div>
+                                    <div class="chair b2"></div>
+                                    <div class="chair b3"></div>
+                                @elseif ($table->shape === 'rectangle-8-h')
+                                    <div class="chair t1"></div>
+                                    <div class="chair t2"></div>
+                                    <div class="chair t3"></div>
+                                    <div class="chair t4"></div>
+                                    <div class="chair b1"></div>
+                                    <div class="chair b2"></div>
+                                    <div class="chair b3"></div>
+                                    <div class="chair b4"></div>
+                                @elseif ($table->shape === 'rectangle-4-v')
+                                    <div class="chair l1"></div>
+                                    <div class="chair l2"></div>
+                                    <div class="chair r1"></div>
+                                    <div class="chair r2"></div>
+                                @elseif ($table->shape === 'rectangle-6-v')
+                                    <div class="chair l1"></div>
+                                    <div class="chair l2"></div>
+                                    <div class="chair l3"></div>
+                                    <div class="chair r1"></div>
+                                    <div class="chair r2"></div>
+                                    <div class="chair r3"></div>
+                                @elseif ($table->shape === 'rectangle-8-v')
+                                    <div class="chair l1"></div>
+                                    <div class="chair l2"></div>
+                                    <div class="chair l3"></div>
+                                    <div class="chair l4"></div>
+                                    <div class="chair r1"></div>
+                                    <div class="chair r2"></div>
+                                    <div class="chair r3"></div>
+                                    <div class="chair r4"></div>
+                                @elseif ($table->shape === 'square-2-h')
+                                    <div class="chair l1"></div>
+                                    <div class="chair r1"></div>
+                                @elseif ($table->shape === 'square-2-v')
+                                    <div class="chair t1"></div>
+                                    <div class="chair b1"></div>
+                                @elseif ($table->shape === 'square-4')
+                                    <div class="chair t1"></div>
+                                    <div class="chair b1"></div>
+                                    <div class="chair l1"></div>
+                                    <div class="chair r1"></div>
+                                @elseif ($table->shape === 'diagonal-8')
+                                    <div class="chair tl-1"></div>
+                                    <div class="chair tl-2"></div>
+                                    <div class="chair tr-1"></div>
+                                    <div class="chair tr-2"></div>
+                                    <div class="chair bl-1"></div>
+                                    <div class="chair bl-2"></div>
+                                    <div class="chair br-1"></div>
+                                    <div class="chair br-2"></div>
+                                @else
+                                    @for ($i = 1; $i <= (int) $table->qty_pax; $i++)
+                                        <div class="chair c{{ $i }}"></div>
+                                    @endfor
+                                @endif
+
+                                <div class="modal-table-body">
+                                    <div class="modal-selection-badge"
+                                        x-show="localSelectedIds.includes({{ $table->id }})">
+                                        <i class="bi bi-check-lg"></i>
+                                    </div>
+
+                                    <div class="modal-content-container">
+                                        <span class="modal-table-label">{{ $table->name }}</span>
+                                        <span class="modal-table-pax">{{ $table->qty_pax }} Pax</span>
+                                        <small style="font-size: 8px; color:#64748b;">({{ $table->location }})</small>
+                                    </div>
                                 </div>
 
-                                {{-- 🛑 DIV table-status DIHAPUS, Ganti dengan info PAX sederhana --}}
-                                <div class="table-status-simple">
-                                    <span>Kapasitas: {{ $table->qty_pax }} Pax</span>
-                                </div>
-
-                                <div class="selection-overlay" x-show="localSelectedIds.includes({{ $table->id }})">
-                                    <i class="bi bi-check-lg"></i>
-                                </div>
                             </div>
                         @endforeach
+
                     </div>
                 </div>
 
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
-
-                    <button type="button" class="btn btn-primary" data-dismiss="modal"
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary shadow-sm" data-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary shadow-sm font-weight-bold" data-dismiss="modal"
                         @click="$wire.set('table_ids_array', localSelectedIds); $wire.call('updateNameString');">
-                        Konfirmasi Pilihan
+                        Konfirmasi Meja <i class="bi bi-check-all ml-1"></i>
                     </button>
                 </div>
             </div>

@@ -163,8 +163,8 @@
         }
 
         /* =====================================
-                           ATURAN POSISI KURSI (CHAIRS OUTSIDE TABLE)
-                           ===================================== */
+                                       ATURAN POSISI KURSI (CHAIRS OUTSIDE TABLE)
+                                       ===================================== */
         .chair {
             position: absolute;
             background-color: #94a3b8;
@@ -1052,31 +1052,41 @@
                 } else if (shape === 'round-10') {
                     defaultW = 123;
                     defaultH = 123;
+                } else if (shape === 'round-12') {
+                    defaultW = 135;
+                    defaultH = 135;
                 }
 
                 const tempId = 'new-' + Date.now();
                 const newTable = document.createElement('div');
-                newTable.className = `draggable-table-wrapper is-new-table shape-${shape} pax-${qtyPax}`;
-                newTable.id = tempId;
+                newTable.className =
+                    `draggable-table-wrapper is-new-table shape-${shape} pax-${qtyPax}`;
+                newTable.id =
+                    tempId;
                 newTable.style.transform = 'translate(20px, 20px) rotate(0deg)';
-                newTable.style.width = `${defaultW}px`;
+                newTable.style.width =
+                    `${defaultW}px`;
                 newTable.style.height = `${defaultH}px`;
 
                 newTable.setAttribute('data-id', '');
                 newTable.setAttribute('data-is-new', 'true');
-                newTable.setAttribute('data-no-meja', noMeja);
+                newTable
+                    .setAttribute('data-no-meja', noMeja);
                 newTable.setAttribute('data-name', name);
-                newTable.setAttribute('data-qty-pax', qtyPax);
-                newTable.setAttribute('data-location', location);
+                newTable
+                    .setAttribute('data-qty-pax', qtyPax);
+                newTable.setAttribute('data-location',
+                    location);
                 newTable.setAttribute('data-shape', shape);
-                newTable.setAttribute('data-x', '20');
+                newTable.setAttribute('data-x',
+                    '20');
                 newTable.setAttribute('data-y', '20');
                 newTable.setAttribute('data-angle', '0');
 
                 newTable.innerHTML = `
                     ${generateChairsJs(shape, qtyPax)}
                     <div class="table-body">
-                        <div class="rotate-handle"><i class="bi bi-arrow-clockwise"></i></div>
+
                         <div class="resize-handle"><i class="bi bi-arrow-left-right"></i></div>
                         <div class="table-content-container">
                             <span class="table-label">${name}</span>
@@ -1090,7 +1100,8 @@
                 initTableInteractions('#' + tempId);
 
                 document.getElementById('quick_no_meja').value = '';
-                document.getElementById('quick_name').value = '';
+                document.getElementById('quick_name')
+                    .value = '';
             });
 
             // Save Layout Ajax Request
