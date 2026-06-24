@@ -16,6 +16,7 @@
                             'category_id' => $product->category_id,
                             'product_name' => $product->product_name,
                             'product_code' => $product->product_code,
+                            'barcode' => $product->barcode,
                             'product_price' => (float) $product->product_price,
                             'product_quantity' => (float) $product->product_quantity,
                             'product_unit' => $product->product_unit,

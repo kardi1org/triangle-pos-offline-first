@@ -27,7 +27,7 @@
 
                 {{--   <form id="checkout-form" action="{{ route('app.pos.store') }}" method="POST">   --}} {{-- --Add by Chris --}}
                 {{-- route('sale-payments.index', $data->id) //route('sales.cetakstruk', $salesId->sale_id) --}}
-                <form id="checkout-form">
+                <div id="pos-cart-form">
 
                     {{--  <form id="checkout-form" action="{{ route('app.pos.print') }}" method="GET">   --}}{{-- --Add by Chris --}}
                     @csrf
@@ -224,7 +224,7 @@
                             </span>
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
 

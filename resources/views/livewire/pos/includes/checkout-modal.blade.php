@@ -11,7 +11,7 @@
                 </button>
             </div>
 
-            <form id="checkout-form" method="POST" action="{{ route('app.pos.store') }}">
+            <form id="checkout-form" data-offline-checkout-form method="POST" action="{{ route('app.pos.store') }}">
                 {{-- action="{{ !empty($current_reference) ? route('app.pos.update') : route('app.pos.store') }}"> --}}
                 @csrf
                 <input type="hidden" name="current_reference" value="{{ $current_reference }}">

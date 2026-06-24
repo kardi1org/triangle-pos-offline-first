@@ -63,6 +63,43 @@
     let syncInProgress = false;
     const offlineMode = () => !navigator.onLine || !appReachable;
 
+    const refreshReachabilitySoon = () => {
+        checkAppReachability().catch(() => {
+            appReachable = false;
+        });
+    };
+
+    const takeOfflineEvent = (event, prevent = true) => {
+        if (prevent) event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+    };
+
+    const normalizeIdArray = (value) => {
+        if (Array.isArray(value)) return value.map(Number).filter(Boolean);
+        if (typeof value === 'string' && value.trim()) {
+            try {
+                const parsed = JSON.parse(value);
+                return normalizeIdArray(parsed);
+            } catch (e) {
+                return value.split(',').map(Number).filter(Boolean);
+            }
+        }
+        return [];
+    };
+
+    const tableNamesFromIds = async (ids) => Promise.all(normalizeIdArray(ids).map(async (id) => {
+        const table = await get('tables', id);
+        return table?.name || table?.no_meja || `Meja ${id}`;
+    }));
+
+    const renderTableSelectionState = () => {
+        document.querySelectorAll('[id^="modal-meja-"]').forEach((node) => {
+            const id = Number(node.id.replace('modal-meja-', ''));
+            node.classList.toggle('selected', offlineState.selectedTableIds.includes(id));
+        });
+    };
+
     const registerServiceWorker = () => {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/pos-service-worker.js').catch(() => null);
@@ -439,8 +476,15 @@
 
         if (!offlineState.selectedTableNames.length) {
             holder.innerHTML = '';
+            document.querySelectorAll('input[name="selected_table_ids"]').forEach((input) => {
+                input.value = '[]';
+            });
             return;
         }
+
+        document.querySelectorAll('input[name="selected_table_ids"]').forEach((input) => {
+            input.value = JSON.stringify(offlineState.selectedTableIds);
+        });
 
         holder.innerHTML = `
             <div class="d-flex align-items-center flex-wrap">
@@ -470,7 +514,7 @@
             offlineState.selectedTableNames.push(table?.name || table?.no_meja || `Meja ${id}`);
         }
 
-        document.querySelectorAll(`#modal-meja-${id}`).forEach((node) => node.classList.toggle('selected', idx < 0));
+        renderTableSelectionState();
         await renderSelectedTables();
     };
 
@@ -487,8 +531,12 @@
             ...localPending.map((order) => ({ ...order, reference: order.local_reference, source: 'local' })),
             ...serverPending.map((order) => ({ ...order, source: 'server' })),
         ];
+        const rowsWithTables = await Promise.all(rows.map(async (order) => ({
+            ...order,
+            table_names: await tableNamesFromIds(order.selected_table_ids),
+        })));
 
-        if (!rows.length) {
+        if (!rowsWithTables.length) {
             body.innerHTML = '<div class="text-center text-muted py-3">No pending orders found.</div>';
         } else {
             body.innerHTML = `
@@ -506,12 +554,12 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${rows.map((order, index) => `
+                            ${rowsWithTables.map((order, index) => `
                                 <tr>
                                     <td>${index + 1}</td>
                                     <td>${escapeHtml(order.reference)}</td>
                                     <td>${escapeHtml(order.customer_name || 'Guest')}</td>
-                                    <td>${escapeHtml((order.selected_table_ids || []).join(', ') || '-')}</td>
+                                    <td>${escapeHtml(order.table_names.join(', ') || '-')}</td>
                                     <td>${escapeHtml(order.date || order.created_at || '')}</td>
                                     <td>${money(order.total_amount)}</td>
                                     <td class="text-center">
@@ -558,9 +606,10 @@
         const customer = document.getElementById('customer_name');
         if (customer) customer.value = order.customer_name || '';
         offlineState.orderType = order.order_type || 'dine_in';
-        offlineState.selectedTableIds = (order.selected_table_ids || []).map(Number);
-        offlineState.selectedTableNames = offlineState.selectedTableIds.map((id) => `Meja ${id}`);
+        offlineState.selectedTableIds = normalizeIdArray(order.selected_table_ids);
+        offlineState.selectedTableNames = await tableNamesFromIds(offlineState.selectedTableIds);
 
+        renderTableSelectionState();
         await renderSelectedTables();
         await renderOfflineCart();
         if (window.jQuery) window.jQuery('#pendingOrdersModal').modal('hide');
@@ -645,7 +694,7 @@
             customer_name: document.getElementById('customer_name')?.value || 'Guest',
             order_type: offlineState.orderType || document.querySelector('input[name="order_type"]')?.value || 'dine_in',
             table_id: document.querySelector('input[name="table_id"]')?.value || null,
-            selected_table_ids: offlineState.selectedTableIds.length ? offlineState.selectedTableIds : (readJsonInput('selected_table_ids') || []),
+            selected_table_ids: offlineState.selectedTableIds.length ? offlineState.selectedTableIds : normalizeIdArray(readJsonInput('selected_table_ids')),
             tax_percentage: 0,
             discount_percentage: 0,
             shipping_amount: 0,
@@ -818,23 +867,21 @@
 
     const bindEvents = () => {
         document.addEventListener('click', async (event) => {
-            await checkAppReachability();
-            if (!offlineMode()) return;
+            if (!offlineMode()) {
+                refreshReachabilitySoon();
+                return;
+            }
 
             const productNode = event.target.closest('[data-offline-product]');
             if (productNode) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 await addProductToCart(JSON.parse(productNode.dataset.offlineProduct));
                 return;
             }
 
             const searchSelect = event.target.closest('[data-offline-search-select]');
             if (searchSelect) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 const product = await get('products', Number(searchSelect.dataset.offlineSearchSelect));
                 if (product) await addProductToCart(product);
                 document.querySelectorAll('[data-offline-search-results]').forEach((node) => node.remove());
@@ -843,16 +890,14 @@
 
             const tableNode = event.target.closest('[id^="modal-meja-"]');
             if (tableNode) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 await toggleTable(tableNode.id.replace('modal-meja-', ''));
                 return;
             }
 
             const removeTable = event.target.closest('[data-offline-remove-table]');
             if (removeTable) {
-                event.preventDefault();
+                takeOfflineEvent(event);
                 const index = Number(removeTable.dataset.offlineRemoveTable);
                 offlineState.selectedTableIds.splice(index, 1);
                 offlineState.selectedTableNames.splice(index, 1);
@@ -862,41 +907,37 @@
 
             const orderSelect = event.target.closest('[data-offline-order-select]');
             if (orderSelect) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 await loadPendingOrderToCart(orderSelect.dataset.offlineOrderSelect);
                 return;
             }
 
             const orderDetail = event.target.closest('[data-offline-order-detail]');
             if (orderDetail) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 await showOfflineOrderDetail(orderDetail.dataset.offlineOrderDetail);
                 return;
             }
 
             const plus = event.target.closest('[data-offline-qty-plus]');
             if (plus) {
-                event.preventDefault();
+                takeOfflineEvent(event);
                 const item = await get('cart', Number(plus.dataset.offlineQtyPlus));
-                await setQty(item.id, Number(item.qty) + 1);
+                if (item) await setQty(item.id, Number(item.qty) + 1);
                 return;
             }
 
             const minus = event.target.closest('[data-offline-qty-minus]');
             if (minus) {
-                event.preventDefault();
+                takeOfflineEvent(event);
                 const item = await get('cart', Number(minus.dataset.offlineQtyMinus));
-                await setQty(item.id, Number(item.qty) - 1);
+                if (item) await setQty(item.id, Number(item.qty) - 1);
                 return;
             }
 
             const remove = event.target.closest('[data-offline-remove]');
             if (remove) {
-                event.preventDefault();
+                takeOfflineEvent(event);
                 await removeItem(remove.dataset.offlineRemove);
                 return;
             }
@@ -905,30 +946,20 @@
             const wireAction = wireButton?.getAttribute('wire:click') || '';
 
             if (wireAction.includes('saveOrderPending')) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 await queueOrder('Pending');
             } else if (wireAction === 'proceed') {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 await showCheckoutModal();
             } else if (wireAction.includes('resetCart')) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 await clear('cart');
                 await renderOfflineCart();
             } else if (wireAction.includes('show-pending-orders-modal')) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 await renderPendingOrders();
             } else if (wireAction.includes("$set('order_type'")) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+                takeOfflineEvent(event);
                 offlineState.orderType = wireAction.includes('take_out') ? 'take_out' : 'dine_in';
                 const orderInput = document.querySelector('input[name="order_type"]');
                 if (orderInput) orderInput.value = offlineState.orderType;
@@ -942,23 +973,30 @@
             }
         }, true);
 
+        const tableModalButton = document.querySelector('[data-target="#tableSelectionModal"]');
+        if (tableModalButton && window.jQuery) {
+            window.jQuery('#tableSelectionModal').on('shown.bs.modal', renderTableSelectionState);
+        }
+
         document.addEventListener('input', async (event) => {
-            await checkAppReachability();
-            if (offlineMode() && event.target.matches('input[placeholder="Product name or code...."], input[placeholder="Scanner...."]')) {
-                event.stopPropagation();
-                event.stopImmediatePropagation();
-                await renderSearchResults(event.target);
+            if (!event.target.matches('input[placeholder="Product name or code...."], input[placeholder="Scanner...."]')) return;
+            if (!offlineMode()) {
+                refreshReachabilitySoon();
+                return;
             }
+            takeOfflineEvent(event, false);
+            await renderSearchResults(event.target);
         }, true);
 
         document.addEventListener('keydown', async (event) => {
-            await checkAppReachability();
-            if (!offlineMode()) return;
+            if (!event.target.matches('input[placeholder="Scanner...."], input[placeholder="Product name or code...."]')) return;
+            if (!offlineMode()) {
+                refreshReachabilitySoon();
+                return;
+            }
 
-            if (event.key === 'Enter' && event.target.matches('input[placeholder="Scanner...."], input[placeholder="Product name or code...."]')) {
-                event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+            if (event.key === 'Enter') {
+                takeOfflineEvent(event);
                 const results = await findProducts(event.target.value, 1);
                 if (results[0]) {
                     await addProductToCart(results[0]);
@@ -971,18 +1009,23 @@
         }, true);
 
         document.addEventListener('change', async (event) => {
-            await checkAppReachability();
-            if (!offlineMode()) return;
             const input = event.target.closest('[data-offline-qty-input]');
-            if (input) await setQty(input.dataset.offlineQtyInput, input.value);
+            if (!input) return;
+            if (!offlineMode()) {
+                refreshReachabilitySoon();
+                return;
+            }
+            takeOfflineEvent(event, false);
+            await setQty(input.dataset.offlineQtyInput, input.value);
         });
 
         document.addEventListener('submit', async (event) => {
-            await checkAppReachability();
-            if (!offlineMode() || event.target.id !== 'checkout-form') return;
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
+            if (!event.target.matches('[data-offline-checkout-form]')) return;
+            if (!offlineMode()) {
+                refreshReachabilitySoon();
+                return;
+            }
+            takeOfflineEvent(event);
             await queueOrder('Completed');
         }, true);
 

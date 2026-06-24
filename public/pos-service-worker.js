@@ -1,4 +1,4 @@
-const POS_CACHE = 'triangle-pos-offline-v4';
+const POS_CACHE = 'triangle-pos-offline-v5';
 const POS_ASSETS = [
     '/app/pos',
     '/favicon.ico',

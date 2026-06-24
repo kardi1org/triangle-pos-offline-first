@@ -39,7 +39,7 @@
             csrf: @json(csrf_token()),
         };
     </script>
-    <script src="{{ asset('js/pos-offline.js') }}?v=20260623-3" defer></script>
+    <script src="{{ asset('js/pos-offline.js') }}?v=20260624-1" defer></script>
     <script>
         $(document).ready(function() {
             window.addEventListener('showCheckoutModal', event => {
