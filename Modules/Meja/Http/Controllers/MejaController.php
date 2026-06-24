@@ -82,11 +82,11 @@ class MejaController extends Controller
     public function saveMassLayout(Request $request)
     {
         // 🎯 REKAYASA: Jika sebelumnya Anda membypass 'access_mejas', samakan atau sesuaikan di sini
-        // agar tenant tidak terblokir error 403 saat menyimpan.
         // abort_if(Gate::denies('edit_mejas'), 403);
 
         $request->validate([
             'mejas'              => 'required|array',
+            'mejas.*.id'         => 'nullable|integer', // Ditambahkan validasi id meja jika ada
             'mejas.*.is_new'      => 'required|boolean',
             'mejas.*.no_meja'     => 'nullable',
             'mejas.*.name'        => 'required|string|max:100',
@@ -98,12 +98,15 @@ class MejaController extends Controller
             'mejas.*.width'       => 'required|integer|min:1',
             'mejas.*.height'      => 'required|integer|min:1',
             'mejas.*.rotation'    => 'required|integer',
+            'deleted_ids'         => 'nullable|array',   // Validasi array ID meja yang dihapus dari frontend
+            'deleted_ids.*'       => 'integer'
         ]);
 
         $mejasData = $request->input('mejas');
+        $deletedIds = $request->input('deleted_ids', []); // Tangkap ID yang dihapus (default array kosong jika tidak ada)
         $activeOutletId = session('selected_outlet_id');
 
-        // Jika session outlet hilang di level tenant, kembalikan response JSON agar JavaScript/SweetAlert bisa menampilkan pesan error yang jelas
+        // Jika session outlet hilang di level tenant, kembalikan response JSON
         if (!$activeOutletId) {
             return response()->json([
                 'success' => false,
@@ -111,9 +114,19 @@ class MejaController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($mejasData, $activeOutletId) {
+        DB::transaction(function () use ($mejasData, $deletedIds, $activeOutletId) {
+
+            // 1. PROSES DELETE: Hapus meja-meja lama yang ditiadakan dari layout
+            if (!empty($deletedIds)) {
+                Meja::whereIn('id', $deletedIds)
+                    ->where('outlet_id', $activeOutletId)
+                    ->delete();
+            }
+
+            // 2. PROSES UPSERT (CREATE / UPDATE MEJA)
             foreach ($mejasData as $data) {
                 if ($data['is_new'] === true || $data['is_new'] === 'true') {
+                    // --- OPSI BARU (CREATE) ---
                     $noMeja = !empty($data['no_meja']) ? $data['no_meja'] : $this->generateUrutNumber();
 
                     Meja::create([
@@ -131,11 +144,17 @@ class MejaController extends Controller
                         'status'     => 1
                     ]);
                 } else {
+                    // --- OPSI MEJA LAMA (UPDATE TOTAL) ---
                     // Pastikan $data['id'] tersedia sebelum melakukan update
                     if (!empty($data['id'])) {
                         Meja::where('id', $data['id'])
                             ->where('outlet_id', $activeOutletId)
                             ->update([
+                                'no_meja'    => $data['no_meja'], // Ditambahkan agar no_meja hasil edit ikut terupdate
+                                'name'       => $data['name'],    // Ditambahkan agar nama hasil edit ikut terupdate
+                                'qty_pax'    => $data['qty_pax'], // Ditambahkan agar jumlah pax hasil edit ikut terupdate
+                                'location'   => $data['location'], // Ditambahkan agar lokasi hasil edit ikut terupdate
+                                'shape'      => $data['shape'],   // Ditambahkan agar bentuk hasil edit ikut terupdate
                                 'position_x' => $data['position_x'],
                                 'position_y' => $data['position_y'],
                                 'width'      => $data['width'],

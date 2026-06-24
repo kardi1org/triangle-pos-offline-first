@@ -10,7 +10,22 @@
                     </div>
                 </div>
                 @forelse($products as $product)
+                    @php
+                        $offlineProduct = [
+                            'id' => $product->id,
+                            'category_id' => $product->category_id,
+                            'product_name' => $product->product_name,
+                            'product_code' => $product->product_code,
+                            'product_price' => (float) $product->product_price,
+                            'product_quantity' => (float) $product->product_quantity,
+                            'product_unit' => $product->product_unit,
+                            'product_tax_type' => (int) ($product->product_tax_type ?? 0),
+                            'product_order_tax' => (float) ($product->product_order_tax ?? 0),
+                            'image_url' => $product->getFirstMediaUrl('images'),
+                        ];
+                    @endphp
                     <div wire:click.prevent="selectProduct({{ $product }})"
+                        data-offline-product='@json($offlineProduct)'
                         class="col-lg-4 col-md-4 col-xl-3 col-sm-6 mb-2" style="cursor: pointer;">
                         <div class="card border-0 shadow h-100">
                             <div class="position-relative">

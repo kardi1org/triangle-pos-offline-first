@@ -164,8 +164,8 @@
         }
 
         /* =====================================
-                                                                           ATURAN POSISI KURSI (CHAIRS OUTSIDE TABLE)
-                                                                           ===================================== */
+                                                                               ATURAN POSISI KURSI (CHAIRS OUTSIDE TABLE)
+                                                                               ===================================== */
         .chair {
             position: absolute;
             background-color: #94a3b8;
@@ -1006,6 +1006,9 @@
                 } else if (shape === 'round-10') {
                     defaultW = 123;
                     defaultH = 123;
+                } else if (shape === 'round-12') {
+                    defaultW = 175;
+                    defaultH = 175;
                 }
 
                 const tempId = 'new-' + Date.now();

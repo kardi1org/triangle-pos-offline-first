@@ -85,20 +85,28 @@ class AdjustmentController extends Controller
         }
     }
 
-    public function show(Adjustment $adjustment)
+    public function show($id)
     {
         abort_if(Gate::denies('show_adjustments'), 403);
+
+        // Ambil data adjustment secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $adjustment = Adjustment::findOrFail($id);
+
         return view('adjustment::show', compact('adjustment'));
     }
 
-    public function edit(Adjustment $adjustment)
+    public function edit($id)
     {
         abort_if(Gate::denies('edit_adjustments'), 403);
+
+        // Ambil data adjustment secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $adjustment = Adjustment::findOrFail($id);
+
         $warehouses = Warehouse::where('is_active', true)->get();
         return view('adjustment::edit', compact('adjustment', 'warehouses'));
     }
 
-    public function update(Request $request, Adjustment $adjustment)
+    public function update(Request $request, $id)
     {
         abort_if(Gate::denies('edit_adjustments'), 403);
 
@@ -114,6 +122,9 @@ class AdjustmentController extends Controller
 
         try {
             DB::beginTransaction();
+
+            // Ambil data adjustment secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+            $adjustment = Adjustment::findOrFail($id);
 
             // --- 1. REVERSAL STOK LAMA ---
             foreach ($adjustment->adjustedProducts as $oldDetail) {
@@ -140,24 +151,24 @@ class AdjustmentController extends Controller
             ]);
 
             // --- 3. SIMPAN DETAIL & STOK BARU ---
-            foreach ($request->product_ids as $key => $id) {
+            foreach ($request->product_ids as $key => $prod_id) {
                 $qty = $request->quantities[$key];
                 $type = $request->types[$key];
 
                 AdjustedProduct::create([
                     'adjustment_id' => $adjustment->id,
-                    'product_id'    => $id,
+                    'product_id'    => $prod_id,
                     'quantity'      => $qty,
                     'type'          => $type
                 ]);
 
-                $product = Product::findOrFail($id);
+                $product = Product::findOrFail($prod_id);
                 if ($type == 'add') {
                     $product->increment('product_quantity', $qty);
-                    $this->updateWarehouseStock($id, $request->warehouse_id, $qty, 'increment');
+                    $this->updateWarehouseStock($prod_id, $request->warehouse_id, $qty, 'increment');
                 } else {
                     $product->decrement('product_quantity', $qty);
-                    $this->updateWarehouseStock($id, $request->warehouse_id, $qty, 'decrement');
+                    $this->updateWarehouseStock($prod_id, $request->warehouse_id, $qty, 'decrement');
                 }
             }
 
@@ -170,12 +181,15 @@ class AdjustmentController extends Controller
         }
     }
 
-    public function destroy(Adjustment $adjustment)
+    public function destroy($id)
     {
         abort_if(Gate::denies('delete_adjustments'), 403);
 
         try {
             DB::beginTransaction();
+
+            // Ambil data adjustment secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+            $adjustment = Adjustment::findOrFail($id);
 
             // --- REVERSAL STOK SEBELUM HAPUS ---
             foreach ($adjustment->adjustedProducts as $detail) {
@@ -222,8 +236,6 @@ class AdjustmentController extends Controller
         } else {
             // Jika decrement, pastikan data ada (idealnya data stok gudang harus ada sebelum adjustment 'sub')
             if ($stock) {
-                // Opsional: Cek jika stok akhir akan negatif (jika bisnis tidak mengizinkan stok minus)
-                // if ($stock->qty < $qty) { throw new \Exception("Stok gudang tidak cukup untuk dikurangi!"); }
                 $stock->decrement('qty', $qty);
             } else {
                 // Jika data gudang belum ada tapi dilakukan pengurangan stok

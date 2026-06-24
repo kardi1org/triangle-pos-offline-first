@@ -19,6 +19,11 @@ use Barryvdh\DomPDF\Facade\Pdf;
 |
 */
 
+Route::group(['middleware' => ['auth']], function () {
+    Route::get('/app/pos/offline-data', 'PosController@offlineData')->name('app.pos.offline-data');
+    Route::post('/app/pos/offline-sync', 'PosController@syncOfflineOrders')->name('app.pos.offline-sync');
+});
+
 Route::group(['middleware' => ['auth', 'check.shift']], function () {
 
     //POS

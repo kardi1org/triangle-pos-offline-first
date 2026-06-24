@@ -32,6 +32,8 @@ use Illuminate\Support\Stringable;
 use Modules\Setting\Entities\Setting;
 use Modules\Setting\Entities\Payment;
 use Exception;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 
 class PosController extends Controller
@@ -55,6 +57,302 @@ class PosController extends Controller
         $payments = Payment::firstOrFail();
 
         return view('sale::pos.index', compact('product_categories', 'customers', 'payments'));
+    }
+
+    public function offlineData(Request $request)
+    {
+        if ($request->boolean('ping')) {
+            return response()->json(['ok' => true, 'time' => now()->toIso8601String()]);
+        }
+
+        $userOutletId = session('selected_outlet_id') ?? auth()->user()->outlets()->first()?->id;
+        $warehouse = \Modules\Setting\Entities\Warehouse::where('outlet_id', $userOutletId)
+            ->where('is_active', 1)
+            ->first();
+
+        $products = Product::where('product_type', 'FG')
+            ->orderBy('product_name')
+            ->get()
+            ->map(function ($product) use ($warehouse) {
+                $warehouseQty = null;
+
+                if ($warehouse) {
+                    $warehouseQty = DB::table('product_warehouse')
+                        ->where('warehouse_id', $warehouse->id)
+                        ->where('product_id', $product->id)
+                        ->value('qty');
+                }
+
+                return [
+                    'id' => $product->id,
+                    'category_id' => $product->category_id,
+                    'product_name' => $product->product_name,
+                    'product_code' => $product->product_code,
+                    'barcode' => $product->barcode,
+                    'product_price' => (float) $product->product_price,
+                    'product_quantity' => (float) ($warehouseQty ?? $product->product_quantity ?? 0),
+                    'product_unit' => $product->product_unit,
+                    'product_tax_type' => (int) ($product->product_tax_type ?? 0),
+                    'product_order_tax' => (float) ($product->product_order_tax ?? 0),
+                    'image_url' => $product->getFirstMediaUrl('images'),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'generated_at' => now()->toIso8601String(),
+            'outlet_id' => $userOutletId,
+            'warehouse_id' => $warehouse?->id,
+            'categories' => Category::orderBy('category_name')->get(['id', 'category_name']),
+            'products' => $products,
+            'tables' => Meja::orderBy('no_meja')->get(),
+            'payments' => Payment::first(),
+            'pending_orders' => Sale::with('saleDetails')
+                ->where('status', 'Pending')
+                ->orderByDesc('created_at')
+                ->take(50)
+                ->get()
+                ->map(function ($sale) {
+                    return [
+                        'id' => $sale->id,
+                        'reference' => $sale->reference,
+                        'customer_name' => $sale->customer_name,
+                        'order_type' => $sale->order_type,
+                        'selected_table_ids' => $sale->selected_table_ids,
+                        'date' => $sale->date,
+                        'total_amount' => $sale->total_amount,
+                        'items' => $sale->saleDetails->map(function ($detail) {
+                            return [
+                                'id' => $detail->product_id,
+                                'name' => $detail->product_name,
+                                'code' => $detail->product_code,
+                                'qty' => $detail->quantity,
+                                'price' => $detail->unit_price,
+                                'unit_price' => $detail->unit_price,
+                                'product_tax' => $detail->product_tax_amount,
+                                'product_discount' => $detail->product_discount_amount,
+                                'product_discount_type' => $detail->product_discount_type ?? 'fixed',
+                                'variants' => json_decode($detail->variant_detail, true) ?: [],
+                            ];
+                        })->values(),
+                    ];
+                })
+                ->values(),
+        ]);
+    }
+
+    public function syncOfflineOrders(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'orders' => 'required|array|min:1',
+            'orders.*.local_reference' => 'required|string|max:100',
+            'orders.*.items' => 'required|array|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'synced' => [],
+                'failed' => [[
+                    'local_reference' => null,
+                    'message' => $validator->errors()->first(),
+                ]],
+            ], 422);
+        }
+
+        $synced = [];
+        $failed = [];
+
+        foreach ($request->input('orders', []) as $payload) {
+            try {
+                $sale = $this->createSaleFromOfflinePayload($payload);
+                $synced[] = [
+                    'local_reference' => $payload['local_reference'],
+                    'reference' => $sale->reference,
+                    'sale_id' => $sale->id,
+                ];
+            } catch (\Throwable $e) {
+                Log::warning('POS offline sync failed', [
+                    'local_reference' => $payload['local_reference'] ?? null,
+                    'message' => $e->getMessage(),
+                ]);
+
+                $failed[] = [
+                    'local_reference' => $payload['local_reference'] ?? null,
+                    'message' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'synced' => $synced,
+            'failed' => $failed,
+        ], count($failed) ? 207 : 200);
+    }
+
+    private function createSaleFromOfflinePayload(array $payload): Sale
+    {
+        $localReference = $payload['local_reference'];
+        $existing = Sale::withoutGlobalScopes()
+            ->where('note', 'like', '%[offline:' . $localReference . ']%')
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $userOutletId = session('selected_outlet_id') ?? auth()->user()->outlets()->first()?->id;
+        $warehouse = \Modules\Setting\Entities\Warehouse::where('outlet_id', $userOutletId)
+            ->where('is_active', 1)
+            ->first();
+
+        if (!$warehouse) {
+            throw new \RuntimeException('Gudang/Warehouse untuk outlet aktif tidak ditemukan.');
+        }
+
+        return DB::transaction(function () use ($payload, $localReference, $warehouse) {
+            $items = collect($payload['items']);
+            $paidAmount = (float) data_get($payload, 'paid_amount', 0);
+            $totalAmount = (float) data_get($payload, 'total_amount', 0);
+            $dueAmount = $totalAmount - $paidAmount;
+            $paymentStatus = $dueAmount == $totalAmount ? 'Unpaid' : ($dueAmount > 0 ? 'Partial' : 'Paid');
+            $status = data_get($payload, 'status', 'Completed');
+            $note = trim((string) data_get($payload, 'note', ''));
+            $note = trim($note . ' [offline:' . $localReference . ']');
+            $tableIds = data_get($payload, 'selected_table_ids', []);
+
+            $sale = Sale::create([
+                'date' => now()->format('Y-m-d'),
+                'reference' => $this->generateSalesNumber(),
+                'user_id' => auth()->id(),
+                'customer_id' => data_get($payload, 'customer_id') ?: null,
+                'customer_name' => data_get($payload, 'customer_name', 'Guest'),
+                'order_type' => data_get($payload, 'order_type', 'dine_in'),
+                'table_id' => data_get($payload, 'table_id'),
+                'tax_percentage' => (float) data_get($payload, 'tax_percentage', 0),
+                'discount_percentage' => (float) data_get($payload, 'discount_percentage', 0),
+                'shipping_amount' => (float) data_get($payload, 'shipping_amount', 0) * 100,
+                'service_charge' => (float) data_get($payload, 'service_charge', 0) * 100,
+                'lain_a' => (float) data_get($payload, 'lain_a', 0) * 100,
+                'lain_b' => (float) data_get($payload, 'lain_b', 0) * 100,
+                'paid_amount' => $paidAmount * 100,
+                'total_amount' => $totalAmount * 100,
+                'status' => $status,
+                'payment_status' => $status === 'Pending' ? 'Unpaid' : $paymentStatus,
+                'note' => $note,
+                'tax_amount' => (float) data_get($payload, 'tax_amount', 0) * 100,
+                'discount_amount' => (float) data_get($payload, 'discount_amount', 0) * 100,
+                'selected_table_ids' => is_array($tableIds) ? $tableIds : [],
+                'warehouse_id' => $warehouse->id,
+            ]);
+
+            foreach ($items as $item) {
+                $productId = data_get($item, 'id');
+                $product = Product::find($productId);
+                $quantity = (float) data_get($item, 'qty', 1);
+                $price = (float) data_get($item, 'price', data_get($item, 'product_price', 0));
+                $unitPrice = (float) data_get($item, 'unit_price', $price);
+                $variants = data_get($item, 'variants', []);
+                $recipeSnapshot = null;
+                $recipeHeader = \Modules\Setting\Entities\Recipe::with('details')->where('product_id', $productId)->first();
+
+                if ($recipeHeader && $recipeHeader->details->count() > 0) {
+                    $recipeSnapshot = $recipeHeader->details->map(function ($detail) {
+                        return [
+                            'ingredient_product_id' => $detail->product_id,
+                            'quantity_per_portion' => (float) $detail->quantity,
+                            'unit' => $detail->unit ?? '',
+                        ];
+                    })->toArray();
+                }
+
+                SaleDetails::create([
+                    'sale_id' => $sale->id,
+                    'reference' => $sale->reference,
+                    'product_id' => $productId,
+                    'product_name' => data_get($item, 'name', $product?->product_name),
+                    'product_code' => data_get($item, 'code', $product?->product_code),
+                    'quantity' => $quantity,
+                    'price' => $price * 100,
+                    'unit_price' => $unitPrice * 100,
+                    'sub_total' => ($price * $quantity) * 100,
+                    'product_discount_amount' => (float) data_get($item, 'product_discount', 0) * 100,
+                    'product_discount_type' => data_get($item, 'product_discount_type', 'fixed'),
+                    'product_tax_amount' => (float) data_get($item, 'product_tax', 0),
+                    'variant_detail' => json_encode(is_array($variants) ? $variants : []),
+                    'recipe_snapshot' => $recipeSnapshot,
+                ]);
+
+                \App\Models\OrderKitchenLog::create([
+                    'sale_id' => $sale->id,
+                    'reference' => $sale->reference,
+                    'product_name' => data_get($item, 'name', $product?->product_name),
+                    'qty' => $quantity,
+                    'type' => 'new',
+                    'note' => $status === 'Pending' ? 'Order Offline' : 'Order Offline Sync',
+                    'user_id' => auth()->id(),
+                ]);
+
+                if ($status !== 'Pending' && $product) {
+                    $this->reduceOfflineStock($product, $quantity, $warehouse->id, $recipeHeader);
+                }
+            }
+
+            if ($paidAmount > 0 && $status !== 'Pending') {
+                $payments = data_get($payload, 'payments', []);
+
+                SalePayment::create([
+                    'date' => now()->format('Y-m-d'),
+                    'reference' => 'INV/' . $sale->reference,
+                    'amount' => $sale->paid_amount,
+                    'sale_id' => $sale->id,
+                    'cashpay' => (float) data_get($payments, 'cash', 0),
+                    'debitcard' => (float) data_get($payments, 'debitcard', 0),
+                    'creditcard' => (float) data_get($payments, 'creditcard', 0),
+                    'gopay' => (float) data_get($payments, 'gopay', 0),
+                    'grabpay' => (float) data_get($payments, 'grabpay', 0),
+                    'ovopay' => (float) data_get($payments, 'ovo', 0),
+                    'shopeepay' => (float) data_get($payments, 'shopeepay', 0),
+                    'danapay' => (float) data_get($payments, 'dana', 0),
+                    'kredivopay' => (float) data_get($payments, 'kredivo', 0),
+                    'qrispay' => (float) data_get($payments, 'qris', 0),
+                    'change' => $paidAmount - $totalAmount,
+                ]);
+            }
+
+            return $sale;
+        });
+    }
+
+    private function reduceOfflineStock(Product $product, float $quantity, int $warehouseId, $recipeHeader = null): void
+    {
+        if ($product->is_recipe == 'Y') {
+            if (!$recipeHeader) {
+                $recipeHeader = \Modules\Setting\Entities\Recipe::with('details')->where('product_id', $product->id)->first();
+            }
+
+            if ($recipeHeader) {
+                foreach ($recipeHeader->details as $detail) {
+                    $qtyToReduce = (float) $detail->quantity * $quantity;
+                    $pw = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $detail->product_id)
+                        ->where('warehouse_id', $warehouseId)
+                        ->first();
+
+                    if ($pw) {
+                        $pw->decrement('qty', $qtyToReduce);
+                    }
+                }
+            }
+
+            return;
+        }
+
+        $pw = \Modules\Setting\Entities\ProductWarehouse::where('product_id', $product->id)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        if ($pw) {
+            $pw->decrement('qty', $quantity);
+        }
     }
 
     // public function store(StorePosSaleRequest $request)

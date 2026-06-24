@@ -33,6 +33,14 @@
 @push('page_scripts')
     <script src="{{ asset('js/jquery-mask-money.js') }}"></script>
     <script>
+        window.POS_OFFLINE_CONFIG = {
+            offlineDataUrl: @json(route('app.pos.offline-data')),
+            syncUrl: @json(route('app.pos.offline-sync')),
+            csrf: @json(csrf_token()),
+        };
+    </script>
+    <script src="{{ asset('js/pos-offline.js') }}?v=20260623-3" defer></script>
+    <script>
         $(document).ready(function() {
             window.addEventListener('showCheckoutModal', event => {
                 $('#checkoutModal').modal('show');

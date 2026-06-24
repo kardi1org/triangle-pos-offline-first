@@ -14,20 +14,23 @@ use PhpOffice\PhpSpreadsheet\Calculation\MathTrig\Exp;
 class TunaiTransferController extends Controller
 {
 
-    public function index(CashTransfersDataTable $dataTable) {
+    public function index(CashTransfersDataTable $dataTable)
+    {
         abort_if(Gate::denies('access_expenses'), 403);
 
         //return $dataTable->render('expense::expenses.index');
         return $dataTable->render('expense::cashtransfers.index');
     }
 
-    public function create() {
+    public function create()
+    {
         abort_if(Gate::denies('create_expenses'), 403);
 
         return view('expense::cashtransfers.create');
     }
 
-    public function store(Request $request) {
+    public function store(Request $request)
+    {
         abort_if(Gate::denies('create_expenses'), 403);
 
         /* $request->validate([
@@ -40,11 +43,11 @@ class TunaiTransferController extends Controller
 
         CashTransfer::create([
             'date' => $request->date,
-            'reference' => $this->generateCashTransferNumber(), 
-            'receive_type_transferfrom' => $request->receive_type_from,  //$request->methode_name,   
+            'reference' => $this->generateCashTransferNumber(),
+            'receive_type_transferfrom' => $request->receive_type_from,  //$request->methode_name,
             'amount_transferfrom' => $request->input('amount_transfer_from'),
             'amount_change' => $request->input('amount_charge'),
-            'receive_type_transferto' => $request->receive_type_to,  //$request->methode_name,  
+            'receive_type_transferto' => $request->receive_type_to,  //$request->methode_name,
             'amount_transferto' => $request->input('amount_transfer_to'),
             'trans_type' => $request->input('transtype'),
             'details' => $request->details
@@ -57,14 +60,19 @@ class TunaiTransferController extends Controller
     }
 
 
-    public function edit(CashTransfer $expense) {
+    public function edit($id)
+    {
         abort_if(Gate::denies('edit_expenses'), 403);
+
+        // Ambil data cashtransfer secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $expense = CashTransfer::findOrFail($id);
 
         return view('expense::cashtransfers.edit', compact('expense'));
     }
 
 
-    public function update(Request $request, CashTransfer $expense) {
+    public function update(Request $request, $id)
+    {
         abort_if(Gate::denies('edit_expenses'), 403);
 
         /* $request->validate([
@@ -74,6 +82,9 @@ class TunaiTransferController extends Controller
             'amount' => 'required|numeric|max:2147483647',
             'details' => 'nullable|string|max:1000'
         ]); */
+
+        // Ambil data cashtransfer secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $expense = CashTransfer::findOrFail($id);
 
         $expense->update([
             'date' => $request->date,
@@ -94,10 +105,12 @@ class TunaiTransferController extends Controller
     }
 
 
-    public function destroy(CashTransfer $expense) {
+    public function destroy($id)
+    {
         abort_if(Gate::denies('delete_expenses'), 403);
 
-       // $expense = CashTransfer::findOrFail($expense);
+        // Ambil data cashtransfer secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $expense = CashTransfer::findOrFail($id);
         $expense->delete();
 
         toast('Cash Transfer Deleted!', 'warning');
@@ -115,9 +128,9 @@ class TunaiTransferController extends Controller
             // Cari order terakhir untuk bulan dan tahun ini dengan lock
             // lockForUpdate() akan mencegah baris lain membaca record ini sampai transaksi selesai
             $lastOrder = CashTransfer::where('reference', 'like', $prefix . '%')
-                              ->orderBy('reference', 'desc')
-                              ->lockForUpdate()
-                              ->first();
+                ->orderBy('reference', 'desc')
+                ->lockForUpdate()
+                ->first();
 
             if ($lastOrder) {
                 // Ambil nomor urut dari nomor order terakhir

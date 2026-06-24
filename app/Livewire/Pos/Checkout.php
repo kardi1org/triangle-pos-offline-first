@@ -244,11 +244,17 @@ class Checkout extends Component
 
         $allTableIds = $orders->pluck('selected_table_ids')
             ->map(function ($ids) {
-                // 🎯 BARIS PENTING: Mendekode JSON string ke array
-                $decodedIds = json_decode($ids, true);
+                // 🎯 BARIS PENTING: Normalize selected_table_ids ke array
+                if (is_array($ids)) {
+                    return $ids;
+                }
 
-                // Memastikan hasilnya adalah array
-                return is_array($decodedIds) ? $decodedIds : [];
+                if (is_string($ids)) {
+                    $decodedIds = json_decode($ids, true);
+                    return is_array($decodedIds) ? $decodedIds : [];
+                }
+
+                return [];
             })
             ->flatten()
             ->unique()
@@ -262,10 +268,17 @@ class Checkout extends Component
 
         // 4. Proses dan gabungkan nama meja
         foreach ($orders as $order) {
-            // Dekode lagi untuk order spesifik jika casting gagal
-            $orderTableIds = json_decode($order->selected_table_ids, true);
+            // Dekode / normalize selected_table_ids per order
+            if (is_array($order->selected_table_ids)) {
+                $orderTableIds = $order->selected_table_ids;
+            } elseif (is_string($order->selected_table_ids)) {
+                $decodedIds = json_decode($order->selected_table_ids, true);
+                $orderTableIds = is_array($decodedIds) ? $decodedIds : [];
+            } else {
+                $orderTableIds = [];
+            }
 
-            if (is_array($orderTableIds)) {
+            if (!empty($orderTableIds)) {
                 $tableNames = collect($orderTableIds)
                     ->map(fn ($id) => $tables[$id] ?? "ID: {$id} (Meja Tidak Ditemukan)")
                     ->all();

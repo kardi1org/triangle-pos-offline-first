@@ -129,22 +129,7 @@
             color: #64748b;
         }
 
-        /* Handle Kontrol */
-        .rotate-handle {
-            position: absolute;
-            top: 6px;
-            left: calc(50% - 6px);
-            font-size: 11px;
-            color: #3b82f6;
-            cursor: grab;
-            z-index: 10;
-        }
-
-        .shape-diagonal-8 .rotate-handle {
-            color: #3b82f6;
-            top: 22px;
-        }
-
+        /* Handle Kontrol & Aksi Tambahan Meja */
         .resize-handle {
             position: absolute;
             bottom: 4px;
@@ -162,9 +147,37 @@
             right: 22px;
         }
 
+        /* Layer Aksi Edit & Delete saat Hover */
+        .table-action-overlay {
+            position: absolute;
+            top: -12px;
+            right: -6px;
+            display: none;
+            gap: 4px;
+            z-index: 15;
+        }
+
+        .draggable-table-wrapper:hover .table-action-overlay {
+            display: flex;
+        }
+
+        .btn-table-action {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            padding: 0;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+        }
+
         /* =====================================
-                                       ATURAN POSISI KURSI (CHAIRS OUTSIDE TABLE)
-                                       ===================================== */
+                           ATURAN POSISI KURSI (CHAIRS OUTSIDE TABLE)
+                           ===================================== */
         .chair {
             position: absolute;
             background-color: #94a3b8;
@@ -271,7 +284,7 @@
             left: calc(50% + 28px);
         }
 
-        /* --- RECTANGLE VERTICAL (FIXED: mendaftarkan .shape-rectangle-8-v) --- */
+        /* --- RECTANGLE VERTICAL --- */
         .shape-rectangle-4-v .chair,
         .shape-rectangle-6-v .chair,
         .shape-rectangle-8-v .chair {
@@ -329,7 +342,6 @@
             top: calc(50% + 19px);
         }
 
-        /* Penyelarasan Koordinat Kursi Tipe 8-V */
         .shape-rectangle-8-v .chair.l1 {
             left: -16px;
             top: calc(50% - 56px);
@@ -826,7 +838,6 @@
                                         $w = 120;
                                         $h = 120;
                                     }
-
                                     $r = $meja->rotation ?? 0;
                                 @endphp
                                 <div class="draggable-table-wrapper shape-{{ $meja->shape }} pax-{{ $meja->qty_pax }}"
@@ -850,8 +861,18 @@
                                         <div class="chair r4"></div>
                                     @endif
 
+                                    <div class="table-action-overlay">
+                                        <button type="button" class="btn btn-warning btn-table-action btn-edit-table"
+                                            title="Edit Meja">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-table-action btn-delete-table"
+                                            title="Hapus Meja">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </div>
+
                                     <div class="table-body">
-                                        {{-- <div class="rotate-handle"><i class="bi bi-arrow-clockwise"></i></div> --}}
                                         <div class="resize-handle"><i class="bi bi-arrow-left-right"></i></div>
 
                                         <div class="table-content-container">
@@ -869,6 +890,61 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="editTableModal" tabindex="-1" role="dialog" aria-labelledby="editTableModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title font-weight-bold" id="editTableModalLabel"><i
+                            class="bi bi-pencil-square mr-1"></i> Edit Atribut Meja</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit_wrapper_id">
+                    <div class="form-group">
+                        <label for="edit_no_meja">No. Meja</label>
+                        <input type="number" class="form-control" id="edit_no_meja">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_name">Table Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_name">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_shape">Shape & Capacity <span class="text-danger">*</span></label>
+                        <select class="form-control" id="edit_shape">
+                            <option value="rectangle-4-h" data-pax="4">Rectangle Horizontal - 4 Pax</option>
+                            <option value="rectangle-6-h" data-pax="6">Rectangle Horizontal - 6 Pax</option>
+                            <option value="rectangle-8-h" data-pax="8">Rectangle Horizontal - 8 Pax</option>
+                            <option value="rectangle-4-v" data-pax="4">Rectangle Vertical - 4 Pax</option>
+                            <option value="rectangle-6-v" data-pax="6">Rectangle Vertical - 6 Pax</option>
+                            <option value="rectangle-8-v" data-pax="8">Rectangle Vertical - 8 Pax</option>
+                            <option value="square-2-h" data-pax="2">Square Horizontal - 2 Pax</option>
+                            <option value="square-2-v" data-pax="2">Square Vertical - 2 Pax</option>
+                            <option value="square-4" data-pax="4">Square - 4 Pax</option>
+                            <option value="diagonal-8" data-pax="8">Diagonal - 8 Pax</option>
+                            <option value="round-4" data-pax="4">Round - 4 Pax</option>
+                            <option value="round-6" data-pax="6">Round - 6 Pax</option>
+                            <option value="round-8" data-pax="8">Round - 8 Pax</option>
+                            <option value="round-10" data-pax="10">Round - 10 Pax</option>
+                            <option value="round-12" data-pax="12">Round - 12 Pax</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_location">Location <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_location">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary font-weight-bold" id="btnUpdateTable">Terapkan
+                        Perubahan <i class="bi bi-check-circle ml-1"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('page_scripts')
@@ -876,6 +952,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
+        // Array Penampung ID Meja lama yang dihapus dari layout
+        let deletedTableIds = [];
+
         function generateChairsJs(shape, pax) {
             let html = '';
             let p = parseInt(pax);
@@ -916,13 +995,60 @@
             return html;
         }
 
+        // Fungsi Default Ratio Ukuran Meja Baru
+        function getDefaultSize(shape) {
+            let defaultW = 92,
+                defaultH = 61;
+            if (shape === 'rectangle-6-h') defaultW = 116;
+            else if (shape === 'rectangle-8-h') defaultW = 135;
+            else if (shape === 'rectangle-4-v') {
+                defaultW = 68;
+                defaultH = 86;
+            } else if (shape === 'rectangle-6-v') {
+                defaultW = 68;
+                defaultH = 116;
+            } else if (shape === 'rectangle-8-v') {
+                defaultW = 68;
+                defaultH = 135;
+            } else if (shape.includes('square-2')) {
+                defaultW = 61;
+                defaultH = 61;
+            } else if (shape === 'square-4') {
+                defaultW = 75;
+                defaultH = 75;
+            } else if (shape === 'diagonal-8') {
+                defaultW = 120;
+                defaultH = 120;
+            } else if (shape === 'round-4') {
+                defaultW = 76;
+                defaultH = 76;
+            } else if (shape === 'round-6') {
+                defaultW = 92;
+                defaultH = 92;
+            } else if (shape === 'round-8') {
+                defaultW = 108;
+                defaultH = 108;
+            } else if (shape === 'round-10') {
+                defaultW = 123;
+                defaultH = 123;
+            } else if (shape === 'round-12') {
+                defaultW = 175;
+                defaultH = 175;
+            }
+
+            return {
+                w: defaultW,
+                h: defaultH
+            };
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const canvas = document.getElementById('floorPlanCanvas');
 
             function initTableInteractions(selector) {
                 interact(selector)
                     .draggable({
-                        ignoreFrom: '.rotate-handle, .resize-handle',
+                        ignoreFrom: '.resize-handle, .table-action-overlay',
                         modifiers: [
                             interact.modifiers.restrictRect({
                                 restriction: '#floorPlanCanvas',
@@ -966,40 +1092,114 @@
                             }
                         }
                     });
-
-                interact(selector + ' .rotate-handle').draggable({
-                    onstart: function(event) {
-                        const handle = event.target;
-                        const wrapper = handle.closest('.draggable-table-wrapper');
-                        const rect = wrapper.getBoundingClientRect();
-                        handle.setAttribute('data-center-x', rect.left + rect.width / 2);
-                        handle.setAttribute('data-center-y', rect.top + rect.height / 2);
-                    },
-                    onmove: function(event) {
-                        const handle = event.target;
-                        const wrapper = handle.closest('.draggable-table-wrapper');
-                        const cx = parseFloat(handle.getAttribute('data-center-x'));
-                        const cy = parseFloat(handle.getAttribute('data-center-y'));
-
-                        const angle = Math.atan2(event.clientY - cy, event.clientX - cx);
-                        let degree = angle * (180 / Math.PI) - 90;
-                        if (degree < 0) {
-                            degree += 360;
-                        }
-
-                        const x = parseFloat(wrapper.getAttribute('data-x')) || 0;
-                        const y = parseFloat(wrapper.getAttribute('data-y')) || 0;
-
-                        wrapper.style.transform =
-                            `translate(${x}px, ${y}px) rotate(${Math.round(degree)}deg)`;
-                        wrapper.setAttribute('data-angle', Math.round(degree));
-                    }
-                });
             }
 
             initTableInteractions('.draggable-table-wrapper');
 
-            // Quick Add Event Injector
+            // --- DELEGASI EVENT JQUERY/VANILLA UNTUK EDIT & DELETE ---
+            $(document).on('click', '.btn-edit-table', function(e) {
+                e.stopPropagation();
+                const wrapper = $(this).closest('.draggable-table-wrapper');
+
+                $('#edit_wrapper_id').val(wrapper.attr('id'));
+                $('#edit_no_meja').val(wrapper.attr('data-no-meja'));
+                $('#edit_name').val(wrapper.attr('data-name'));
+                $('#edit_shape').val(wrapper.attr('data-shape'));
+                $('#edit_location').val(wrapper.attr('data-location'));
+
+                $('#editTableModal').modal('show');
+            });
+
+            $(document).on('click', '.btn-delete-table', function(e) {
+                e.stopPropagation();
+                const wrapper = $(this).closest('.draggable-table-wrapper');
+                const id = wrapper.attr('data-id');
+                const tableName = wrapper.attr('data-name');
+
+                Swal.fire({
+                    title: 'Hapus Meja?',
+                    text: `Apakah Anda yakin ingin menghapus "${tableName}" dari layout?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Ya, Hapus!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        if (id && id !== '') {
+                            deletedTableIds.push(parseInt(
+                                id)); // Catat ID database untuk dieksekusi saat disave
+                        }
+                        wrapper.remove();
+                    }
+                });
+            });
+
+            // ✅ 1. PERBAIKAN PADA EVENT UPDATE MODAL EDIT
+            document.getElementById('btnUpdateTable').addEventListener('click', function() {
+                const wrapperId = document.getElementById('edit_wrapper_id').value;
+                const wrapper = document.getElementById(wrapperId);
+
+                const noMeja = document.getElementById('edit_no_meja').value;
+                const name = document.getElementById('edit_name').value;
+                const location = document.getElementById('edit_location').value;
+                const selectEl = document.getElementById('edit_shape');
+                const shape = selectEl.value;
+                const qtyPax = selectEl.options[selectEl.selectedIndex].getAttribute('data-pax');
+
+                if (!name || !location) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Gagal',
+                        text: 'Nama dan Lokasi tidak boleh kosong!'
+                    });
+                    return;
+                }
+
+                const oldShape = wrapper.getAttribute('data-shape');
+
+                // Update Atribut Data
+                wrapper.setAttribute('data-no-meja', noMeja);
+                wrapper.setAttribute('data-name', name);
+                wrapper.setAttribute('data-qty-pax', qtyPax);
+                wrapper.setAttribute('data-location', location);
+                wrapper.setAttribute('data-shape', shape);
+
+                wrapper.className = wrapper.className.replace(/shape-\S+/g, 'shape-' + shape);
+                wrapper.className = wrapper.className.replace(/pax-\S+/g, 'pax-' + qtyPax);
+
+                if (oldShape !== shape) {
+                    const sizes = getDefaultSize(shape);
+                    wrapper.style.width = `${sizes.w}px`;
+                    wrapper.style.height = `${sizes.h}px`;
+                }
+
+                // Render ulang dengan memindahkan overlay ke luar table-body
+                wrapper.innerHTML = `
+        ${generateChairsJs(shape, qtyPax)}
+        <div class="table-action-overlay">
+            <button type="button" class="btn btn-warning btn-table-action btn-edit-table" title="Edit Meja">
+                <i class="bi bi-pencil-fill"></i>
+            </button>
+            <button type="button" class="btn btn-danger btn-table-action btn-delete-table" title="Hapus Meja">
+                <i class="bi bi-trash-fill"></i>
+            </button>
+        </div>
+        <div class="table-body">
+            <div class="resize-handle"><i class="bi bi-arrow-left-right"></i></div>
+            <div class="table-content-container">
+                <span class="table-label">${name}</span>
+                <span class="table-pax">${qtyPax} Pax</span>
+                <small style="font-size: 8px; color:#64748b;">(${location})</small>
+            </div>
+        </div>
+    `;
+
+                $('#editTableModal').modal('hide');
+            });
+
+
+            // ✅ 2. PERBAIKAN PADA EVENT QUICK ADD INJECTOR
             document.getElementById('btnQuickAdd').addEventListener('click', function() {
                 const noMeja = document.getElementById('quick_no_meja').value;
                 const name = document.getElementById('quick_name').value;
@@ -1018,93 +1218,55 @@
                     return;
                 }
 
-                let defaultW = 92,
-                    defaultH = 61;
-                if (shape === 'rectangle-6-h') defaultW = 116;
-                else if (shape === 'rectangle-8-h') defaultW = 135;
-                else if (shape === 'rectangle-4-v') {
-                    defaultW = 68;
-                    defaultH = 86;
-                } else if (shape === 'rectangle-6-v') {
-                    defaultW = 68;
-                    defaultH = 116;
-                } else if (shape === 'rectangle-8-v') {
-                    defaultW = 68;
-                    defaultH = 135;
-                } else if (shape.includes('square-2')) {
-                    defaultW = 61;
-                    defaultH = 61;
-                } else if (shape === 'square-4') {
-                    defaultW = 75;
-                    defaultH = 75;
-                } else if (shape === 'diagonal-8') {
-                    defaultW = 120;
-                    defaultH = 120;
-                } else if (shape === 'round-4') {
-                    defaultW = 76;
-                    defaultH = 76;
-                } else if (shape === 'round-6') {
-                    defaultW = 92;
-                    defaultH = 92;
-                } else if (shape === 'round-8') {
-                    defaultW = 108;
-                    defaultH = 108;
-                } else if (shape === 'round-10') {
-                    defaultW = 123;
-                    defaultH = 123;
-                } else if (shape === 'round-12') {
-                    defaultW = 135;
-                    defaultH = 135;
-                }
-
+                const sizes = getDefaultSize(shape);
                 const tempId = 'new-' + Date.now();
                 const newTable = document.createElement('div');
-                newTable.className =
-                    `draggable-table-wrapper is-new-table shape-${shape} pax-${qtyPax}`;
-                newTable.id =
-                    tempId;
+                newTable.className = `draggable-table-wrapper is-new-table shape-${shape} pax-${qtyPax}`;
+                newTable.id = tempId;
                 newTable.style.transform = 'translate(20px, 20px) rotate(0deg)';
-                newTable.style.width =
-                    `${defaultW}px`;
-                newTable.style.height = `${defaultH}px`;
+                newTable.style.width = `${sizes.w}px`;
+                newTable.style.height = `${sizes.h}px`;
 
                 newTable.setAttribute('data-id', '');
                 newTable.setAttribute('data-is-new', 'true');
-                newTable
-                    .setAttribute('data-no-meja', noMeja);
+                newTable.setAttribute('data-no-meja', noMeja);
                 newTable.setAttribute('data-name', name);
-                newTable
-                    .setAttribute('data-qty-pax', qtyPax);
-                newTable.setAttribute('data-location',
-                    location);
+                newTable.setAttribute('data-qty-pax', qtyPax);
+                newTable.setAttribute('data-location', location);
                 newTable.setAttribute('data-shape', shape);
-                newTable.setAttribute('data-x',
-                    '20');
+                newTable.setAttribute('data-x', '20');
                 newTable.setAttribute('data-y', '20');
                 newTable.setAttribute('data-angle', '0');
 
+                // Struktur HTML baru, overlay aman dari pemotongan clip-path
                 newTable.innerHTML = `
-                    ${generateChairsJs(shape, qtyPax)}
-                    <div class="table-body">
-
-                        <div class="resize-handle"><i class="bi bi-arrow-left-right"></i></div>
-                        <div class="table-content-container">
-                            <span class="table-label">${name}</span>
-                            <span class="table-pax">${qtyPax} Pax</span>
-                            <small style="font-size: 8px; color:#64748b;">(${location})</small>
-                        </div>
-                    </div>
-                `;
+        ${generateChairsJs(shape, qtyPax)}
+        <div class="table-action-overlay">
+            <button type="button" class="btn btn-warning btn-table-action btn-edit-table" title="Edit Meja">
+                <i class="bi bi-pencil-fill"></i>
+            </button>
+            <button type="button" class="btn btn-danger btn-table-action btn-delete-table" title="Hapus Meja">
+                <i class="bi bi-trash-fill"></i>
+            </button>
+        </div>
+        <div class="table-body">
+            <div class="resize-handle"><i class="bi bi-arrow-left-right"></i></div>
+            <div class="table-content-container">
+                <span class="table-label">${name}</span>
+                <span class="table-pax">${qtyPax} Pax</span>
+                <small style="font-size: 8px; color:#64748b;">(${location})</small>
+            </div>
+        </div>
+    `;
 
                 canvas.appendChild(newTable);
                 initTableInteractions('#' + tempId);
 
                 document.getElementById('quick_no_meja').value = '';
-                document.getElementById('quick_name')
-                    .value = '';
+                document.getElementById('quick_name').value = '';
             });
 
-            // Save Layout Ajax Request
+            // Save Layout Ajax Request (Mengirim Data Layout dan Array Terhapus)
             document.getElementById('btnSaveLayout').addEventListener('click', function() {
                 const elements = document.querySelectorAll('.draggable-table-wrapper');
                 let layoutData = [];
@@ -1141,7 +1303,8 @@
                             "X-CSRF-TOKEN": "{{ csrf_token() }}"
                         },
                         body: JSON.stringify({
-                            mejas: layoutData
+                            mejas: layoutData,
+                            deleted_ids: deletedTableIds // Kirim array ID yang dihapus ke Controller Anda
                         })
                     })
                     .then(res => res.json())

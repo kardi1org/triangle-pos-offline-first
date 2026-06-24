@@ -55,15 +55,18 @@ class ExpenseController extends Controller
     }
 
 
-    public function edit(Expense $expense)
+    public function edit($id)
     {
         abort_if(Gate::denies('edit_expenses'), 403);
+
+        // Ambil data expense secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $expense = Expense::findOrFail($id);
 
         return view('expense::expenses.edit', compact('expense'));
     }
 
 
-    public function update(Request $request, Expense $expense)
+    public function update(Request $request, $id)
     {
         abort_if(Gate::denies('edit_expenses'), 403);
 
@@ -74,6 +77,9 @@ class ExpenseController extends Controller
             'amount' => 'required|numeric|max:2147483647',
             'details' => 'nullable|string|max:1000'
         ]);
+
+        // Ambil data expense secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $expense = Expense::findOrFail($id);
 
         $expense->update([
             'date' => $request->date,
@@ -90,9 +96,12 @@ class ExpenseController extends Controller
     }
 
 
-    public function destroy(Expense $expense)
+    public function destroy($id)
     {
         abort_if(Gate::denies('delete_expenses'), 403);
+
+        // Ambil data expense secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $expense = Expense::findOrFail($id);
 
         $expense->delete();
 

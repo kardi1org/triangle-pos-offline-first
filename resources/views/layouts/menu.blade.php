@@ -552,7 +552,7 @@
             <i class="c-sidebar-nav-icon bi bi-gear" style="line-height: 1;"></i> Settings
         </a>
 
-        {{-- @can('access_currencies')
+         <!-- @can('access_currencies')
             <ul class="c-sidebar-nav-dropdown-items pl-2">
                 <li class="c-sidebar-nav-item">
                     <a class="c-sidebar-nav-link {{ request()->routeIs('mejas*') ? 'c-active' : '' }}"
@@ -561,7 +561,7 @@
                     </a>
                 </li>
             </ul>
-        @endcan --}}
+        @endcan  -->
 
         @can('access_currencies')
             <ul class="c-sidebar-nav-dropdown-items pl-2">

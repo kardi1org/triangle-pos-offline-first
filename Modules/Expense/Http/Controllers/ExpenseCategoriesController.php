@@ -12,13 +12,15 @@ use Modules\Expense\Entities\ExpenseCategory;
 class ExpenseCategoriesController extends Controller
 {
 
-    public function index(ExpenseCategoriesDataTable $dataTable) {
+    public function index(ExpenseCategoriesDataTable $dataTable)
+    {
         abort_if(Gate::denies('access_expense_categories'), 403);
 
         return $dataTable->render('expense::categories.index');
     }
 
-    public function store(Request $request) {
+    public function store(Request $request)
+    {
         abort_if(Gate::denies('access_expense_categories'), 403);
 
         $request->validate([
@@ -37,18 +39,26 @@ class ExpenseCategoriesController extends Controller
     }
 
 
-    public function edit(ExpenseCategory $expenseCategory) {
+    public function edit($id)
+    {
         abort_if(Gate::denies('access_expense_categories'), 403);
+
+        // Ambil data kategori secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $expenseCategory = ExpenseCategory::findOrFail($id);
 
         return view('expense::categories.edit', compact('expenseCategory'));
     }
 
 
-    public function update(Request $request, ExpenseCategory $expenseCategory) {
+    public function update(Request $request, $id)
+    {
         abort_if(Gate::denies('access_expense_categories'), 403);
 
+        // Ambil data kategori secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $expenseCategory = ExpenseCategory::findOrFail($id);
+
         $request->validate([
-            'category_name' => 'required|string|max:255|unique:expense_categories,category_name,' . $expenseCategory->id,
+            'category_name' => 'required|string|max:255|unique:expense_categories,category_name,' . $id,
             'category_description' => 'nullable|string|max:1000'
         ]);
 
@@ -63,8 +73,12 @@ class ExpenseCategoriesController extends Controller
     }
 
 
-    public function destroy(ExpenseCategory $expenseCategory) {
+    public function destroy($id)
+    {
         abort_if(Gate::denies('access_expense_categories'), 403);
+
+        // Ambil data kategori secara manual menggunakan $id untuk menghindari 404 Model Binding di Linux
+        $expenseCategory = ExpenseCategory::findOrFail($id);
 
         if ($expenseCategory->expenses()->isNotEmpty()) {
             return back()->withErrors('Can\'t delete beacuse there are expenses associated with this category.');
